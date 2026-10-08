@@ -42,7 +42,7 @@
 
         @unless ($compacta ?? false)
             @if (session('ok'))
-                <p class="guardado" role="status">{{ session('ok') }}</p>
+                <p class="guardado boton" role="status">{{ session('ok') }}</p>
             @endif
             @if (session('aviso'))
                 <p class="franja" role="status">{{ session('aviso') }}</p>

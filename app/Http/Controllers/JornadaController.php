@@ -26,13 +26,13 @@ class JornadaController extends Controller
                 $request->user(),
                 $request->session()->get($clave),
             ),
-            'puedeBorrarPrueba' => $request->user()->email === 'ana.lopez@abaco.test',
+            'puedeBorrarPrueba' => $this->puedeBorrarPrueba($request->user()->email),
         ]);
     }
 
     public function borrarPrueba(Request $request): RedirectResponse
     {
-        if ($request->user()->email !== 'ana.lopez@abaco.test') {
+        if (! $this->puedeBorrarPrueba($request->user()->email)) {
             abort(403);
         }
 
@@ -58,6 +58,14 @@ class JornadaController extends Controller
         $request->session()->forget('festivo.'.$request->user()->id.'.'.now()->toDateString());
 
         return back();
+    }
+
+    private function puedeBorrarPrueba(string $email): bool
+    {
+        return in_array($email, [
+            'ana.lopez@abaco.test',
+            'marta.ruiz@abaco.test',
+        ], true);
     }
 
     public function entrar(Request $request): RedirectResponse

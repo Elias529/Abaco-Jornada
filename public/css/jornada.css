@@ -249,6 +249,10 @@ h2 {
 
 .accion-principal { margin-top: 24px; }
 
+.accion-principal form + form { margin-top: 8px; }
+
+.accion-principal .boton { width: 100%; min-height: 44px; }
+
 .franja, .guardado, .sin-conexion {
     margin: 0;
     padding: 14px 28px;
@@ -414,12 +418,6 @@ textarea { min-height: 88px; resize: vertical; }
 
 .rejilla-pausa { grid-column: 1; grid-row: 1; }
 
-.rejilla-ya { display: contents; }
-
-.rejilla-ya .boton { grid-column: 2; grid-row: 1; }
-
-.rejilla-ya .hora24 { grid-column: 1 / -1; grid-row: 2; }
-
 .resumen {
     display: grid;
     gap: 8px;
@@ -491,6 +489,33 @@ textarea { min-height: 88px; resize: vertical; }
 .pruebas { margin-top: 20px; }
 .pruebas p { margin: 4px 0; }
 
+.volver {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    margin: 0 0 16px;
+    padding: 8px 14px 8px 10px;
+    border-radius: 8px;
+    color: var(--marca-primario);
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.volver::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-left: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: rotate(45deg);
+}
+
+.volver:hover, .volver:focus-visible {
+    background: var(--marca-suave);
+    color: var(--fondo-tinta);
+}
+
 .enlace-prueba {
     margin-top: 20px;
     padding: 0;
@@ -547,9 +572,7 @@ textarea { min-height: 88px; resize: vertical; }
 
     .horas-par, .rejilla { grid-template-columns: 1fr; }
 
-    .rejilla-pausa,
-    .rejilla-ya .boton,
-    .rejilla-ya .hora24 {
+    .rejilla-pausa {
         grid-column: 1;
         grid-row: auto;
     }
@@ -560,7 +583,10 @@ textarea { min-height: 88px; resize: vertical; }
 }
 
 @media (prefers-color-scheme: dark) {
-    .menu a:hover, .menu a:focus-visible { background: var(--fondo-oscuro-fuerte); }
+    .menu a:hover, .menu a:focus-visible,
+    .volver:hover, .volver:focus-visible { background: var(--fondo-oscuro-fuerte); }
+
+    .volver, .volver:hover, .volver:focus-visible { color: var(--marca-turquesa); }
 
     .menu a[aria-current="page"] {
         background: var(--fondo-oscuro-fuerte);

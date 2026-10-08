@@ -1,7 +1,7 @@
 @extends('layouts.app', ['ancha' => true, 'titulo' => 'Día'])
 
 @section('contenido')
-    <p><a href="{{ $esResponsable && auth()->id() !== $persona->id ? route('equipo.registro', $persona) : route('registro') }}">Volver al registro</a></p>
+    <a class="volver" href="{{ $esResponsable && auth()->id() !== $persona->id ? route('equipo.registro', $persona) : route('registro') }}">Volver al registro</a>
     <h1>{{ \App\Support\Tiempo::fecha($jornada->work_date) }}</h1>
     <p>{{ $persona->name }}</p>
     <p>Total {{ $total }}@if ($jornada->closed_late). Cerrada al día siguiente.@endif</p>

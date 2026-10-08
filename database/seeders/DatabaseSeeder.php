@@ -16,9 +16,8 @@ class DatabaseSeeder extends Seeder
     {
         $marta = $this->persona('Marta Ruiz', 'marta.ruiz@abaco.test', 'responsable', 'Madrid');
         $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'trabajadora', 'Madrid');
-        $lucia = $this->persona('Lucía Vega', 'lucia.vega@abaco.test', 'trabajadora', 'Alcalá de Henares');
 
-        foreach ([$marta, $ana, $lucia] as $persona) {
+        foreach ([$marta, $ana] as $persona) {
             Horario::create([
                 'user_id' => $persona->id,
                 'morning_start' => '09:00',
