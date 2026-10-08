@@ -38,7 +38,7 @@ class AuthController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->route('jornada');
+        return redirect()->route($request->user()->esJefe() ? 'jefe.index' : 'jornada');
     }
 
     public function destroy(Request $request): RedirectResponse

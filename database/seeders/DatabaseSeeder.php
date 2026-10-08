@@ -35,6 +35,9 @@ class DatabaseSeeder extends Seeder
             'tipo' => 'vacaciones',
         ]);
 
+        // La dirección no ficha: no lleva horario y su jornada no se registra.
+        $this->persona('Carmen Ortega', 'carmen.ortega@abaco.test', 'jefe', 'Madrid');
+
         $this->call(FestivosSeeder::class);
     }
 

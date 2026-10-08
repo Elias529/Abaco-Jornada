@@ -1,7 +1,7 @@
 @extends('layouts.app', ['ancha' => true, 'titulo' => 'Alta'])
 
 @section('contenido')
-    <p><a href="{{ route('equipo.index') }}">Volver al equipo</a></p>
+    <p><a class="enlace" href="{{ route('equipo.index') }}">Volver al equipo</a></p>
     <h1>Dar de alta</h1>
     <p class="secundario">Nombre, acceso, centro y horario. Con eso ya entra y ve su horario. No hay más trabajo diario.</p>
     <form method="post" action="{{ route('equipo.store') }}" class="formulario">

@@ -1,7 +1,7 @@
 @extends('layouts.app', ['ancha' => true, 'titulo' => $persona->name])
 
 @section('contenido')
-    <p><a href="{{ route('equipo.index') }}">Volver al equipo</a></p>
+    <p><a class="enlace" href="{{ route('equipo.index') }}">Volver al equipo</a></p>
     <h1>{{ $persona->name }}</h1>
     <p>{{ $persona->email }}</p>
     <p class="secundario">Centro en {{ $persona->municipality }}. El registro cuenta desde {{ $persona->starts_on ? \App\Support\Tiempo::fecha($persona->starts_on) : 'sin fecha' }}.</p>
