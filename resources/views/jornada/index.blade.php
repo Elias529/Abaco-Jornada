@@ -82,12 +82,26 @@
                     <button class="boton boton-principal" type="submit">Terminar jornada</button>
                 </form>
             @elseif ($puedeEntrar)
-                <form method="post" action="{{ route('jornada.entrada') }}" class="accion-principal formulario">
-                    @csrf
-                    <label for="hora-inicio">Inicio de jornada</label>
-                    <x-hora id="hora-inicio" name="hora" :valor="now()->format('H:i')" :max="now()->format('H:i')" />
-                    <button class="boton boton-principal" type="submit">Empezar jornada</button>
-                </form>
+                <div class="accion-principal">
+                    <p class="etiqueta-estado">Inicio de jornada</p>
+                    <form method="post" action="{{ route('jornada.entrada') }}">
+                        @csrf
+                        <button class="boton boton-principal" type="submit">Empezar jornada</button>
+                    </form>
+                    @if ($puedeYaEstaba)
+                        <form method="post" action="{{ route('jornada.ya') }}">
+                            @csrf
+                            <input type="hidden" name="hora" value="{{ $banner['hora'] ?? now()->format('H:i') }}">
+                            <button class="boton boton-principal" type="submit">Ya estaba trabajando</button>
+                        </form>
+                    @endif
+                    @if (($banner['accion'] ?? null) === 'inicio')
+                        <form method="post" action="{{ route('jornada.reunion') }}">
+                            @csrf
+                            <button class="boton boton-principal" type="submit">Reunión, mantener las {{ $banner['hora'] }}</button>
+                        </form>
+                    @endif
+                </div>
             @endif
 
             <div class="rejilla">
@@ -95,11 +109,6 @@
                     <form method="post" action="{{ route('jornada.pausa') }}" class="rejilla-pausa">
                         @csrf
                         <button class="boton boton-secundario" type="submit">Pausa</button>
-                    </form>
-                    <form method="post" action="{{ route('jornada.ya') }}" class="rejilla-ya">
-                        @csrf
-                        <x-hora id="hora-antes" name="hora" :max="now()->format('H:i')" />
-                        <button class="boton boton-secundario" type="submit">Ya estaba trabajando</button>
                     </form>
                 @endif
 
@@ -110,12 +119,6 @@
                     </form>
                 @endif
 
-                @if (($banner['accion'] ?? null) === 'inicio')
-                    <form method="post" action="{{ route('jornada.reunion') }}">
-                        @csrf
-                        <button class="boton boton-secundario" type="submit">Reunión, mantener las {{ $banner['hora'] }}</button>
-                    </form>
-                @endif
             </div>
 
             @if ($puedeFuera && ! in_array(data_get($banner, 'accion'), ['completar', 'cierre'], true))
