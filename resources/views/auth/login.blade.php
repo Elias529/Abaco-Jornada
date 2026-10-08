@@ -1,6 +1,7 @@
-@extends('layouts.app')
+@extends('layouts.app', ['acceso' => true, 'titulo' => 'Entrar'])
 
 @section('contenido')
+    <img class="isotipo isotipo-acceso" src="{{ asset('marca/logos/abacoqd_isotipo.svg') }}" alt="">
     <h1>Ábaco Jornada</h1>
     <p class="secundario">Entra con el correo que te dio tu responsable.</p>
 

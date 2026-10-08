@@ -10,34 +10,34 @@
 </head>
 <body @if ($pendiente ?? false) data-pendiente="1" @endif>
     <a class="saltar" href="#contenido">Saltar al contenido</a>
-    <div class="ventana {{ $ancha ?? false ? 'ventana-ancha' : '' }} {{ ($compacta ?? false) ? 'ventana-fichar' : '' }}">
-        @unless ($compacta ?? false)
-            <header class="cabecera">
-                <img class="isotipo" src="{{ asset('marca/logos/abacoqd_isotipo.svg') }}" alt="Ábaco">
-                <div>
-                    <p class="nombre">Jornada</p>
-                    @auth
-                        <p class="persona">{{ auth()->user()->name }}</p>
-                    @endauth
-                </div>
-            </header>
 
-            @auth
-                <nav class="menu" aria-label="Secciones">
-                    <a href="{{ route('jornada') }}">Hoy</a>
-                    <a href="{{ route('registro') }}">Mi registro</a>
-                    @if (auth()->user()->esResponsable())
-                        <a href="{{ route('equipo.index') }}">Equipo</a>
-                        <a href="{{ route('calendario') }}">Calendario</a>
-                    @endif
-                    <form method="post" action="{{ route('logout') }}">
-                        @csrf
-                        <button type="submit">Salir</button>
-                    </form>
-                </nav>
-            @endauth
-        @endunless
+    @auth
+        <header class="barra">
+            <a class="marca" href="{{ route('jornada') }}">
+                <span class="marca-logo">
+                    <img class="isotipo" src="{{ asset('marca/logos/abacoqd_isotipo.svg') }}" alt="">
+                </span>
+                <span class="marca-nombre">Jornada</span>
+            </a>
+            <nav class="menu" aria-label="Secciones">
+                <a href="{{ route('jornada') }}" @if (request()->routeIs('jornada')) aria-current="page" @endif>Hoy</a>
+                <a href="{{ route('registro') }}" @if (request()->routeIs('registro', 'registro.show')) aria-current="page" @endif>Mi registro</a>
+                @if (auth()->user()->esResponsable())
+                    <a href="{{ route('equipo.index') }}" @if (request()->routeIs('equipo.*')) aria-current="page" @endif>Equipo</a>
+                    <a href="{{ route('calendario') }}" @if (request()->routeIs('calendario')) aria-current="page" @endif>Calendario</a>
+                @endif
+            </nav>
+            <div class="barra-cuenta">
+                <span class="persona">{{ auth()->user()->name }}</span>
+                <form method="post" action="{{ route('logout') }}">
+                    @csrf
+                    <button type="submit">Salir</button>
+                </form>
+            </div>
+        </header>
+    @endauth
 
+    <div class="pagina {{ ($acceso ?? false) ? 'pagina-acceso' : '' }} {{ ($compacta ?? false) ? 'pagina-fichar' : '' }}">
         <p class="sin-conexion" data-sin-conexion hidden>Sin conexión. Lo guardamos y lo enviamos al volver.</p>
 
         @unless ($compacta ?? false)

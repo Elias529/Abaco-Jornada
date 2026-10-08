@@ -5,7 +5,7 @@
     @if ($sinCalendario)
         <p class="franja" role="status">El calendario de {{ $anio }} no está cargado. No inventamos festivos. Los días ya trabajados se quedan como se registraron.</p>
     @else
-        <p class="secundario">Los festivos de todos los centros valen para toda la plantilla. Si escribes un municipio, solo vale para quien tenga ese centro. Quien teletrabaja desde otro municipio sigue el calendario de su centro.</p>
+        <p class="secundario">El centro de trabajo está en Madrid. Este calendario vale para toda la plantilla, también para quien esté en otra comunidad.</p>
     @endif
 
     <ul class="lista">
@@ -25,8 +25,6 @@
         <input id="holiday_date" name="holiday_date" type="date" required>
         <label for="name">Nombre</label>
         <input id="name" name="name" required maxlength="120">
-        <label for="municipality">Municipio del centro</label>
-        <input id="municipality" name="municipality" maxlength="120" placeholder="Vacío = todos los centros">
         <button class="boton boton-principal" type="submit">Guardar festivo</button>
     </form>
 

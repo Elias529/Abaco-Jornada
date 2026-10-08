@@ -32,7 +32,6 @@ class CalendarioController extends Controller
         $datos = $request->validate([
             'holiday_date' => ['required', 'date'],
             'name' => ['required', 'string', 'max:120'],
-            'municipality' => ['nullable', 'string', 'max:120'],
         ], [
             'holiday_date.required' => 'Elige el día.',
             'name.required' => 'Escribe el nombre del festivo.',
@@ -42,7 +41,7 @@ class CalendarioController extends Controller
             Festivo::create([
                 'holiday_date' => $datos['holiday_date'],
                 'name' => $datos['name'],
-                'municipality' => trim((string) ($datos['municipality'] ?? '')),
+                'municipality' => JornadaService::CENTRO,
             ]);
         } catch (QueryException $e) {
             if (str_contains($e->getMessage(), 'UNIQUE')) {
@@ -51,7 +50,7 @@ class CalendarioController extends Controller
             throw $e;
         }
 
-        return back()->with('ok', 'Guardado. El festivo ya cuenta para quien tenga ese centro. Los días ya trabajados se quedan como se registraron.');
+        return back()->with('ok', 'Guardado. El festivo ya cuenta para toda la plantilla. Los días ya trabajados se quedan como se registraron.');
     }
 
     public function fallo(Request $request): RedirectResponse

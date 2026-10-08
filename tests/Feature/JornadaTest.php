@@ -119,13 +119,13 @@ class JornadaTest extends TestCase
         ])->assertSessionHas('aviso');
     }
 
-    public function test_el_festivo_local_no_aplica_a_otro_centro(): void
+    public function test_quien_esta_en_otra_comunidad_sigue_el_calendario_de_madrid(): void
     {
         $this->seed();
         $lucia = User::query()->where('email', 'lucia.vega@abaco.test')->first();
         $ana = User::query()->where('email', 'ana.lopez@abaco.test')->first();
 
-        Carbon::setTestNow(Carbon::parse('2026-10-09 10:30:00', 'Europe/Madrid'));
+        Carbon::setTestNow(Carbon::parse('2026-05-15 10:30:00', 'Europe/Madrid'));
 
         $this->actingAs($lucia)
             ->get(route('jornada'))
@@ -134,8 +134,8 @@ class JornadaTest extends TestCase
 
         $this->actingAs($ana)
             ->get(route('jornada'))
-            ->assertSee('¿Ya estabas trabajando?', false)
-            ->assertDontSee('Hoy es festivo en tu centro', false);
+            ->assertSee('Hoy es festivo en tu centro', false)
+            ->assertDontSee('¿Ya estabas trabajando?', false);
     }
 
     public function test_la_reunion_conserva_la_hora_prevista(): void
@@ -259,7 +259,7 @@ class JornadaTest extends TestCase
     {
         $this->seed();
         $lucia = User::query()->where('email', 'lucia.vega@abaco.test')->first();
-        Carbon::setTestNow(Carbon::parse('2026-10-09 10:30:00', 'Europe/Madrid'));
+        Carbon::setTestNow(Carbon::parse('2026-05-15 10:30:00', 'Europe/Madrid'));
 
         $this->actingAs($lucia)
             ->get(route('jornada'))

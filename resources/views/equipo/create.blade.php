@@ -20,7 +20,7 @@
 
         <label for="municipality">Municipio del centro</label>
         <input id="municipality" name="municipality" value="{{ old('municipality') }}" required maxlength="120">
-        <p class="secundario">De este municipio salen los festivos locales.</p>
+        <p class="secundario">Los festivos son los del centro de Madrid, también si la persona está en otra comunidad.</p>
 
         <label for="morning_start">Empieza</label>
         <x-hora id="morning_start" name="morning_start" :valor="old('morning_start', '09:00')" />

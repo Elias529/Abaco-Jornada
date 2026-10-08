@@ -20,6 +20,8 @@ class JornadaService
 {
     public const MARGEN_AVISOS = 8;
 
+    public const CENTRO = 'Madrid';
+
     public function pantalla(User $user, ?string $respuestaFestivo = null): array
     {
         $ahora = now();
@@ -27,7 +29,7 @@ class JornadaService
         $pasada = $this->jornadaAbiertaAnterior($user, $ahora);
         $horario = $user->horarioEn($ahora);
         $esperada = $this->esDiaEsperado($user, $ahora);
-        $festivo = $this->festivoDe($user, $ahora);
+        $festivo = $this->festivoDe($ahora);
         $abierto = $hoy?->tramoAbierto();
         $cierrePendiente = $this->cierrePendiente($hoy, $abierto, $horario, $esperada, $ahora);
 
@@ -497,7 +499,7 @@ class JornadaService
         if ($fecha->dayOfWeekIso >= 6) {
             return false;
         }
-        if ($this->festivoDe($user, $fecha) || $this->ausenciaDe($user, $fecha)) {
+        if ($this->festivoDe($fecha) || $this->ausenciaDe($user, $fecha)) {
             return false;
         }
 
@@ -778,13 +780,11 @@ class JornadaService
         return $ultimo ? Tiempo::hora($ultimo->ended_at) : '';
     }
 
-    private function festivoDe(User $user, Carbon $fecha): bool
+    private function festivoDe(Carbon $fecha): bool
     {
         return Festivo::query()
             ->whereDate('holiday_date', $fecha->toDateString())
-            ->where(function ($q) use ($user) {
-                $q->where('municipality', '')->orWhere('municipality', $user->municipality);
-            })
+            ->where('municipality', self::CENTRO)
             ->exists();
     }
 

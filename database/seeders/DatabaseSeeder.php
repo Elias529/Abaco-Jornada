@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use App\Models\Ausencia;
-use App\Models\Festivo;
 use App\Models\Horario;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -36,28 +35,7 @@ class DatabaseSeeder extends Seeder
             'tipo' => 'vacaciones',
         ]);
 
-        $comunes = [
-            '2026-01-01' => 'Año Nuevo',
-            '2026-01-06' => 'Reyes',
-            '2026-05-01' => 'Día del Trabajo',
-            '2026-10-12' => 'Fiesta Nacional',
-            '2026-12-08' => 'Inmaculada',
-            '2026-12-25' => 'Navidad',
-        ];
-
-        foreach ($comunes as $fecha => $nombre) {
-            Festivo::create([
-                'holiday_date' => $fecha,
-                'municipality' => '',
-                'name' => $nombre,
-            ]);
-        }
-
-        Festivo::create([
-            'holiday_date' => '2026-10-09',
-            'municipality' => 'Alcalá de Henares',
-            'name' => 'Festivo local de prueba',
-        ]);
+        $this->call(FestivosSeeder::class);
     }
 
     private function persona(string $nombre, string $correo, string $papel, string $municipio): User
