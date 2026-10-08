@@ -1,0 +1,29 @@
+/* Paleta de la guía de estilos del control horario de Ábaco (base AbacoQD) */
+:root {
+  /* marca */
+  --marca-primario: #087F8C;
+  --marca-primario-oscuro: #066A75;
+  --marca-secundario: #088C8C;
+  --marca-turquesa: #18B7B0;
+  --marca-acento: #7ABFBF;
+  --marca-suave: #B0D9D9;
+  --marca-cian: #39C6E6;
+  --marca-lima: #B7F34A;
+  /* fondo */
+  --fondo-claro: #F5F8F8;
+  --fondo-niebla: #E8EFF0;
+  --fondo-neutro: #F2F2F2;
+  --fondo-oscuro: #061B20;
+  --fondo-oscuro-elevado: #082D33;
+  --fondo-oscuro-fuerte: #083F46;
+  --fondo-tinta: #07111A;
+  /* estado */
+  --estado-trabajando: #087F8C;
+  --estado-en-pausa: #39C6E6;
+  --estado-fuera-de-jornada: #5B6B70;
+  --estado-pendiente: #F2B33D;
+  --estado-error-tecnico: #C0392B;
+  --estado-guardado: #B7F34A;
+  /* tipografía */
+  --fuente: "Poppins", "Segoe UI", sans-serif;
+}

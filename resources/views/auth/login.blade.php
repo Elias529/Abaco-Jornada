@@ -1,0 +1,25 @@
+@extends('layouts.app')
+
+@section('contenido')
+    <h1>Ábaco Jornada</h1>
+    <p class="secundario">Entra con el correo que te dio tu responsable.</p>
+
+    <form method="post" action="{{ route('login') }}" class="formulario">
+        @csrf
+        <label for="email">Correo</label>
+        <input id="email" name="email" type="email" autocomplete="username" value="{{ old('email') }}" required>
+
+        <label for="password">Contraseña</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required>
+
+        <button class="boton boton-principal" type="submit">Entrar</button>
+    </form>
+
+    <details class="pruebas">
+        <summary>Cuentas de prueba</summary>
+        <p>Ana López · ana.lopez@abaco.test</p>
+        <p>Lucía Vega · lucia.vega@abaco.test</p>
+        <p>Marta Ruiz, responsable · marta.ruiz@abaco.test</p>
+        <p>Contraseña: Jornada2026</p>
+    </details>
+@endsection
