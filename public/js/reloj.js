@@ -111,13 +111,6 @@
             form.querySelectorAll("[data-hora]").forEach(sincronizarHora);
             if (!navigator.onLine) {
                 event.preventDefault();
-                const campos = {};
-                new FormData(form).forEach(function (valor, clave) {
-                    campos[clave] = valor;
-                });
-                const lista = pendientes();
-                lista.push({ action: form.action, campos: campos });
-                localStorage.setItem("jornada-pendientes", JSON.stringify(lista));
                 const aviso = document.querySelector("[data-sin-conexion]");
                 if (aviso) {
                     aviso.hidden = false;
@@ -132,50 +125,17 @@
         });
     });
 
-    function pendientes() {
-        try {
-            return JSON.parse(localStorage.getItem("jornada-pendientes") || "[]");
-        } catch (error) {
-            return [];
-        }
+    try {
+        localStorage.removeItem("jornada-pendientes");
+    } catch (error) {
+        // Si el navegador no deja usar el almacén, no hay nada que reenviar.
     }
 
-    async function enviarPendientes() {
-        const lista = pendientes();
-        if (!lista.length || !navigator.onLine) {
-            return;
+    window.addEventListener("online", function () {
+        const aviso = document.querySelector("[data-sin-conexion]");
+        const vuelta = document.querySelector("[data-conexion-vuelta]");
+        if (aviso && !aviso.hidden && vuelta) {
+            vuelta.hidden = false;
         }
-        const token = document.querySelector('input[name="_token"]');
-        const quedan = [];
-        for (let i = 0; i < lista.length; i += 1) {
-            const item = lista[i];
-            const cuerpo = new URLSearchParams();
-            Object.keys(item.campos).forEach(function (clave) {
-                cuerpo.append(clave, item.campos[clave]);
-            });
-            if (token) {
-                cuerpo.set("_token", token.value);
-            }
-            try {
-                const respuesta = await fetch(item.action, {
-                    method: "POST",
-                    body: cuerpo,
-                    credentials: "same-origin",
-                    headers: { Accept: "text/html" },
-                });
-                if (!respuesta.ok) {
-                    quedan.push(item);
-                }
-            } catch (error) {
-                quedan.push(item);
-            }
-        }
-        localStorage.setItem("jornada-pendientes", JSON.stringify(quedan));
-        if (quedan.length === 0) {
-            window.location.reload();
-        }
-    }
-
-    window.addEventListener("online", enviarPendientes);
-    enviarPendientes();
+    });
 })();

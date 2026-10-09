@@ -46,7 +46,7 @@
     @endauth
 
     <div class="pagina {{ ($acceso ?? false) ? 'pagina-acceso' : '' }} {{ ($compacta ?? false) ? 'pagina-fichar' : '' }}">
-        <p class="sin-conexion" data-sin-conexion hidden>Sin conexión. Lo guardamos y lo enviamos al volver.</p>
+        <p class="sin-conexion" data-sin-conexion hidden>No guardado: sin conexión.</p>
 
         @unless ($compacta ?? false)
             @if (session('ok'))

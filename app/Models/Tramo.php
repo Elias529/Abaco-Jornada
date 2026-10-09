@@ -20,6 +20,7 @@ class Tramo extends Model
         'anotado_at',
         'fuera_del_equipo',
         'situacion',
+        'nota',
     ];
 
     public function jornada(): BelongsTo
