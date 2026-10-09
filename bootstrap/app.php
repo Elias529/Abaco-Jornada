@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Middleware\EnsureFichaje;
+use App\Http\Middleware\EnsureJefe;
 use App\Http\Middleware\EnsureResponsable;
 use App\Http\Middleware\EnsureUserIsActive;
 use Illuminate\Foundation\Application;
@@ -17,6 +19,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'activo' => EnsureUserIsActive::class,
             'responsable' => EnsureResponsable::class,
+            'jefe' => EnsureJefe::class,
+            'fichaje' => EnsureFichaje::class,
         ]);
         $middleware->redirectGuestsTo('/login');
         $middleware->redirectUsersTo('/');

@@ -122,12 +122,13 @@ class JornadaTest extends TestCase
     public function test_quien_esta_en_otra_comunidad_sigue_el_calendario_de_madrid(): void
     {
         $this->seed();
-        $lucia = User::query()->where('email', 'lucia.vega@abaco.test')->first();
+        $otra = $this->persona('Nuria Soler', 'nuria.soler@abaco.test', 'Alcalá de Henares');
+        $this->horario($otra);
         $ana = User::query()->where('email', 'ana.lopez@abaco.test')->first();
 
         Carbon::setTestNow(Carbon::parse('2026-05-15 10:30:00', 'Europe/Madrid'));
 
-        $this->actingAs($lucia)
+        $this->actingAs($otra)
             ->get(route('jornada'))
             ->assertSee('Hoy es festivo en tu centro', false)
             ->assertDontSee('¿Ya estabas trabajando?', false);
@@ -173,26 +174,46 @@ class JornadaTest extends TestCase
         $this->assertSame('08:30', Tramo::query()->first()->started_at->timezone('Europe/Madrid')->format('H:i'));
     }
 
-    public function test_ana_puede_borrar_el_fichaje_de_hoy_para_probar(): void
+    public function test_ana_y_marta_pueden_borrar_el_fichaje_de_hoy_para_probar(): void
     {
         $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
+        $marta = $this->persona('Marta Ruiz', 'marta.ruiz@abaco.test', 'Madrid', 'responsable');
         $lucia = $this->persona('Lucía Vega', 'lucia.vega@abaco.test', 'Alcalá de Henares');
-        $jornada = Jornada::create([
+        $deAna = Jornada::create([
             'user_id' => $ana->id,
             'work_date' => '2026-10-07',
         ]);
         Tramo::create([
-            'jornada_id' => $jornada->id,
+            'jornada_id' => $deAna->id,
             'tipo' => Tramo::TRABAJO,
             'started_at' => '2026-10-07 09:00:00',
             'ended_at' => '2026-10-07 11:34:00',
+        ]);
+        $deMarta = Jornada::create([
+            'user_id' => $marta->id,
+            'work_date' => '2026-10-07',
         ]);
 
         $this->actingAs($lucia)
             ->post(route('jornada.borrar-prueba'))
             ->assertForbidden();
 
+        $this->actingAs($lucia)
+            ->get(route('jornada'))
+            ->assertDontSee('Borrar fichaje de hoy', false);
+
+        $this->actingAs($marta)
+            ->get(route('jornada'))
+            ->assertSee('Borrar fichaje de hoy', false);
+
         $this->actingAs($ana)
+            ->post(route('jornada.borrar-prueba'))
+            ->assertRedirect();
+
+        $this->assertDatabaseMissing('jornadas', ['id' => $deAna->id]);
+        $this->assertDatabaseHas('jornadas', ['id' => $deMarta->id]);
+
+        $this->actingAs($marta)
             ->post(route('jornada.borrar-prueba'))
             ->assertRedirect();
 
@@ -258,20 +279,20 @@ class JornadaTest extends TestCase
     public function test_el_festivo_del_centro_pregunta_si_hay_trabajo(): void
     {
         $this->seed();
-        $lucia = User::query()->where('email', 'lucia.vega@abaco.test')->first();
+        $ana = User::query()->where('email', 'ana.lopez@abaco.test')->first();
         Carbon::setTestNow(Carbon::parse('2026-05-15 10:30:00', 'Europe/Madrid'));
 
-        $this->actingAs($lucia)
+        $this->actingAs($ana)
             ->get(route('jornada'))
             ->assertSee('¿Hay trabajo real?', false)
             ->assertDontSee('Empezar jornada', false);
 
-        $this->actingAs($lucia)->post(route('jornada.festivo'), ['respuesta' => 'no'])->assertSessionHas('ok');
-        $this->actingAs($lucia)->get(route('jornada'))->assertDontSee('Empezar jornada', false);
+        $this->actingAs($ana)->post(route('jornada.festivo'), ['respuesta' => 'no'])->assertSessionHas('ok');
+        $this->actingAs($ana)->get(route('jornada'))->assertDontSee('Empezar jornada', false);
         $this->assertDatabaseCount('jornadas', 0);
 
-        $this->actingAs($lucia)->post(route('jornada.festivo'), ['respuesta' => 'si'])->assertSessionHas('ok');
-        $this->actingAs($lucia)->get(route('jornada'))->assertSee('Empezar jornada', false);
+        $this->actingAs($ana)->post(route('jornada.festivo'), ['respuesta' => 'si'])->assertSessionHas('ok');
+        $this->actingAs($ana)->get(route('jornada'))->assertSee('Empezar jornada', false);
     }
 
     public function test_el_trabajo_fuera_del_equipo_usa_las_horas_indicadas(): void
@@ -413,6 +434,41 @@ class JornadaTest extends TestCase
             ->get(route('registro.show', $jornada))
             ->assertSee('Antes 09:30', false)
             ->assertSee('ahora 09:00', false);
+    }
+
+    public function test_la_incidencia_de_conexion_declara_horas_sin_fichar_en_directo(): void
+    {
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
+        $this->horario($ana);
+
+        $this->actingAs($ana)
+            ->post(route('jornada.incidencia'), [
+                'inicio' => '09:00',
+                'fin' => '10:30',
+                'motivo' => 'Se cayó la red',
+            ])
+            ->assertSessionHas('ok');
+
+        $tramo = Tramo::query()->first();
+        $this->assertNotNull($tramo->ended_at);
+        $this->assertSame('incidencia', $tramo->situacion);
+        $this->assertSame('09:00', $tramo->started_at->timezone('Europe/Madrid')->format('H:i'));
+        $this->assertSame('10:30', $tramo->ended_at->timezone('Europe/Madrid')->format('H:i'));
+        $this->assertSame('10:45', $tramo->anotado_at->timezone('Europe/Madrid')->format('H:i'));
+        $this->assertSame('Se cayó la red', $tramo->nota);
+        $this->assertFalse($tramo->fuera_del_equipo);
+        $this->assertDatabaseCount('avisos', 0);
+
+        $this->actingAs($ana)
+            ->get(route('registro.show', $tramo->jornada_id))
+            ->assertSee('incidencia de conexión', false)
+            ->assertSee('Se cayó la red', false)
+            ->assertSee('Ana López', false);
+
+        $this->actingAs($ana)
+            ->get(route('jornada'))
+            ->assertSee('Empezar jornada', false)
+            ->assertSee('No guardado: sin conexión', false);
     }
 
     private function persona(string $nombre, string $correo, string $municipio, string $papel = 'trabajadora'): User

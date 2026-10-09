@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\FalloComun;
 use App\Models\Festivo;
 use App\Services\JornadaService;
-use Illuminate\Database\QueryException;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -43,11 +43,8 @@ class CalendarioController extends Controller
                 'name' => $datos['name'],
                 'municipality' => JornadaService::CENTRO,
             ]);
-        } catch (QueryException $e) {
-            if (str_contains($e->getMessage(), 'UNIQUE')) {
-                return back()->with('aviso', 'Ese festivo ya está cargado.')->withInput();
-            }
-            throw $e;
+        } catch (UniqueConstraintViolationException) {
+            return back()->with('aviso', 'Ese festivo ya está cargado.')->withInput();
         }
 
         return back()->with('ok', 'Guardado. El festivo ya cuenta para toda la plantilla. Los días ya trabajados se quedan como se registraron.');

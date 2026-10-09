@@ -26,13 +26,13 @@ class JornadaController extends Controller
                 $request->user(),
                 $request->session()->get($clave),
             ),
-            'puedeBorrarPrueba' => $request->user()->email === 'ana.lopez@abaco.test',
+            'puedeBorrarPrueba' => $this->puedeBorrarPrueba($request->user()->email),
         ]);
     }
 
     public function borrarPrueba(Request $request): RedirectResponse
     {
-        if ($request->user()->email !== 'ana.lopez@abaco.test') {
+        if (! $this->puedeBorrarPrueba($request->user()->email)) {
             abort(403);
         }
 
@@ -58,6 +58,14 @@ class JornadaController extends Controller
         $request->session()->forget('festivo.'.$request->user()->id.'.'.now()->toDateString());
 
         return back();
+    }
+
+    private function puedeBorrarPrueba(string $email): bool
+    {
+        return in_array($email, [
+            'ana.lopez@abaco.test',
+            'marta.ruiz@abaco.test',
+        ], true);
     }
 
     public function entrar(Request $request): RedirectResponse
@@ -160,6 +168,30 @@ class JornadaController extends Controller
         ]);
 
         return $this->hacer(fn () => $this->jornada->fuera($request->user(), $datos['inicio'], $datos['fin']));
+    }
+
+    public function incidencia(Request $request): RedirectResponse
+    {
+        $this->normalizarHora($request, 'inicio');
+        $this->normalizarHora($request, 'fin');
+        $datos = $request->validate([
+            'inicio' => ['required', 'date_format:H:i'],
+            'fin' => ['required', 'date_format:H:i'],
+            'motivo' => ['required', 'string', 'max:500'],
+        ], [
+            'inicio.required' => 'Elige la hora de inicio.',
+            'fin.required' => 'Elige la hora de fin.',
+            'inicio.date_format' => 'Elige una hora.',
+            'fin.date_format' => 'Elige una hora.',
+            'motivo.required' => 'Escribe el motivo de la incidencia.',
+        ]);
+
+        return $this->hacer(fn () => $this->jornada->declararIncidencia(
+            $request->user(),
+            $datos['inicio'],
+            $datos['fin'],
+            $datos['motivo'],
+        ));
     }
 
     public function festivo(Request $request): RedirectResponse

@@ -23,6 +23,15 @@ class User extends Authenticatable
         return $this->role === 'responsable';
     }
 
+    /**
+     * La dirección consulta los registros de todas las personas y no los cambia.
+     * No ficha: el personal de alta dirección queda fuera del registro de jornada.
+     */
+    public function esJefe(): bool
+    {
+        return $this->role === 'jefe';
+    }
+
     public function horarios(): HasMany
     {
         return $this->hasMany(Horario::class);

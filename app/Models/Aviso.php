@@ -14,6 +14,7 @@ class Aviso extends Model
         'responded_at',
         'cuenta',
         'exclusion',
+        'correo_enviado_at',
     ];
 
     public function user(): BelongsTo
@@ -26,6 +27,7 @@ class Aviso extends Model
         return [
             'work_date' => 'date',
             'responded_at' => 'datetime',
+            'correo_enviado_at' => 'datetime',
             'cuenta' => 'boolean',
         ];
     }
