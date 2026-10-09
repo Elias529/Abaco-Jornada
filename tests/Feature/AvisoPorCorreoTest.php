@@ -10,8 +10,10 @@ use App\Models\Jornada;
 use App\Models\Tramo;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Mail\PendingMail;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Mail;
+use Mockery;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -128,6 +130,41 @@ class AvisoPorCorreoTest extends TestCase
         $this->ejecutarA('2026-10-07 09:30:00');
 
         $this->assertNull(Aviso::where('user_id', $ana->id)->where('tipo', 'inicio')->first()->correo_enviado_at);
+    }
+
+    public function test_si_el_servidor_rechaza_la_copia_la_persona_recibe_el_aviso_igualmente(): void
+    {
+        $ana = $this->persona();
+        $this->persona(['role' => 'responsable']);
+
+        $conCopia = Mockery::mock(PendingMail::class);
+        $conCopia->shouldReceive('cc')->once()->andReturnSelf();
+        $conCopia->shouldReceive('send')->once()->andThrow(new RuntimeException('dirección rechazada'));
+        $sinCopia = Mockery::mock(PendingMail::class);
+        $sinCopia->shouldReceive('send')->once();
+        Mail::shouldReceive('to')->with($ana->email)->twice()->andReturn($conCopia, $sinCopia);
+        Mail::shouldReceive('to')->with(Mockery::not($ana->email))->andReturn($sinCopia);
+
+        $this->ejecutarA('2026-10-07 09:30:00');
+
+        $this->assertNotNull(Aviso::where('user_id', $ana->id)->where('tipo', 'inicio')->first()->correo_enviado_at);
+    }
+
+    public function test_el_comando_de_prueba_manda_el_correo_a_la_direccion_indicada(): void
+    {
+        $this->artisan('jornada:probar-correo', ['destino' => 'trabajadora@ejemplo.es'])->assertSuccessful();
+
+        Mail::assertSent(
+            OlvidoDeInicio::class,
+            fn (OlvidoDeInicio $correo) => $correo->hasTo('trabajadora@ejemplo.es'),
+        );
+    }
+
+    public function test_el_comando_de_prueba_rechaza_una_direccion_invalida(): void
+    {
+        $this->artisan('jornada:probar-correo', ['destino' => 'esto-no-es-un-correo'])->assertFailed();
+
+        Mail::assertNothingSent();
     }
 
     private function fichar(User $persona): void
