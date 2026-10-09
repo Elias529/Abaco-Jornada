@@ -12,13 +12,16 @@ use App\Models\Jornada;
 use App\Models\Tramo;
 use App\Models\User;
 use App\Support\Tiempo;
-use Illuminate\Database\QueryException;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class JornadaService
 {
     public const MARGEN_AVISOS = 8;
+
+    public const MINUTOS_HASTA_AVISO_DE_INICIO = 20;
 
     public const CENTRO = 'Madrid';
 
@@ -124,8 +127,8 @@ class JornadaService
                 $this->abrirTramo($jornada, Tramo::TRABAJO, $ahora, $ahora, false, 'ahora');
                 $this->responder($user, 'inicio', $ahora);
             });
-        } catch (QueryException $e) {
-            $this->traducirUnico($e);
+        } catch (UniqueConstraintViolationException) {
+            $this->avisarJornadaYaEmpezada();
         }
 
         return 'Guardado. Entrada a las '.Tiempo::hora($ahora).'.';
@@ -180,8 +183,8 @@ class JornadaService
                 $primero->update(['started_at' => $inicio]);
                 $this->responder($user, 'inicio', $ahora);
             });
-        } catch (QueryException $e) {
-            $this->traducirUnico($e);
+        } catch (UniqueConstraintViolationException) {
+            $this->avisarJornadaYaEmpezada();
         }
 
         return 'Guardado. Trabajas desde las '.Tiempo::hora($inicio).'.';
@@ -258,8 +261,8 @@ class JornadaService
                 $this->abrirTramo($jornada, Tramo::TRABAJO, $inicio, $ahora, false, 'reunion');
                 $this->responder($user, 'inicio', $ahora);
             });
-        } catch (QueryException $e) {
-            $this->traducirUnico($e);
+        } catch (UniqueConstraintViolationException) {
+            $this->avisarJornadaYaEmpezada();
         }
 
         return 'Guardado. Inicio a las '.Tiempo::hora($inicio).'. Lo anotaste a las '.Tiempo::hora($ahora).'.';
@@ -522,6 +525,124 @@ class JornadaService
     public function anioSinCalendario(Carbon $ahora): bool
     {
         return ! Festivo::query()->whereYear('holiday_date', $ahora->year)->exists();
+    }
+
+    /**
+     * Cómo está hoy una persona, solo para consultar. No abre jornadas ni
+     * genera avisos: mirar a alguien no puede cambiar nada de lo suyo.
+     *
+     * @return array{estado: string, texto: string, icono: string}
+     */
+    public function estadoDe(User $user, ?Carbon $ahora = null): array
+    {
+        $ahora ??= now();
+
+        if (! $user->active) {
+            return $this->estadoDeConsulta('cerrado', 'Acceso cerrado', 'fuera_de_jornada.svg');
+        }
+
+        if (! $user->starts_on || $ahora->toDateString() < $user->starts_on->toDateString()) {
+            return $this->estadoDeConsulta('sin_empezar', 'Su registro todavía no ha empezado', 'fuera_de_jornada.svg');
+        }
+
+        $hoy = $this->jornadaDe($user, $ahora);
+        $abierto = $hoy?->tramoAbierto();
+        $horario = $user->horarioEn($ahora);
+        $esperada = $this->esDiaEsperado($user, $ahora);
+
+        if ($this->jornadaAbiertaAnterior($user, $ahora)) {
+            return $this->estadoDeConsulta('pendiente', 'Tiene un día anterior sin cerrar', 'pendiente.svg');
+        }
+        if ($this->cierrePendiente($hoy, $abierto, $horario, $esperada, $ahora)) {
+            return $this->estadoDeConsulta('pendiente', 'Cierre pendiente', 'pendiente.svg');
+        }
+        if ($abierto?->tipo === Tramo::TRABAJO) {
+            return $this->estadoDeConsulta('trabajando', 'Trabajando', 'trabajando.svg');
+        }
+        if ($abierto?->tipo === Tramo::PAUSA) {
+            return $this->estadoDeConsulta('pausa', 'En pausa', 'en_pausa.svg');
+        }
+        if ($hoy?->estaCerrada()) {
+            return $this->estadoDeConsulta('cerrada', 'Jornada cerrada', 'fuera_de_jornada.svg');
+        }
+        if ($this->ausenciaDe($user, $ahora)) {
+            return $this->estadoDeConsulta('ausencia', 'Ausencia prevista', 'fuera_de_jornada.svg');
+        }
+        if ($this->festivoDe($ahora)) {
+            return $this->estadoDeConsulta('festivo', 'Festivo en su centro', 'fuera_de_jornada.svg');
+        }
+        if ($esperada) {
+            return $this->estadoDeConsulta('sin_empezar_hoy', 'Todavía no ha empezado', 'fuera_de_jornada.svg');
+        }
+
+        return $this->estadoDeConsulta('fuera', 'Fuera de jornada', 'fuera_de_jornada.svg');
+    }
+
+    /**
+     * Minutos de una jornada tal como están guardados. Un tramo que quedó
+     * abierto en un día pasado no sigue sumando con el reloj: no se sabe a
+     * qué hora terminó, así que no se inventa.
+     */
+    public function minutosRegistrados(User $user, Jornada $jornada, ?Carbon $ahora = null): int
+    {
+        return $this->minutosDeJornada($jornada, $this->hastaDeConsulta($user, $jornada, $ahora ?? now()));
+    }
+
+    /**
+     * Tiempo por encima del horario de una jornada, con el mismo criterio que
+     * {@see minutosRegistrados()}.
+     */
+    public function porEncimaRegistrado(User $user, Jornada $jornada, ?Carbon $ahora = null): ?int
+    {
+        return $this->porEncima($user, $jornada, $this->hastaDeConsulta($user, $jornada, $ahora ?? now()));
+    }
+
+    private function hastaDeConsulta(User $user, Jornada $jornada, Carbon $ahora): Carbon
+    {
+        $abierto = $jornada->tramoAbierto();
+
+        if ($abierto && ! $jornada->work_date->isSameDay($ahora)) {
+            return $abierto->started_at;
+        }
+
+        return $this->hastaVisible($user, $jornada, $ahora);
+    }
+
+    /**
+     * Totales de un mes para consultar: lo registrado, lo previsto hasta hoy y
+     * el tiempo por encima del horario. Ese tiempo no se clasifica como hora
+     * extra: lo decide Ábaco.
+     *
+     * @param  Collection<int, Jornada>  $jornadas  Jornadas de ese mes, con sus tramos.
+     * @return array{registrados: int, previstos: int, porEncima: int, dias: int}
+     */
+    public function resumenDelMes(User $user, Carbon $mes, Collection $jornadas, ?Carbon $ahora = null): array
+    {
+        $ahora ??= now();
+        $hasta = $mes->copy()->endOfMonth()->min($ahora);
+        $previstos = 0;
+
+        for ($dia = $mes->copy()->startOfMonth(); $dia->lte($hasta); $dia->addDay()) {
+            $horario = $user->horarioEn($dia);
+            if ($horario && $this->esDiaEsperado($user, $dia)) {
+                $previstos += $this->minutosPrevistos($horario);
+            }
+        }
+
+        return [
+            'registrados' => $jornadas->sum(fn (Jornada $jornada) => $this->minutosRegistrados($user, $jornada, $ahora)),
+            'previstos' => $previstos,
+            'porEncima' => $jornadas->sum(fn (Jornada $jornada) => $this->porEncimaRegistrado($user, $jornada, $ahora) ?? 0),
+            'dias' => $jornadas->count(),
+        ];
+    }
+
+    /**
+     * @return array{estado: string, texto: string, icono: string}
+     */
+    private function estadoDeConsulta(string $estado, string $texto, string $icono): array
+    {
+        return ['estado' => $estado, 'texto' => $texto, 'icono' => $icono];
     }
 
     private function banner(
@@ -800,6 +921,59 @@ class JornadaService
         return 'No cerraste el '.$dia.'. ¿A qué hora terminaste?';
     }
 
+    /**
+     * Decide si hoy toca mandar por correo el aviso de que la jornada no ha
+     * empezado. Pasa si es un día de trabajo, ya han pasado unos minutos desde
+     * la hora de inicio, el horario no ha terminado y no hay nada anotado.
+     * Deja el aviso guardado y reserva el envío: devuelve la hora prevista
+     * solo la primera vez, para que un segundo intento no repita el correo.
+     */
+    public function avisarDeInicio(User $user, ?Carbon $ahora = null): ?string
+    {
+        $ahora ??= now();
+        $horario = $user->horarioEn($ahora);
+
+        if (! $user->active || $user->esJefe() || ! $horario || ! $this->esDiaEsperado($user, $ahora)) {
+            return null;
+        }
+
+        $hoy = $this->jornadaDe($user, $ahora);
+        if ($hoy && ! $this->soloFuera($hoy)) {
+            return null;
+        }
+
+        $prevista = $horario->corta($horario->morning_start);
+        $aviso = $this->momento($ahora, $prevista)->addMinutes(self::MINUTOS_HASTA_AVISO_DE_INICIO);
+        $cierre = $this->momento($ahora, $horario->corta($horario->afternoon_end));
+        if ($ahora->lessThan($aviso) || $ahora->greaterThanOrEqualTo($cierre)) {
+            return null;
+        }
+
+        $this->registrarAviso($user, 'inicio', $ahora);
+
+        $reservado = Aviso::query()
+            ->where('user_id', $user->id)
+            ->where('tipo', 'inicio')
+            ->whereDate('work_date', $ahora->toDateString())
+            ->whereNull('correo_enviado_at')
+            ->update(['correo_enviado_at' => $ahora]);
+
+        return $reservado === 1 ? $prevista : null;
+    }
+
+    /**
+     * Deshace la reserva si el correo no salió, para reintentarlo en la
+     * siguiente pasada.
+     */
+    public function liberarAvisoDeInicio(User $user, Carbon $ahora): void
+    {
+        Aviso::query()
+            ->where('user_id', $user->id)
+            ->where('tipo', 'inicio')
+            ->whereDate('work_date', $ahora->toDateString())
+            ->update(['correo_enviado_at' => null]);
+    }
+
     private function registrarAviso(User $user, string $tipo, Carbon $fecha): void
     {
         $yaExiste = Aviso::query()
@@ -822,10 +996,8 @@ class JornadaService
                 'cuenta' => ! $comun,
                 'exclusion' => $comun ? 'comun' : null,
             ]);
-        } catch (QueryException $e) {
-            if (! str_contains($e->getMessage(), 'UNIQUE')) {
-                throw $e;
-            }
+        } catch (UniqueConstraintViolationException) {
+            // Otro proceso guardó el mismo aviso a la vez: no hay nada que hacer.
         }
     }
 
@@ -852,12 +1024,8 @@ class JornadaService
         ]);
     }
 
-    private function traducirUnico(QueryException $e): void
+    private function avisarJornadaYaEmpezada(): never
     {
-        if (str_contains($e->getMessage(), 'UNIQUE')) {
-            throw new ReglaJornada('Hoy ya has empezado la jornada.');
-        }
-
-        throw $e;
+        throw new ReglaJornada('Hoy ya has empezado la jornada.');
     }
 }

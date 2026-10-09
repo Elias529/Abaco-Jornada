@@ -20,6 +20,7 @@
         <summary>Cuentas de prueba</summary>
         <p>Ana López · ana.lopez@abaco.test</p>
         <p>Marta Ruiz, responsable · marta.ruiz@abaco.test</p>
+        <p>Carmen Ortega, dirección · carmen.ortega@abaco.test</p>
         <p>Contraseña: Jornada2026</p>
     </details>
 @endsection

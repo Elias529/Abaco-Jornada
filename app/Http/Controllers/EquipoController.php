@@ -8,7 +8,7 @@ use App\Models\Consulta;
 use App\Models\Horario;
 use App\Models\User;
 use App\Services\JornadaService;
-use Illuminate\Database\QueryException;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -17,10 +17,11 @@ use Illuminate\View\View;
 class EquipoController extends Controller
 {
     public function __construct(private JornadaService $jornada) {}
+
     public function index(): View
     {
         return view('equipo.index', [
-            'personas' => User::query()->orderBy('name')->get(),
+            'personas' => User::query()->where('role', '!=', 'jefe')->orderBy('name')->get(),
             'esResponsable' => true,
         ]);
     }
@@ -101,11 +102,8 @@ class EquipoController extends Controller
                 'absence_date' => $datos['absence_date'],
                 'tipo' => $datos['tipo'],
             ]);
-        } catch (QueryException $e) {
-            if (str_contains($e->getMessage(), 'UNIQUE')) {
-                return back()->with('aviso', 'Ese día ya tiene una ausencia.');
-            }
-            throw $e;
+        } catch (UniqueConstraintViolationException) {
+            return back()->with('aviso', 'Ese día ya tiene una ausencia.');
         }
 
         return back()->with('ok', 'Guardado. Ese día no se espera fichaje.');
