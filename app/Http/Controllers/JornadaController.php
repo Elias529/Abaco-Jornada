@@ -170,6 +170,30 @@ class JornadaController extends Controller
         return $this->hacer(fn () => $this->jornada->fuera($request->user(), $datos['inicio'], $datos['fin']));
     }
 
+    public function incidencia(Request $request): RedirectResponse
+    {
+        $this->normalizarHora($request, 'inicio');
+        $this->normalizarHora($request, 'fin');
+        $datos = $request->validate([
+            'inicio' => ['required', 'date_format:H:i'],
+            'fin' => ['required', 'date_format:H:i'],
+            'motivo' => ['required', 'string', 'max:500'],
+        ], [
+            'inicio.required' => 'Elige la hora de inicio.',
+            'fin.required' => 'Elige la hora de fin.',
+            'inicio.date_format' => 'Elige una hora.',
+            'fin.date_format' => 'Elige una hora.',
+            'motivo.required' => 'Escribe el motivo de la incidencia.',
+        ]);
+
+        return $this->hacer(fn () => $this->jornada->declararIncidencia(
+            $request->user(),
+            $datos['inicio'],
+            $datos['fin'],
+            $datos['motivo'],
+        ));
+    }
+
     public function festivo(Request $request): RedirectResponse
     {
         $datos = $request->validate([

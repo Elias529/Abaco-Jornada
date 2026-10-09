@@ -344,6 +344,42 @@ class JornadaService
         return 'Guardado. Trabajo fuera del equipo de las '.Tiempo::hora($inicio).' a las '.Tiempo::hora($fin).'.';
     }
 
+    public function declararIncidencia(User $user, string $inicioHora, string $finHora, string $motivo): string
+    {
+        $ahora = now();
+        $inicio = $this->momento($ahora, $inicioHora);
+        $fin = $this->momento($ahora, $finHora);
+        $motivo = trim($motivo);
+
+        if ($motivo === '') {
+            throw new ReglaJornada('Escribe el motivo de la incidencia.');
+        }
+        if ($fin->lessThanOrEqualTo($inicio)) {
+            throw new ReglaJornada('La salida tiene que ser después de la entrada.');
+        }
+        if ($fin->greaterThan($ahora) || $inicio->greaterThan($ahora)) {
+            throw new ReglaJornada('Esa hora todavía no ha llegado.');
+        }
+
+        DB::transaction(function () use ($user, $ahora, $inicio, $fin, $motivo) {
+            $this->bloquear($user);
+            $this->asegurarFechaDeAlta($user, $ahora);
+            $hoy = $this->jornadaDe($user, $ahora);
+            if ($hoy && $this->solapa($hoy, $inicio, $fin)) {
+                throw new ReglaJornada('Esa hora se cruza con un tramo que ya está guardado.');
+            }
+            if (! $hoy) {
+                $hoy = Jornada::create([
+                    'user_id' => $user->id,
+                    'work_date' => $ahora->toDateString(),
+                ]);
+            }
+            $this->abrirTramo($hoy, Tramo::TRABAJO, $inicio, $ahora, false, 'incidencia', $fin, $motivo);
+        });
+
+        return 'Guardado. Incidencia recibida a las '.Tiempo::hora($ahora).'. No es un fichaje en directo.';
+    }
+
     public function excluirAvisosDeHorario(User $user): void
     {
         Aviso::query()
@@ -744,7 +780,7 @@ class JornadaService
     {
         return $jornada->estaCerrada()
             && $jornada->tramos->isNotEmpty()
-            && $jornada->tramos->every(fn (Tramo $tramo) => $tramo->fuera_del_equipo);
+            && $jornada->tramos->every(fn (Tramo $tramo) => $tramo->fuera_del_equipo || $tramo->situacion === 'incidencia');
     }
 
     private function cierrePendiente(?Jornada $hoy, ?Tramo $abierto, ?Horario $horario, bool $esperada, Carbon $ahora): bool
@@ -825,6 +861,7 @@ class JornadaService
         bool $fuera = false,
         ?string $situacion = null,
         ?Carbon $fin = null,
+        ?string $nota = null,
     ): void {
         Tramo::create([
             'jornada_id' => $jornada->id,
@@ -834,6 +871,7 @@ class JornadaService
             'anotado_at' => $anotado ?? $inicio,
             'fuera_del_equipo' => $fuera,
             'situacion' => $situacion,
+            'nota' => $nota,
         ]);
     }
 
@@ -938,6 +976,9 @@ class JornadaService
         }
 
         $hoy = $this->jornadaDe($user, $ahora);
+        if ($hoy && $hoy->tramos->contains(fn (Tramo $tramo) => $tramo->situacion === 'incidencia')) {
+            return null;
+        }
         if ($hoy && ! $this->soloFuera($hoy)) {
             return null;
         }

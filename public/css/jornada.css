@@ -251,9 +251,22 @@ h2 {
 
 .accion-principal { margin-top: 24px; max-width: 640px; }
 
-.accion-principal form + form { margin-top: 8px; }
+.accion-principal form + form,
+.accion-principal .boton-desplegable { margin-top: 8px; }
 
 .accion-principal .boton { width: 100%; min-height: 44px; }
+
+.boton-desplegable > summary {
+    list-style: none;
+}
+
+.boton-desplegable > summary::-webkit-details-marker {
+    display: none;
+}
+
+.boton-desplegable[open] .formulario {
+    margin-top: 12px;
+}
 
 .franja, .guardado, .sin-conexion {
     margin: 0;

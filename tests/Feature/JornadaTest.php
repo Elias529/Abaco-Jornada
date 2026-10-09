@@ -436,6 +436,41 @@ class JornadaTest extends TestCase
             ->assertSee('ahora 09:00', false);
     }
 
+    public function test_la_incidencia_de_conexion_declara_horas_sin_fichar_en_directo(): void
+    {
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
+        $this->horario($ana);
+
+        $this->actingAs($ana)
+            ->post(route('jornada.incidencia'), [
+                'inicio' => '09:00',
+                'fin' => '10:30',
+                'motivo' => 'Se cayó la red',
+            ])
+            ->assertSessionHas('ok');
+
+        $tramo = Tramo::query()->first();
+        $this->assertNotNull($tramo->ended_at);
+        $this->assertSame('incidencia', $tramo->situacion);
+        $this->assertSame('09:00', $tramo->started_at->timezone('Europe/Madrid')->format('H:i'));
+        $this->assertSame('10:30', $tramo->ended_at->timezone('Europe/Madrid')->format('H:i'));
+        $this->assertSame('10:45', $tramo->anotado_at->timezone('Europe/Madrid')->format('H:i'));
+        $this->assertSame('Se cayó la red', $tramo->nota);
+        $this->assertFalse($tramo->fuera_del_equipo);
+        $this->assertDatabaseCount('avisos', 0);
+
+        $this->actingAs($ana)
+            ->get(route('registro.show', $tramo->jornada_id))
+            ->assertSee('incidencia de conexión', false)
+            ->assertSee('Se cayó la red', false)
+            ->assertSee('Ana López', false);
+
+        $this->actingAs($ana)
+            ->get(route('jornada'))
+            ->assertSee('Empezar jornada', false)
+            ->assertSee('No guardado: sin conexión', false);
+    }
+
     private function persona(string $nombre, string $correo, string $municipio, string $papel = 'trabajadora'): User
     {
         return User::create([

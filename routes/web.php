@@ -41,6 +41,7 @@ Route::middleware(['auth', 'activo'])->group(function () {
         Route::post('/jornada/cerrar', [JornadaController::class, 'cerrar'])->name('jornada.cerrar');
         Route::post('/jornada/seguir', [JornadaController::class, 'seguir'])->name('jornada.seguir');
         Route::post('/jornada/fuera', [JornadaController::class, 'fuera'])->name('jornada.fuera');
+        Route::post('/jornada/incidencia', [JornadaController::class, 'incidencia'])->name('jornada.incidencia');
         Route::post('/jornada/festivo', [JornadaController::class, 'festivo'])->name('jornada.festivo');
         Route::post('/jornada/completar', [JornadaController::class, 'completar'])->name('jornada.completar');
         Route::post('/jornada/borrar-prueba', [JornadaController::class, 'borrarPrueba'])->name('jornada.borrar-prueba');

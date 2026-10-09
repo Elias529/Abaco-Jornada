@@ -22,7 +22,12 @@
                 @if ($tramo->fuera_del_equipo)
                     · fuera del equipo
                 @endif
-                @if ($tramo->anotado_at && $tramo->anotado_at->format('H:i') !== $tramo->started_at->format('H:i'))
+                @if ($tramo->situacion === 'incidencia')
+                    · incidencia de conexión, declarada por {{ $persona->name }} y recibida a las {{ \App\Support\Tiempo::hora($tramo->anotado_at) }}
+                    @if ($tramo->nota)
+                        · {{ $tramo->nota }}
+                    @endif
+                @elseif ($tramo->anotado_at && $tramo->anotado_at->format('H:i') !== $tramo->started_at->format('H:i'))
                     · anotado a las {{ \App\Support\Tiempo::hora($tramo->anotado_at) }}
                 @endif
             </p>
