@@ -14,6 +14,7 @@ use App\Services\RegistroCsv;
 use App\Support\Tiempo;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -138,7 +139,7 @@ class RegistroController extends Controller
 
     public function csv(Request $request): StreamedResponse
     {
-        return $this->descargar($request->user(), $request->user());
+        return $this->descargar($request, $request->user(), $request->user());
     }
 
     public function csvDe(Request $request, User $user): StreamedResponse|View
@@ -147,7 +148,7 @@ class RegistroController extends Controller
             return $motivo;
         }
 
-        return $this->descargar($request->user(), $user);
+        return $this->descargar($request, $request->user(), $user);
     }
 
     private function mostrar(Request $request, User $visor, User $persona, bool $consulta): View
@@ -156,22 +157,28 @@ class RegistroController extends Controller
 
         $desde = $request->query('desde');
         $hasta = $request->query('hasta');
-        $jornadas = Jornada::query()
-            ->with('tramos')
-            ->where('user_id', $persona->id)
-            ->when(is_string($desde) && $desde !== '', fn ($q) => $q->whereDate('work_date', '>=', $desde))
-            ->when(is_string($hasta) && $hasta !== '', fn ($q) => $q->whereDate('work_date', '<=', $hasta))
-            ->orderByDesc('work_date')
-            ->paginate(60)
-            ->withQueryString();
+        $desde = is_string($desde) ? $desde : '';
+        $hasta = is_string($hasta) ? $hasta : '';
+        $buscado = $desde !== '' || $hasta !== '';
+        $jornadas = $buscado
+            ? Jornada::query()
+                ->with('tramos')
+                ->where('user_id', $persona->id)
+                ->when($desde !== '', fn ($q) => $q->whereDate('work_date', '>=', $desde))
+                ->when($hasta !== '', fn ($q) => $q->whereDate('work_date', '<=', $hasta))
+                ->orderByDesc('work_date')
+                ->paginate(60)
+                ->withQueryString()
+            : new LengthAwarePaginator([], 0, 60);
 
         return view('registro.index', [
             'persona' => $persona,
             'consulta' => $consulta,
             'jornadas' => $jornadas,
-            'desde' => is_string($desde) ? $desde : '',
-            'hasta' => is_string($hasta) ? $hasta : '',
-            'servicio' => $this->jornada,
+            'buscado' => $buscado,
+            'desde' => $desde,
+            'hasta' => $hasta,
+            'tabla' => $this->csv,
             'explicaciones' => $persona->explicaciones()->latest()->limit(10)->get(),
             'consultas' => $consulta
                 ? Consulta::query()->with('viewer')->where('subject_id', $persona->id)->latest()->limit(10)->get()
@@ -181,11 +188,20 @@ class RegistroController extends Controller
         ]);
     }
 
-    private function descargar(User $visor, User $persona): StreamedResponse
+    private function descargar(Request $request, User $visor, User $persona): StreamedResponse
     {
         $this->autorizar($visor, $persona);
 
-        return $this->csv->descargar($persona);
+        $desde = $request->query('desde');
+        $hasta = $request->query('hasta');
+        $desde = is_string($desde) ? $desde : '';
+        $hasta = is_string($hasta) ? $hasta : '';
+
+        if ($desde === '' && $hasta === '') {
+            return $this->csv->descargarVacio($persona);
+        }
+
+        return $this->csv->descargar($persona, $desde, $hasta);
     }
 
     private function pedirMotivo(Request $request, User $persona): ?View

@@ -6,7 +6,6 @@ use App\Exceptions\ReglaJornada;
 use App\Models\Aviso;
 use App\Models\Correccion;
 use App\Models\FalloComun;
-use App\Models\Festivo;
 use App\Models\Horario;
 use App\Models\Jornada;
 use App\Models\Tramo;
@@ -25,6 +24,8 @@ class JornadaService
 
     public const CENTRO = 'Madrid';
 
+    public function __construct(private NagerFestivos $festivos) {}
+
     public function pantalla(User $user, ?string $respuestaFestivo = null): array
     {
         $ahora = now();
@@ -32,7 +33,7 @@ class JornadaService
         $pasada = $this->jornadaAbiertaAnterior($user, $ahora);
         $horario = $user->horarioEn($ahora);
         $esperada = $this->esDiaEsperado($user, $ahora);
-        $festivo = $this->festivoDe($ahora);
+        $festivo = $this->festivoDe($user, $ahora);
         $abierto = $hoy?->tramoAbierto();
         $cierrePendiente = $this->cierrePendiente($hoy, $abierto, $horario, $esperada, $ahora);
 
@@ -558,7 +559,7 @@ class JornadaService
         if ($fecha->dayOfWeekIso >= 6) {
             return false;
         }
-        if ($this->festivoDe($fecha) || $this->ausenciaDe($user, $fecha)) {
+        if ($this->festivoDe($user, $fecha) || $this->ausenciaDe($user, $fecha)) {
             return false;
         }
 
@@ -578,9 +579,9 @@ class JornadaService
             ->count();
     }
 
-    public function anioSinCalendario(Carbon $ahora): bool
+    public function anioSinCalendario(User $user, Carbon $ahora): bool
     {
-        return ! Festivo::query()->whereYear('holiday_date', $ahora->year)->exists();
+        return $this->festivos->delAnio((string) $user->centro, $ahora->year)->isEmpty();
     }
 
     /**
@@ -624,7 +625,7 @@ class JornadaService
         if ($this->ausenciaDe($user, $ahora)) {
             return $this->estadoDeConsulta('ausencia', 'Ausencia prevista', 'fuera_de_jornada.svg');
         }
-        if ($this->festivoDe($ahora)) {
+        if ($this->festivoDe($user, $ahora)) {
             return $this->estadoDeConsulta('festivo', 'Festivo en su centro', 'fuera_de_jornada.svg');
         }
         if ($esperada) {
@@ -759,13 +760,6 @@ class JornadaService
             return [
                 'texto' => 'Este mes tienes '.$reiteracion.' cierres sin completar. Puedes revisarlos o explicarlos aquí.',
                 'accion' => 'registro',
-            ];
-        }
-
-        if ($user->esResponsable() && $this->anioSinCalendario($ahora)) {
-            return [
-                'texto' => 'El calendario de '.$ahora->year.' no está cargado. No inventamos festivos. Los días ya trabajados se quedan como se registraron.',
-                'accion' => 'calendario',
             ];
         }
 
@@ -962,12 +956,9 @@ class JornadaService
         return $ultimo ? Tiempo::hora($ultimo->ended_at) : '';
     }
 
-    private function festivoDe(Carbon $fecha): bool
+    private function festivoDe(User $user, Carbon $fecha): bool
     {
-        return Festivo::query()
-            ->whereDate('holiday_date', $fecha->toDateString())
-            ->where('municipality', self::CENTRO)
-            ->exists();
+        return $this->festivos->es((string) $user->centro, $fecha);
     }
 
     private function ausenciaDe(User $user, Carbon $fecha): bool

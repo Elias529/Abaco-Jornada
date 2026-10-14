@@ -37,7 +37,6 @@ class DatabaseSeeder extends Seeder
         // La dirección no ficha: no lleva horario y su jornada no se registra.
         $this->persona('Carmen Ortega', 'carmen.ortega@abaco.test', 'jefe', 'Madrid');
 
-        $this->call(FestivosSeeder::class);
     }
 
     private function persona(string $nombre, string $correo, string $papel, string $municipio): User
@@ -50,6 +49,7 @@ class DatabaseSeeder extends Seeder
             'active' => true,
             'starts_on' => '2026-01-07',
             'municipality' => $municipio,
+            'centro' => 'ES-MD',
         ]);
     }
 }

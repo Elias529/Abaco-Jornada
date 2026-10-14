@@ -3,7 +3,7 @@
 @section('contenido')
     <a class="volver" href="{{ route('equipo.index') }}">Volver al equipo</a>
     <h1>Dar de alta</h1>
-    <p class="secundario">Nombre, acceso, centro y horario. Con eso ya entra y ve su horario. No hay más trabajo diario.</p>
+    <p class="secundario">Nombre, acceso y horario. Los festivos son los públicos del centro de la persona.</p>
     <form method="post" action="{{ route('equipo.store') }}" class="formulario">
         @csrf
         <label for="name">Nombre</label>
@@ -17,10 +17,6 @@
 
         <label for="starts_on">El registro cuenta desde</label>
         <input id="starts_on" name="starts_on" type="date" value="{{ old('starts_on', now()->toDateString()) }}" required>
-
-        <label for="municipality">Municipio del centro</label>
-        <input id="municipality" name="municipality" value="{{ old('municipality') }}" required maxlength="120">
-        <p class="secundario">Los festivos son los del centro de Madrid, también si la persona está en otra comunidad.</p>
 
         <label for="morning_start">Empieza</label>
         <x-hora id="morning_start" name="morning_start" :valor="old('morning_start', '09:00')" />

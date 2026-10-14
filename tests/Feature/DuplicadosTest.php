@@ -23,15 +23,4 @@ class DuplicadosTest extends TestCase
         $this->assertDatabaseCount('ausencias', 1);
     }
 
-    public function test_un_festivo_repetido_se_avisa_y_no_se_duplica(): void
-    {
-        $responsable = User::factory()->create(['role' => 'responsable']);
-        $datos = ['holiday_date' => '2026-12-09', 'name' => 'Festivo de prueba'];
-
-        $this->actingAs($responsable)->post(route('calendario.store'), $datos)->assertSessionHas('ok');
-        $this->actingAs($responsable)->post(route('calendario.store'), $datos)
-            ->assertSessionHas('aviso', 'Ese festivo ya está cargado.');
-
-        $this->assertDatabaseCount('festivos', 1);
-    }
 }

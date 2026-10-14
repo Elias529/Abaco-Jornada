@@ -16,8 +16,10 @@ Route::middleware('guest')->group(function () {
 Route::middleware(['auth', 'activo'])->group(function () {
     Route::post('/logout', [AuthController::class, 'destroy'])->name('logout');
 
-    // Dirección: consulta sin cambiar nada. Solo hay lecturas, y una escritura:
-    // el motivo de cada consulta, que queda anotado.
+    // El calendario lo ve toda la plantilla. Los festivos salen de Nager.Date, filtrados por el centro de quien mira.
+    Route::get('/calendario', [CalendarioController::class, 'index'])->name('calendario');
+
+    // Dirección: consulta el registro. Cada consulta deja el motivo escrito.
     Route::middleware('jefe')->prefix('jefe')->name('jefe.')->group(function () {
         Route::get('/', [JefeController::class, 'index'])->name('index');
         Route::get('/consultas', [JefeController::class, 'consultas'])->name('consultas');
@@ -53,8 +55,6 @@ Route::middleware(['auth', 'activo'])->group(function () {
         Route::get('/registro/{jornada}', [RegistroController::class, 'show'])->name('registro.show');
         Route::post('/tramos/{tramo}/corregir', [RegistroController::class, 'corregir'])->name('tramos.corregir');
 
-        Route::get('/calendario', [CalendarioController::class, 'index'])->name('calendario');
-
         Route::middleware('responsable')->group(function () {
             Route::get('/equipo', [EquipoController::class, 'index'])->name('equipo.index');
             Route::get('/equipo/nueva', [EquipoController::class, 'create'])->name('equipo.create');
@@ -67,7 +67,6 @@ Route::middleware(['auth', 'activo'])->group(function () {
             Route::post('/equipo/{user}/registro', [RegistroController::class, 'motivo'])->name('equipo.motivo');
             Route::get('/equipo/{user}/copia.csv', [RegistroController::class, 'csvDe'])->name('equipo.csv');
 
-            Route::post('/calendario', [CalendarioController::class, 'store'])->name('calendario.store');
             Route::post('/calendario/fallo', [CalendarioController::class, 'fallo'])->name('calendario.fallo');
         });
     });

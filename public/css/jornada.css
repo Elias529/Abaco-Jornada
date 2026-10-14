@@ -94,28 +94,46 @@ body {
 .marca {
     display: flex;
     align-items: center;
-    gap: 12px;
-    color: var(--texto);
-    text-decoration: none;
+    margin: 0;
     flex: 0 0 auto;
 }
 
 .marca-logo {
     display: flex;
     align-items: center;
-    justify-content: center;
-    width: 48px;
-    height: 48px;
-    padding: 4px;
+    gap: 8px;
+    min-height: 44px;
+    padding: 4px 14px 4px 8px;
     background: #fff;
+    border: 1px solid var(--marca-acento);
     border-radius: 8px;
+    font: inherit;
+    cursor: pointer;
+}
+
+.marca-logo:hover, .marca-logo:focus-visible {
+    border-color: var(--marca-primario);
 }
 
 .isotipo { width: 40px; height: auto; display: block; }
 
-.isotipo-acceso { width: 72px; margin-bottom: 8px; }
+.isotipo-acceso { width: 72px; }
+
+.marca-acceso {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 16px;
+    padding: 16px 18px;
+    background: #fff;
+    border-radius: 8px;
+}
+
+.marca-acceso h1 { color: #07111a; }
 
 .marca-nombre {
+    color: #07111a;
     font-size: 20px;
     font-weight: 600;
     line-height: 1.2;
@@ -523,15 +541,57 @@ input, textarea { padding-left: 14px; padding-right: 14px; }
     font-size: 12px;
 }
 
+.fechas-registro {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 12px;
+    align-items: end;
+}
+
 .filtro-registro input {
+    width: 148px;
+    min-width: 148px;
     min-height: 44px;
-    padding: 8px 12px;
-    border: 1px solid var(--linea);
-    border-radius: 8px;
-    font: inherit;
+    padding: 8px 8px;
 }
 
 .filtro-registro .boton { width: auto; }
+
+.tabla-envoltorio {
+    overflow-x: auto;
+    margin-top: 8px;
+    background: #e7f3f4;
+    border: 1px solid var(--linea);
+    border-radius: 8px;
+}
+
+.tabla-registro {
+    width: 100%;
+    border-collapse: collapse;
+    background: #e7f3f4;
+}
+
+.tabla-registro th,
+.tabla-registro td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--linea);
+    text-align: left;
+    white-space: nowrap;
+}
+
+.tabla-registro th {
+    color: var(--texto-suave);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.tabla-registro a {
+    color: var(--texto);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.tabla-registro a:hover { color: var(--marca-primario); }
 
 .paginas {
     display: flex;
@@ -540,6 +600,173 @@ input, textarea { padding-left: 14px; padding-right: 14px; }
     align-items: center;
     margin-top: 16px;
 }
+
+.leyenda {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+    margin: 16px 0;
+    padding: 0;
+    list-style: none;
+}
+
+.leyenda li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+}
+
+.muestra {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    flex: 0 0 auto;
+}
+
+.muestra-estado { background: #aa151b; }
+
+.muestra-comunidad { background: #0b7a3b; }
+
+.muestra-pueblo { background: #0b3d91; }
+
+.muestra-hoy {
+    background: transparent;
+    box-shadow: inset 0 0 0 2px #087f8c;
+}
+
+.muestra-vacaciones { background: #6b4eff; }
+
+.muestra-permiso { background: #e0a100; }
+
+.anios {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+    align-items: center;
+    margin: 8px 0 0;
+}
+
+.anios a {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    color: var(--marca-primario);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.fila-festivo {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: end;
+    margin-top: 12px;
+}
+
+.fila-festivo form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: end;
+}
+
+.fila-festivo input {
+    min-height: 44px;
+    padding: 8px 12px;
+    border: 1px solid var(--linea);
+    border-radius: 8px;
+    font: inherit;
+}
+
+.fila-festivo .boton { width: auto; }
+
+.anio {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+    margin-top: 8px;
+}
+
+.mes-caja {
+    background: var(--fondo-ventana);
+    border: 1px solid var(--linea);
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.mes-caja h2 {
+    margin: 0 0 8px;
+    font-size: 16px;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+.rejilla-mes {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 4px;
+}
+
+.cabecera-dia {
+    color: var(--texto-suave);
+    font-size: 11px;
+    font-weight: 600;
+    text-align: center;
+}
+
+.casilla {
+    min-height: 48px;
+    padding: 4px;
+    border-radius: 8px;
+    background: var(--fondo-pagina);
+    color: var(--texto);
+    font-size: 11px;
+    line-height: 1.2;
+    text-decoration: none;
+}
+
+a.casilla:hover, a.casilla:focus-visible {
+    outline: 2px solid var(--marca-primario);
+}
+
+.casilla strong {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.casilla small {
+    display: block;
+    overflow: hidden;
+}
+
+.casilla-vacia { background: transparent; }
+
+.casilla-finde { color: var(--texto-suave); }
+
+.casilla-estado,
+.casilla-comunidad,
+.casilla-pueblo { color: #07111a; }
+
+.casilla-estado { background: #f4d6d8; }
+
+.casilla-comunidad { background: #d7efdc; }
+
+.casilla-pueblo {
+    background: #d5e3f7;
+    outline: 2px solid #0b3d91;
+}
+
+.casilla-hoy { box-shadow: inset 0 0 0 2px #087f8c; }
+
+.casilla-vacaciones { box-shadow: inset 0 -4px 0 #6b4eff; }
+
+.casilla-permiso { box-shadow: inset 0 -4px 0 #e0a100; }
+
+.casilla-hoy.casilla-vacaciones { box-shadow: inset 0 0 0 2px #087f8c, inset 0 -4px 0 #6b4eff; }
+
+.casilla-hoy.casilla-permiso { box-shadow: inset 0 0 0 2px #087f8c, inset 0 -4px 0 #e0a100; }
 
 .lista {
     list-style: none;
@@ -734,6 +961,22 @@ input, textarea { padding-left: 14px; padding-right: 14px; }
 
 @media (prefers-color-scheme: dark) {
     .enlace { color: var(--marca-turquesa); }
+
+    .tabla-envoltorio,
+    .tabla-registro { background: #0c3f46; }
+
+    .casilla-estado,
+    .casilla-comunidad,
+    .casilla-pueblo { color: #fff; }
+
+    .casilla-estado { background: #b4232e; }
+
+    .casilla-comunidad { background: #0d7a45; }
+
+    .casilla-pueblo {
+        background: #1d4fad;
+        outline-color: #8eb4f5;
+    }
 }
 
 .semana {
@@ -766,6 +1009,10 @@ input, textarea { padding-left: 14px; padding-right: 14px; }
 .formulario-mes .fila { margin-top: 0; }
 
 .formulario-mes .fila select { flex: 1; }
+
+@media (max-width: 900px) {
+    .anio { grid-template-columns: 1fr; }
+}
 
 @media (max-width: 520px) {
     .resumen-fila { grid-template-columns: 1fr; }

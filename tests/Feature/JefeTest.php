@@ -78,6 +78,53 @@ class JefeTest extends TestCase
         $this->assertDatabaseCount('consultas', 0);
     }
 
+    public function test_la_direccion_y_la_responsable_ven_el_calendario_de_su_centro(): void
+    {
+        $this->festivosPublicos([
+            [
+                'date' => '2026-01-01',
+                'localName' => 'Año Nuevo',
+                'global' => true,
+                'counties' => null,
+                'types' => ['Public'],
+            ],
+            [
+                'date' => '2026-05-02',
+                'localName' => 'Fiesta de la Comunidad de Madrid',
+                'global' => false,
+                'counties' => ['ES-MD'],
+                'types' => ['Public'],
+            ],
+            [
+                'date' => '2026-02-28',
+                'localName' => 'Día de Andalucía',
+                'global' => false,
+                'counties' => ['ES-AN'],
+                'types' => ['Public'],
+            ],
+        ]);
+        $jefe = $this->jefe();
+        $marta = $this->persona('Marta Ruiz', 'marta.ruiz@abaco.test', 'responsable');
+
+        foreach ([$jefe, $marta] as $persona) {
+            $this->actingAs($persona)
+                ->get(route('calendario'))
+                ->assertOk()
+                ->assertSee('Año Nuevo', false)
+                ->assertSee('Fiesta de la Comunidad de Madrid', false)
+                ->assertDontSee('Día de Andalucía', false)
+                ->assertDontSee('Guardar festivo', false)
+                ->assertDontSee('Fallo común', false);
+        }
+
+        $this->actingAs($marta)
+            ->post('/calendario', [
+                'holiday_date' => '2027-01-06',
+                'name' => 'Inventado por Marta',
+            ])
+            ->assertStatus(405);
+    }
+
     public function test_la_direccion_no_puede_cambiar_horarios_horas_ni_accesos(): void
     {
         $jefe = $this->jefe();
@@ -302,9 +349,9 @@ class JefeTest extends TestCase
 
         $copia = $this->actingAs($jefe)->get(route('jefe.csv', $ana))->assertOk()->streamedContent();
 
-        $this->assertStringContainsString('Fecha;Inicio;Fin;"Inicio anterior"', $copia);
-        $this->assertStringContainsString('2026-10-06;09:00;18:00;09:30', $copia);
-        $this->assertStringContainsString('Marta Ruiz', $copia);
+        $this->assertStringContainsString('Fecha;Inicio;Fin;Total;Estado;Incidencia', $copia);
+        $this->assertStringContainsString('"martes 6 de octubre";09:00;18:00;"9 h 0 min";Cerrada;No', $copia);
+        $this->assertStringNotContainsString('09:30', $copia);
     }
 
     public function test_cada_persona_sigue_descargando_su_copia(): void
@@ -312,9 +359,9 @@ class JefeTest extends TestCase
         $ana = $this->persona('Ana López', 'ana.lopez@abaco.test');
         $this->jornadaCerrada($ana, '2026-10-06', '09:00', '18:00');
 
-        $copia = $this->actingAs($ana)->get(route('registro.csv'))->assertOk()->streamedContent();
+        $copia = $this->actingAs($ana)->get(route('registro.csv', ['desde' => '2026-10-06', 'hasta' => '2026-10-06']))->assertOk()->streamedContent();
 
-        $this->assertStringContainsString('2026-10-06;09:00;18:00', $copia);
+        $this->assertStringContainsString('"martes 6 de octubre";09:00;18:00', $copia);
     }
 
     public function test_las_consultas_dicen_quien_miro_y_por_que(): void

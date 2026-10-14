@@ -13,15 +13,16 @@
 
     @auth
         <header class="barra">
-            <a class="marca" href="{{ auth()->user()->esJefe() ? route('jefe.index') : route('jornada') }}">
-                <span class="marca-logo">
+            <form class="marca" method="get" action="{{ auth()->user()->esJefe() ? route('jefe.index') : route('jornada') }}">
+                <button class="marca-logo" type="submit">
                     <img class="isotipo" src="{{ asset('marca/logos/abacoqd_isotipo.svg') }}" alt="">
-                </span>
-                <span class="marca-nombre">Jornada</span>
-            </a>
+                    <span class="marca-nombre">Jornada</span>
+                </button>
+            </form>
             <nav class="menu" aria-label="Secciones">
                 @if (auth()->user()->esJefe())
                     <a href="{{ route('jefe.index') }}" @if (request()->routeIs('jefe.index', 'jefe.persona', 'jefe.registro', 'jefe.motivo', 'jefe.dia')) aria-current="page" @endif>Equipo</a>
+                    <a href="{{ route('calendario') }}" @if (request()->routeIs('calendario')) aria-current="page" @endif>Calendario</a>
                     <a href="{{ route('jefe.consultas') }}" @if (request()->routeIs('jefe.consultas')) aria-current="page" @endif>Consultas</a>
                 @else
                     <a href="{{ route('jornada') }}" @if (request()->routeIs('jornada')) aria-current="page" @endif>Hoy</a>
@@ -33,7 +34,7 @@
                 @endif
             </nav>
             <div class="barra-cuenta">
-                @if (auth()->user()->esJefe())
+                @if (auth()->user()->esJefe() && ! request()->routeIs('calendario'))
                     <span class="solo-lectura">Solo lectura</span>
                 @endif
                 <span class="persona">{{ auth()->user()->name }}</span>
@@ -64,10 +65,12 @@
             @yield('contenido')
         </main>
 
-        @if (auth()->check() && auth()->user()->esJefe())
+        @if (auth()->check() && auth()->user()->esJefe() && request()->routeIs('calendario'))
+            <p class="nota-datos">Los festivos son los públicos de tu centro. El registro de las personas solo se consulta.</p>
+        @elseif (auth()->check() && auth()->user()->esJefe())
             <p class="nota-datos">Aquí solo consultas. Lo guardado no se cambia, y cada vez que abres el registro de una persona queda escrito quién lo hizo y por qué.</p>
         @else
-            <p class="nota-datos">Guardamos tu nombre, tu horario y las horas de la jornada. No guardamos ubicación.</p>
+      
         @endif
     </div>
     <script src="{{ asset('js/reloj.js') }}?v={{ filemtime(public_path('js/reloj.js')) }}"></script>

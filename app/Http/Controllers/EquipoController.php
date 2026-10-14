@@ -44,7 +44,8 @@ class EquipoController extends Controller
                     'role' => 'trabajadora',
                     'active' => true,
                     'starts_on' => $datos['starts_on'],
-                    'municipality' => $datos['municipality'],
+                    'municipality' => JornadaService::CENTRO,
+                    'centro' => 'ES-MD',
                 ]);
                 $this->guardarHorario($persona, $datos, $datos['starts_on']);
             });
@@ -126,7 +127,6 @@ class EquipoController extends Controller
             'name' => ['required', 'string', 'max:120'],
             'email' => ['required', 'email', 'max:190', 'unique:users,email'],
             'starts_on' => ['required', 'date'],
-            'municipality' => ['required', 'string', 'max:120'],
         ];
         if ($conClave) {
             $reglas['password'] = ['required', 'string', 'min:8'];
@@ -138,7 +138,6 @@ class EquipoController extends Controller
             'email.unique' => 'Ese correo ya está en uso.',
             'password.min' => 'La contraseña necesita al menos 8 caracteres.',
             'starts_on.required' => 'Elige desde qué día cuenta el registro.',
-            'municipality.required' => 'Escribe el municipio del centro.',
         ]);
 
         return array_merge($datos, $this->validarHorario($request));

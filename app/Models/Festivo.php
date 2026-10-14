@@ -10,11 +10,17 @@ class Festivo extends Model
         'holiday_date',
         'municipality',
         'name',
+        'ambito',
     ];
 
-    public function ambito(): string
+    public function etiqueta(): string
     {
-        return $this->municipality === '' ? 'Todos los centros' : $this->municipality;
+        return match ($this->ambito) {
+            'estado' => 'Festivo Nacional',
+            'comunidad' => 'Festivo Autonómico',
+            'pueblo' => 'Festivo Local',
+            default => $this->municipality === '' ? 'Todos los centros' : 'Festivo Local',
+        };
     }
 
     protected function casts(): array
