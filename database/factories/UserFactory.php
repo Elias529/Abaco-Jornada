@@ -39,12 +39,22 @@ class UserFactory extends Factory
     }
 
     /**
-     * Dirección: consulta los registros, no ficha.
+     * Jefa: gestiona el equipo y hace las funciones de dirección.
      */
-    public function jefe(): static
+    public function jefa(): static
     {
         return $this->state(fn (array $attributes) => [
-            'role' => 'jefe',
+            'role' => 'jefa',
+        ]);
+    }
+
+    /**
+     * Administrador técnico: ficha y gestiona actualizaciones y base de datos.
+     */
+    public function tecnico(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => 'tecnico',
         ]);
     }
 

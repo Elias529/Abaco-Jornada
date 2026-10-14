@@ -5,7 +5,7 @@
         <img class="isotipo isotipo-acceso" src="{{ asset('marca/logos/abacoqd_isotipo.svg') }}" alt="">
         <h1>Ábaco Jornada</h1>
     </div>
-    <p class="secundario">Entra con el correo que te dio tu responsable.</p>
+    <p class="secundario">Entra con el correo que te dio tu jefa.</p>
 
     <form method="post" action="{{ route('login') }}" class="formulario">
         @csrf
@@ -22,8 +22,8 @@
         <details class="pruebas">
             <summary>Cuentas de prueba</summary>
             <p>Ana López · ana.lopez@abaco.test</p>
-            <p>Marta Ruiz, responsable · marta.ruiz@abaco.test</p>
-            <p>Carmen Ortega, dirección · carmen.ortega@abaco.test</p>
+            <p>Marta Ruiz, jefa · marta.ruiz@abaco.test</p>
+            <p>Carmen Ortega, administradora técnica · carmen.ortega@abaco.test</p>
             <p>Contraseña: Jornada2026</p>
         </details>
     @endif

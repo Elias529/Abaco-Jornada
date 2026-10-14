@@ -21,14 +21,14 @@ class EquipoController extends Controller
     public function index(): View
     {
         return view('equipo.index', [
-            'personas' => User::query()->where('role', '!=', 'jefe')->orderBy('name')->get(),
-            'esResponsable' => true,
+            'personas' => User::query()->orderBy('name')->get(),
+            'esJefa' => true,
         ]);
     }
 
     public function create(): View
     {
-        return view('equipo.create', ['esResponsable' => true]);
+        return view('equipo.create', ['esJefa' => true]);
     }
 
     public function store(Request $request): RedirectResponse
@@ -63,7 +63,7 @@ class EquipoController extends Controller
             'horarios' => $user->horarios()->orderByDesc('effective_from')->get(),
             'ausencias' => $user->ausencias()->orderByDesc('absence_date')->get(),
             'consultas' => Consulta::query()->with('viewer')->where('subject_id', $user->id)->latest()->limit(8)->get(),
-            'esResponsable' => true,
+            'esJefa' => true,
         ]);
     }
 

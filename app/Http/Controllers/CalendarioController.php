@@ -34,7 +34,7 @@ class CalendarioController extends Controller
             ->whereYear('work_date', $anio)
             ->get()
             ->keyBy(fn (Jornada $jornada) => $jornada->work_date->toDateString());
-        $faltas = $usuario->esResponsable()
+        $faltas = $usuario->esJefa()
             ? Ausencia::query()->with('user')->whereYear('absence_date', $anio)->orderBy('absence_date')->get()
             : collect();
 
@@ -48,9 +48,31 @@ class CalendarioController extends Controller
             'sinCalendario' => $festivos->isEmpty(),
             'faltas' => $faltas,
             'fallos' => FalloComun::query()->orderByDesc('falla_date')->limit(12)->get(),
-            'esResponsable' => $usuario->esResponsable(),
-            'esJefe' => $usuario->esJefe(),
+            'esJefa' => $request->user()->esJefa(),
         ]);
+    }
+
+    public function store(Request $request): RedirectResponse
+    {
+        $datos = $request->validate([
+            'holiday_date' => ['required', 'date'],
+            'name' => ['required', 'string', 'max:120'],
+        ], [
+            'holiday_date.required' => 'Elige el día.',
+            'name.required' => 'Escribe el nombre del festivo.',
+        ]);
+
+        try {
+            Festivo::create([
+                'holiday_date' => $datos['holiday_date'],
+                'name' => $datos['name'],
+                'municipality' => JornadaService::CENTRO,
+            ]);
+        } catch (UniqueConstraintViolationException) {
+            return back()->with('aviso', 'Ese festivo ya está cargado.')->withInput();
+        }
+
+        return back()->with('ok', 'Guardado. El festivo ya cuenta para toda la plantilla. Los días ya trabajados se quedan como se registraron.');
     }
 
     public function fallo(Request $request): RedirectResponse

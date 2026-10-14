@@ -112,7 +112,7 @@ class JornadaService
             'puedeFuera' => $puedeAbrir && ! $pasada && (! $festivo || $respuestaFestivo === 'si'),
             'hoyTexto' => Tiempo::corto($minutosHoy),
             'semanaTexto' => Tiempo::corto($this->minutosSemana($user, $ahora)),
-            'esResponsable' => $user->esResponsable(),
+            'esJefa' => $user->esJefa(),
         ];
     }
 
@@ -462,11 +462,11 @@ class JornadaService
         $jornada = $tramo->jornada;
         $duena = $jornada->user;
 
-        if ($actor->id !== $duena->id && ! $actor->esResponsable()) {
+        if ($actor->id !== $duena->id && ! $actor->esJefa()) {
             throw new ReglaJornada('Solo puedes ver tu registro.');
         }
-        if (! $actor->esResponsable() && $jornada->work_date->lt(now()->subDays(7)->startOfDay())) {
-            throw new ReglaJornada('Para cambiar este día, habla con tu responsable.');
+        if (! $actor->esJefa() && $jornada->work_date->lt(now()->subDays(7)->startOfDay())) {
+            throw new ReglaJornada('Para cambiar este día, habla con tu jefa.');
         }
 
         $nota = $nota !== null ? trim($nota) : null;
@@ -763,6 +763,13 @@ class JornadaService
             ];
         }
 
+        if ($user->esJefa() && $this->anioSinCalendario($ahora)) {
+            return [
+                'texto' => 'El calendario de '.$ahora->year.' no está cargado. No inventamos festivos. Los días ya trabajados se quedan como se registraron.',
+                'accion' => 'calendario',
+            ];
+        }
+
         return null;
     }
 
@@ -985,7 +992,7 @@ class JornadaService
         $ahora ??= now();
         $horario = $user->horarioEn($ahora);
 
-        if (! $user->active || $user->esJefe() || ! $horario || ! $this->esDiaEsperado($user, $ahora)) {
+        if (! $user->active || ! $horario || ! $this->esDiaEsperado($user, $ahora)) {
             return null;
         }
 

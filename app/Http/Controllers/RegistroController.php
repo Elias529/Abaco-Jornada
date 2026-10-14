@@ -73,10 +73,10 @@ class RegistroController extends Controller
             'persona' => $jornada->user,
             'total' => Tiempo::texto($this->jornada->minutosRegistrados($jornada->user, $jornada)),
             'porEncima' => $this->jornada->porEncimaRegistrado($jornada->user, $jornada),
-            'puedeCorregir' => $request->user()->esResponsable()
+            'puedeCorregir' => $request->user()->esJefa()
                 || ($request->user()->id === $jornada->user_id && $jornada->work_date->gte(now()->subDays(7)->startOfDay())),
             'motivos' => Correccion::MOTIVOS,
-            'esResponsable' => $request->user()->esResponsable(),
+            'esJefa' => $request->user()->esJefa(),
         ]);
     }
 
@@ -183,7 +183,7 @@ class RegistroController extends Controller
             'consultas' => $consulta
                 ? Consulta::query()->with('viewer')->where('subject_id', $persona->id)->latest()->limit(10)->get()
                 : collect(),
-            'esResponsable' => $visor->esResponsable(),
+            'esJefa' => $visor->esJefa(),
             'propio' => $visor->id === $persona->id,
         ]);
     }
@@ -214,13 +214,13 @@ class RegistroController extends Controller
 
         return view('registro.motivo', [
             'persona' => $persona,
-            'esResponsable' => true,
+            'esJefa' => true,
         ]);
     }
 
     private function autorizar(User $visor, User $persona): void
     {
-        if ($visor->id !== $persona->id && ! $visor->esResponsable()) {
+        if ($visor->id !== $persona->id && ! $visor->esJefa()) {
             abort(403);
         }
     }

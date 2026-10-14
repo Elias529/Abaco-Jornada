@@ -73,7 +73,7 @@
                                 @if ($dia['ausencia'])
                                     <small>{{ $dia['ausencia']->tipoTexto() }}</small>
                                 @endif
-                                @if ($esResponsable && $dia['faltan']->isNotEmpty())
+                                @if ($esJefa && $dia['faltan']->isNotEmpty())
                                     <small>{{ $dia['faltan']->count() }} {{ $dia['faltan']->count() === 1 ? 'falta' : 'faltan' }}</small>
                                 @endif
                             @if ($dia['registro'])

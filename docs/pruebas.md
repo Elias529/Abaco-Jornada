@@ -22,9 +22,11 @@ La revisión de Pablo del 9 de octubre de 2026 vio 18 pruebas y 92 aserciones. D
 | `test_el_fallo_comun_y_el_horario_no_cuentan` | Un fallo común o un cambio de horario deja el aviso fuera de la cuenta |
 | `test_la_consulta_pide_motivo_y_queda_escrita` | Ver el registro de otra persona exige motivo y queda anotado |
 | `test_la_incidencia_de_conexion_declara_horas_sin_fichar_en_directo` | Sin convertir la caída de red en un fichaje en directo ni en un olvido. Guarda motivo, autora y hora de recepción |
-| `JefeTest` | La dirección consulta, no ficha y no cambia horas, horarios ni accesos |
+| `JefeTest` | La jefa hace las funciones de dirección: estado, registro con motivo, resumen mensual, CSV y consultas. Los demás papeles no entran |
+| `TecnicoTest` | El técnico ficha, solo él entra en Sistema, el panel no enseña datos de personas, lista cambios pendientes y exige confirmar |
+| `SistemaEnArchivoTest` | La copia es una base completa; actualizar copia antes de aplicar; si falla, queda la copia y la anotación |
 | `AvisoPorCorreoTest` | El correo de olvido de inicio sale una vez, con las exclusiones previstas |
-| `DuplicadosTest` | Una ausencia o un festivo repetido no se duplica |
+| `DuplicadosTest` | Una ausencia repetida no se duplica |
 
 ## Defectos abiertos
 
@@ -47,4 +49,4 @@ Desconexión de verdad, cambio de cuenta en el mismo navegador, sesión caducada
 
 ## Última ejecución
 
-El 9 de octubre de 2026, `php artisan test` pasó 53 pruebas y 283 aserciones. La revisión de Pablo de esa misma fecha se hizo sobre una versión anterior, con 18 pruebas y 92 aserciones.
+El 14 de octubre de 2026, tras resolver el merge de los papeles, `php artisan test` pasó 67 pruebas y 362 aserciones. El 9 de octubre de 2026 pasó 53 pruebas y 283 aserciones. La revisión de Pablo de esa misma fecha se hizo sobre una versión anterior, con 18 pruebas y 92 aserciones.
