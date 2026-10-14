@@ -58,6 +58,14 @@ Cada fila enlaza la regla o la tarea que la aplica. El estado «vigente» es lo 
 - Estado: vigente.
 - Aplica en: `tests/Feature/JefeTest.php`, `tests/Feature/TecnicoTest.php` y `tests/Feature/SistemaEnArchivoTest.php`.
 
+## 2026-10-14 · Los fallos de la aplicación se cuentan en un ticket
+
+- Decisión: cualquier persona, jefa incluida, abre un ticket desde "Ayuda" en el menú. Es una conversación con el técnico. Los estados son abierto, en curso y resuelto. El técnico recibe un correo al abrirse y quien lo abrió recibe otro al resolverse. Si quien lo abrió escribe en uno resuelto, se reabre.
+- Motivo: la persona que tiene el problema no tiene otra vía que avisar de palabra, y el técnico no queda con rastro de lo que pasó.
+- Límite: el ticket solo lo ven quien lo abrió y el técnico. Ni la jefa ve los de otras personas. El formulario pide no escribir datos de salud ni de clientes. Un correo que falla se anota en el registro y no impide guardar el ticket.
+- Estado: vigente.
+- Aplica en: `tests/Feature/TicketTest.php`.
+
 ## 2026-10-07 · El exceso no se autoriza en la aplicación
 
 - Decisión: salir a las 18:35 guarda las 18:35. No se pide autorización ni se etiqueta como hora extra.

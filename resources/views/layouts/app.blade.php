@@ -29,8 +29,10 @@
                     <a href="{{ route('jefe.consultas') }}" @if (request()->routeIs('jefe.consultas')) aria-current="page" @endif>Consultas</a>
                 @endif
                 @if (auth()->user()->esTecnico())
-                    <a href="{{ route('tecnico.index') }}" @if (request()->routeIs('tecnico.*')) aria-current="page" @endif>Sistema</a>
+                    <a href="{{ route('tecnico.index') }}" @if (request()->routeIs('tecnico.index', 'tecnico.copia', 'tecnico.actualizar')) aria-current="page" @endif>Sistema</a>
+                    <a href="{{ route('tecnico.tickets') }}" @if (request()->routeIs('tecnico.tickets*')) aria-current="page" @endif>Tickets</a>
                 @endif
+                <a href="{{ route('tickets.index', ['desde' => request()->routeIs('tickets.*') ? null : '/'.ltrim(request()->path(), '/')]) }}" @if (request()->routeIs('tickets.*')) aria-current="page" @endif>Ayuda</a>
             </nav>
             <div class="barra-cuenta">
                 @if (auth()->user()->esJefa() && request()->routeIs('jefe.*'))

@@ -1022,3 +1022,5 @@ a.casilla:hover, a.casilla:focus-visible {
 .casilla { display: flex; align-items: center; gap: 12px; }
 .casilla input { width: 20px; min-height: 20px; flex: 0 0 auto; accent-color: var(--marca-primario); }
 .tarjeta .lista { margin-top: 12px; }
+.paginas a[aria-current="page"] { font-weight: 700; text-decoration: none; }
+.lista li.mensaje-tecnico { border-left: 4px solid var(--marca-primario); }

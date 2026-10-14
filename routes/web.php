@@ -7,6 +7,7 @@ use App\Http\Controllers\JefeController;
 use App\Http\Controllers\JornadaController;
 use App\Http\Controllers\RegistroController;
 use App\Http\Controllers\TecnicoController;
+use App\Http\Controllers\TicketController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
@@ -42,6 +43,13 @@ Route::middleware(['auth', 'activo'])->group(function () {
     // El calendario lo ve toda la plantilla. Los festivos salen de Nager.Date, filtrados por el centro de quien mira.
     Route::get('/calendario', [CalendarioController::class, 'index'])->name('calendario');
 
+    // Tickets: cualquier persona cuenta un problema; solo ella y el técnico lo ven.
+    Route::get('/tickets', [TicketController::class, 'index'])->name('tickets.index');
+    Route::get('/tickets/nuevo', [TicketController::class, 'create'])->name('tickets.create');
+    Route::post('/tickets', [TicketController::class, 'store'])->middleware('throttle:10,1')->name('tickets.store');
+    Route::get('/tickets/{ticket}', [TicketController::class, 'show'])->name('tickets.show');
+    Route::post('/tickets/{ticket}/mensajes', [TicketController::class, 'mensaje'])->middleware('throttle:20,1')->name('tickets.mensaje');
+
     Route::middleware('jefa')->group(function () {
         Route::get('/equipo', [EquipoController::class, 'index'])->name('equipo.index');
         Route::get('/equipo/nueva', [EquipoController::class, 'create'])->name('equipo.create');
@@ -75,5 +83,7 @@ Route::middleware(['auth', 'activo'])->group(function () {
         Route::get('/', [TecnicoController::class, 'index'])->name('index');
         Route::post('/copia', [TecnicoController::class, 'copia'])->name('copia');
         Route::post('/actualizar', [TecnicoController::class, 'actualizar'])->name('actualizar');
+        Route::get('/tickets', [TecnicoController::class, 'tickets'])->name('tickets');
+        Route::post('/tickets/{ticket}/estado', [TicketController::class, 'estado'])->name('tickets.estado');
     });
 });
