@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AccionTecnica;
+use App\Models\Ticket;
 use App\Services\SistemaService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,6 +21,30 @@ class TecnicoController extends Controller
             'entorno' => $this->sistema->entorno(),
             'copias' => $this->sistema->copias(),
             'acciones' => AccionTecnica::query()->with('autor')->latest('id')->limit(10)->get(),
+            'ticketsPendientes' => Ticket::query()->where('estado', '!=', Ticket::RESUELTO)->count(),
+        ]);
+    }
+
+    /**
+     * Todos los tickets. Por defecto, los que siguen sin resolver.
+     */
+    public function tickets(Request $request): View
+    {
+        $filtro = $request->query('estado');
+        $filtro = in_array($filtro, ['todos', Ticket::RESUELTO], true) ? $filtro : 'pendientes';
+
+        $consulta = Ticket::query()->with('autor')->latest('id');
+
+        if ($filtro === 'pendientes') {
+            $consulta->where('estado', '!=', Ticket::RESUELTO);
+        } elseif ($filtro === Ticket::RESUELTO) {
+            $consulta->where('estado', Ticket::RESUELTO);
+        }
+
+        return view('tecnico.tickets', [
+            'tickets' => $consulta->get(),
+            'filtro' => $filtro,
+            'pendientes' => Ticket::query()->where('estado', '!=', Ticket::RESUELTO)->count(),
         ]);
     }
 

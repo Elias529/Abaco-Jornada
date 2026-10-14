@@ -9,6 +9,10 @@
     <h1>Sistema</h1>
     <p class="secundario">Aquí ves el estado de la base de datos activa y la actualizas. No ves los registros de nadie.</p>
 
+    <p>
+        <a class="boton boton-secundario" href="{{ route('tecnico.tickets') }}">Tickets sin resolver: {{ $ticketsPendientes }}</a>
+    </p>
+
     <section class="resumen resumen-fila" aria-label="Resumen">
         <div>
             <span>Base de datos</span>

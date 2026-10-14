@@ -16,6 +16,7 @@ Jornada es una aplicación web. La persona entra con su cuenta y el servidor con
 - Consulta del registro de otra persona con un motivo, y ese acceso queda escrito.
 - Avisos por cierres sin completar. Por debajo de 8 en 28 días el registro no cambia de estado.
 - Tres papeles: trabajadora, jefa y administrador técnico. La jefa gestiona el equipo y consulta los registros con motivo. El técnico ficha y gestiona actualizaciones y la base de datos activa. La baja cierra el acceso y no borra las jornadas.
+- Tickets: cualquier persona cuenta un fallo de la aplicación al técnico y conversan hasta resolverlo.
 
 ## Fuera
 
