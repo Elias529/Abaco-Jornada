@@ -19,11 +19,11 @@
         @endforelse
     </ul>
 
-    @unless ($esResponsable)
-        <p class="secundario">Puedes consultar los festivos. Los carga tu responsable.</p>
+    @unless ($esJefa)
+        <p class="secundario">Puedes consultar los festivos. Los carga tu jefa.</p>
     @endunless
 
-    @if ($esResponsable)
+    @if ($esJefa)
 
     <form method="post" action="{{ route('calendario.store') }}" class="formulario">
         @csrf

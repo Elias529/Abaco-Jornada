@@ -2,7 +2,7 @@
 
 Aplicación web para el registro de jornada de Ábaco. La persona ficha la entrada, la pausa y la salida. La hora la confirma el servidor, en la zona `Europe/Madrid`.
 
-La dirección consulta los registros y no ficha. La responsable gestiona el equipo, los horarios y el calendario del centro.
+La jefa gestiona el equipo, los horarios y el calendario del centro, y consulta los registros con motivo. El administrador técnico ficha y gestiona las actualizaciones y la base de datos activa.
 
 ## Arrancar
 

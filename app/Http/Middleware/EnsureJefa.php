@@ -6,12 +6,12 @@ use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
-class EnsureResponsable
+class EnsureJefa
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if (! $request->user()?->esResponsable()) {
-            return redirect()->route('jornada')->with('aviso', 'Esta página es del responsable de equipo.');
+        if (! $request->user()?->esJefa()) {
+            return redirect()->route('jornada')->with('aviso', 'Esta página es de la jefa del equipo.');
         }
 
         return $next($request);

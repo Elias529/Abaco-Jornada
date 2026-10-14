@@ -770,3 +770,8 @@ input, textarea { padding-left: 14px; padding-right: 14px; }
 @media (max-width: 520px) {
     .resumen-fila { grid-template-columns: 1fr; }
 }
+
+.lista .lista-tecnica { flex-direction: row; justify-content: space-between; gap: 12px; padding: 12px 16px; }
+.casilla { display: flex; align-items: center; gap: 12px; }
+.casilla input { width: 20px; min-height: 20px; flex: 0 0 auto; accent-color: var(--marca-primario); }
+.tarjeta .lista { margin-top: 12px; }

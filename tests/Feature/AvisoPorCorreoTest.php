@@ -54,11 +54,11 @@ class AvisoPorCorreoTest extends TestCase
         $this->assertNotNull(Aviso::where('user_id', $ana->id)->where('tipo', 'inicio')->first()->correo_enviado_at);
     }
 
-    public function test_el_correo_va_con_copia_a_la_responsable_activa(): void
+    public function test_el_correo_va_con_copia_a_la_jefa_activa(): void
     {
         $ana = $this->persona();
-        $marta = $this->persona(['role' => 'responsable']);
-        $this->persona(['role' => 'responsable', 'active' => false]);
+        $marta = $this->persona(['role' => 'jefa']);
+        $this->persona(['role' => 'jefa', 'active' => false]);
         $this->fichar($marta);
 
         $this->ejecutarA('2026-10-07 09:30:00');
@@ -69,13 +69,13 @@ class AvisoPorCorreoTest extends TestCase
             fn (OlvidoDeInicio $correo) => $correo->hasTo($ana->email)
                 && $correo->hasCc($marta->email)
                 && count($correo->cc) === 1
-                && str_contains($correo->render(), 'con copia, a tu responsable'),
+                && str_contains($correo->render(), 'con copia, a tu jefa'),
         );
     }
 
-    public function test_la_responsable_que_se_olvida_no_se_copia_a_si_misma(): void
+    public function test_la_jefa_que_se_olvida_no_se_copia_a_si_misma(): void
     {
-        $marta = $this->persona(['role' => 'responsable']);
+        $marta = $this->persona(['role' => 'jefa']);
 
         $this->ejecutarA('2026-10-07 09:30:00');
 
@@ -108,9 +108,8 @@ class AvisoPorCorreoTest extends TestCase
         Mail::assertNothingSent();
     }
 
-    public function test_no_avisa_a_la_direccion_ni_a_quien_esta_de_baja_ni_despues_del_horario(): void
+    public function test_no_avisa_a_quien_esta_de_baja_ni_despues_del_horario(): void
     {
-        $this->persona(['role' => 'jefe']);
         $this->persona(['active' => false]);
 
         $this->ejecutarA('2026-10-07 09:30:00');
@@ -135,7 +134,7 @@ class AvisoPorCorreoTest extends TestCase
     public function test_si_el_servidor_rechaza_la_copia_la_persona_recibe_el_aviso_igualmente(): void
     {
         $ana = $this->persona();
-        $this->persona(['role' => 'responsable']);
+        $this->persona(['role' => 'jefa']);
 
         $conCopia = Mockery::mock(PendingMail::class);
         $conCopia->shouldReceive('cc')->once()->andReturnSelf();
