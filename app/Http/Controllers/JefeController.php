@@ -16,7 +16,8 @@ use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
- * Vista de la dirección. Solo consulta: ninguna acción de aquí cambia un
+ * Funciones de dirección de la jefa: estado del equipo, resumen del mes y
+ * registro de cada persona. Solo consulta: ninguna acción de aquí cambia un
  * horario, una hora o un acceso. Lo único que se escribe es el motivo de
  * cada consulta, para que quede constancia de quién miró y por qué.
  */
@@ -31,7 +32,6 @@ class JefeController extends Controller
         $ahora = now();
 
         $personas = User::query()
-            ->where('role', '!=', 'jefe')
             ->orderByDesc('active')
             ->orderBy('name')
             ->get()
@@ -95,7 +95,7 @@ class JefeController extends Controller
 
     public function dia(Request $request, Jornada $jornada): View
     {
-        $jornada->load('user', 'tramos.correcciones.autor');
+        $jornada->load('user', 'tramos.correcciones.autor', 'tramos.cerradoPor');
         $persona = $jornada->user;
 
         if ($motivo = $this->pedirMotivo($request, $persona)) {

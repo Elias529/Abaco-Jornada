@@ -1,7 +1,7 @@
 @extends('layouts.app', ['titulo' => $persona->name])
 
 @section('contenido')
-    <p><a class="enlace" href="{{ route('jefe.index') }}">Volver al equipo</a></p>
+    <p><a class="enlace" href="{{ route('jefe.index') }}">Volver al estado del equipo</a></p>
     <h1>{{ $persona->name }}</h1>
     <p>{{ $persona->email }}</p>
     <p class="secundario">Centro en {{ $persona->municipality }}. El registro cuenta desde {{ $persona->starts_on ? \App\Support\Tiempo::fecha($persona->starts_on) : 'sin fecha' }}.</p>
@@ -20,7 +20,7 @@
     <p class="secundario">Para abrir el registro hace falta un motivo. La consulta queda escrita.</p>
 
     <h2>Horario</h2>
-    <p class="secundario">Los cambios de horario los hace el responsable. Cada horario nuevo vale desde su fecha y los días anteriores conservan el suyo.</p>
+    <p class="secundario">Los cambios de horario se hacen desde <a class="enlace" href="{{ route('equipo.show', $persona) }}">Equipo</a>. Cada horario nuevo vale desde su fecha y los días anteriores conservan el suyo.</p>
     <ul class="lista">
         @forelse ($horarios as $horario)
             <li>

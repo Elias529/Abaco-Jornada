@@ -26,7 +26,7 @@ Si queda un tramo abierto de un día anterior, lo primero que se ve es ese día.
 
 Si el equipo sigue encendido pasada la hora de fin de tarde, y la persona no ha dicho que sigue, el tiempo visible se corta en esa hora. Terminar jornada no se ofrece hasta pulsar Sigo. Seguir después de las 18:00 guarda la salida real. No se convierte en hora extra ni pide autorización. El texto actual dice «No es una hora extra»; Pablo pide revisar esa frase porque mostrar un exceso no clasifica el tiempo.
 
-La persona puede corregir una hora suya durante 7 días. Después lo hace la responsable. La hora anterior, la nueva, quién y cuándo quedan en `correcciones`. Esta corrección no vuelve a leer el tramo dentro de la operación ni impide que se cruce con otro tramo. Es un defecto abierto.
+La persona puede corregir una hora suya durante 7 días. Después lo hace la jefa. La hora anterior, la nueva, quién y cuándo quedan en `correcciones`. Esta corrección no vuelve a leer el tramo dentro de la operación ni impide que se cruce con otro tramo. Es un defecto abierto.
 
 ## Festivos
 
@@ -55,5 +55,5 @@ Al recuperar la conexión, la persona puede comunicar la incidencia y declarar e
 ## Papeles
 
 - Trabajadora: ficha y ve su registro.
-- Responsable: además gestiona el equipo, los horarios, las ausencias, la baja y el calendario.
-- Dirección: consulta estado, horario y registro. Cada consulta de un registro ajeno exige motivo y queda escrita. No ficha, no corrige horas y no cambia horarios ni accesos.
+- Jefa (papel `jefa`): además gestiona el equipo, los horarios, las ausencias, la baja y el calendario. También hace las funciones de dirección: estado del equipo, registro con resumen mensual, copia CSV y lista de consultas. Cada consulta de un registro ajeno exige motivo y queda escrita.
+- Administrador técnico: ficha como cualquier persona del equipo. Además gestiona las actualizaciones y comprueba la base de datos activa (estado, integridad, copias). No ve los registros de otras personas. Cada copia o actualización queda escrita en `acciones_tecnicas`.

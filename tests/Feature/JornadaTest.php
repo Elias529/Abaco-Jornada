@@ -7,6 +7,7 @@ use App\Models\Horario;
 use App\Models\Jornada;
 use App\Models\Tramo;
 use App\Models\User;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Tests\TestCase;
@@ -100,9 +101,32 @@ class JornadaTest extends TestCase
             ->assertRedirect(route('jornada'));
     }
 
+    public function test_la_trabajadora_ve_los_festivos_y_no_los_cambia(): void
+    {
+        $this->seed();
+        $ana = User::query()->where('email', 'ana.lopez@abaco.test')->first();
+
+        $this->actingAs($ana)
+            ->get(route('calendario'))
+            ->assertOk()
+            ->assertSee('Calendario', false)
+            ->assertSee('San Isidro', false)
+            ->assertDontSee('Guardar festivo', false)
+            ->assertDontSee('Marcar fallo común', false);
+
+        $this->actingAs($ana)
+            ->post(route('calendario.store'), [
+                'holiday_date' => '2026-10-20',
+                'name' => 'Inventado',
+            ])
+            ->assertRedirect(route('jornada'));
+
+        $this->assertDatabaseMissing('festivos', ['name' => 'Inventado']);
+    }
+
     public function test_la_baja_conserva_la_jornada(): void
     {
-        $marta = $this->persona('Marta Ruiz', 'marta.ruiz@abaco.test', 'Madrid', 'responsable');
+        $marta = $this->persona('Marta Ruiz', 'marta.ruiz@abaco.test', 'Madrid', 'jefa');
         $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
         Jornada::create([
             'user_id' => $ana->id,
@@ -177,7 +201,7 @@ class JornadaTest extends TestCase
     public function test_ana_y_marta_pueden_borrar_el_fichaje_de_hoy_para_probar(): void
     {
         $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
-        $marta = $this->persona('Marta Ruiz', 'marta.ruiz@abaco.test', 'Madrid', 'responsable');
+        $marta = $this->persona('Marta Ruiz', 'marta.ruiz@abaco.test', 'Madrid', 'jefa');
         $lucia = $this->persona('Lucía Vega', 'lucia.vega@abaco.test', 'Alcalá de Henares');
         $deAna = Jornada::create([
             'user_id' => $ana->id,
@@ -349,13 +373,19 @@ class JornadaTest extends TestCase
 
     public function test_el_fallo_comun_y_el_horario_no_cuentan(): void
     {
-        $marta = $this->persona('Marta Ruiz', 'marta.ruiz@abaco.test', 'Madrid', 'responsable');
+        $marta = $this->persona('Marta Ruiz', 'marta.ruiz@abaco.test', 'Madrid', 'jefa');
         $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
         $this->horario($ana);
-        $aviso = Aviso::create([
+        $anterior = Aviso::create([
             'user_id' => $ana->id,
             'tipo' => 'inicio',
             'work_date' => '2026-10-06',
+            'cuenta' => true,
+        ]);
+        $afectado = Aviso::create([
+            'user_id' => $ana->id,
+            'tipo' => 'cierre',
+            'work_date' => '2026-10-07',
             'cuenta' => true,
         ]);
 
@@ -367,8 +397,10 @@ class JornadaTest extends TestCase
             'effective_from' => '2026-10-07',
         ])->assertSessionHas('ok');
 
-        $this->assertFalse($aviso->fresh()->cuenta);
-        $this->assertSame('horario', $aviso->fresh()->exclusion);
+        $this->assertTrue($anterior->fresh()->cuenta);
+        $this->assertNull($anterior->fresh()->exclusion);
+        $this->assertFalse($afectado->fresh()->cuenta);
+        $this->assertSame('horario', $afectado->fresh()->exclusion);
 
         $this->actingAs($marta)->post(route('calendario.fallo'), [
             'falla_date' => '2026-10-07',
@@ -384,7 +416,7 @@ class JornadaTest extends TestCase
 
     public function test_la_consulta_pide_motivo_y_queda_escrita(): void
     {
-        $marta = $this->persona('Marta Ruiz', 'marta.ruiz@abaco.test', 'Madrid', 'responsable');
+        $marta = $this->persona('Marta Ruiz', 'marta.ruiz@abaco.test', 'Madrid', 'jefa');
         $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
         Jornada::create(['user_id' => $ana->id, 'work_date' => '2026-10-06']);
 
@@ -436,6 +468,132 @@ class JornadaTest extends TestCase
             ->assertSee('ahora 09:00', false);
     }
 
+    public function test_una_correccion_no_puede_pisar_otro_rato(): void
+    {
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
+        $jornada = Jornada::create(['user_id' => $ana->id, 'work_date' => '2026-10-07']);
+        Tramo::create([
+            'jornada_id' => $jornada->id,
+            'tipo' => Tramo::TRABAJO,
+            'started_at' => '2026-10-07 09:00:00',
+            'ended_at' => '2026-10-07 12:00:00',
+        ]);
+        $tarde = Tramo::create([
+            'jornada_id' => $jornada->id,
+            'tipo' => Tramo::TRABAJO,
+            'started_at' => '2026-10-07 15:00:00',
+            'ended_at' => '2026-10-07 18:00:00',
+        ]);
+
+        $this->actingAs($ana)->post(route('tramos.corregir', $tarde), [
+            'campo' => 'started_at',
+            'hora' => '11:00',
+            'motivo' => 'hora',
+        ])->assertSessionHas('aviso');
+
+        $this->assertSame('15:00', $tarde->fresh()->started_at->timezone('Europe/Madrid')->format('H:i'));
+    }
+
+    public function test_dos_correcciones_seguidas_no_dejan_una_hora_imposible(): void
+    {
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
+        $jornada = Jornada::create(['user_id' => $ana->id, 'work_date' => '2026-10-07']);
+        $tramo = Tramo::create([
+            'jornada_id' => $jornada->id,
+            'tipo' => Tramo::TRABAJO,
+            'started_at' => '2026-10-07 09:00:00',
+            'ended_at' => '2026-10-07 18:00:00',
+        ]);
+
+        Carbon::setTestNow(Carbon::parse('2026-10-07 18:30:00', 'Europe/Madrid'));
+
+        $this->actingAs($ana)->post(route('tramos.corregir', $tramo), [
+            'campo' => 'started_at',
+            'hora' => '17:00',
+            'motivo' => 'hora',
+        ])->assertSessionHas('ok');
+
+        $this->actingAs($ana)->post(route('tramos.corregir', $tramo), [
+            'campo' => 'ended_at',
+            'hora' => '10:00',
+            'motivo' => 'hora',
+        ])->assertSessionHas('aviso');
+
+        $fresco = $tramo->fresh();
+        $this->assertSame('17:00', $fresco->started_at->timezone('Europe/Madrid')->format('H:i'));
+        $this->assertSame('18:00', $fresco->ended_at->timezone('Europe/Madrid')->format('H:i'));
+    }
+
+    public function test_la_reunion_no_repite_un_rato_ya_anotado(): void
+    {
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
+        $this->horario($ana);
+        $jornada = Jornada::create(['user_id' => $ana->id, 'work_date' => '2026-10-07']);
+        Tramo::create([
+            'jornada_id' => $jornada->id,
+            'tipo' => Tramo::TRABAJO,
+            'started_at' => '2026-10-07 09:00:00',
+            'ended_at' => '2026-10-07 10:00:00',
+            'fuera_del_equipo' => true,
+            'situacion' => 'fuera',
+        ]);
+
+        $this->actingAs($ana)
+            ->post(route('jornada.reunion'))
+            ->assertSessionHas('aviso');
+
+        $this->assertSame(1, Tramo::query()->count());
+    }
+
+    public function test_el_registro_cuenta_igual_que_hoy_cuando_la_jornada_sigue_abierta(): void
+    {
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
+        $this->horario($ana);
+        $jornada = Jornada::create(['user_id' => $ana->id, 'work_date' => '2026-10-07']);
+        Tramo::create([
+            'jornada_id' => $jornada->id,
+            'tipo' => Tramo::TRABAJO,
+            'started_at' => '2026-10-07 09:00:00',
+        ]);
+
+        Carbon::setTestNow(Carbon::parse('2026-10-07 21:00:00', 'Europe/Madrid'));
+
+        $this->actingAs($ana)
+            ->get(route('registro'))
+            ->assertSee('9 h 0 min', false)
+            ->assertDontSee('12 h', false);
+
+        $this->actingAs($ana)
+            ->get(route('registro.show', $jornada))
+            ->assertSee('9 h 0 min', false)
+            ->assertDontSee('12 h', false);
+
+        $copia = $this->actingAs($ana)->get(route('registro.csv'))->assertOk()->streamedContent();
+        $this->assertStringContainsString('9 h 0 min', $copia);
+        $this->assertStringNotContainsString('12 h', $copia);
+    }
+
+    public function test_fuera_de_la_demo_no_se_borran_fichajes_ni_se_ven_las_cuentas(): void
+    {
+        $this->app['env'] = 'production';
+        $this->withoutMiddleware(PreventRequestForgery::class);
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
+        Jornada::create(['user_id' => $ana->id, 'work_date' => '2026-10-07']);
+
+        $this->get(route('login'))
+            ->assertDontSee('Cuentas de prueba', false);
+
+        $this->actingAs($ana)
+            ->get(route('jornada'))
+            ->assertDontSee('Borrar fichaje de hoy', false);
+
+        $this->actingAs($ana)
+            ->post(route('jornada.borrar-prueba'))
+            ->assertForbidden();
+
+        $this->assertSame(1, Jornada::query()->count());
+    }
+
     public function test_la_incidencia_de_conexion_declara_horas_sin_fichar_en_directo(): void
     {
         $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
@@ -469,6 +627,64 @@ class JornadaTest extends TestCase
             ->get(route('jornada'))
             ->assertSee('Empezar jornada', false)
             ->assertSee('No guardado: sin conexión', false);
+    }
+
+    public function test_la_salida_guarda_quien_la_declaro_y_una_correccion_no_lo_borra(): void
+    {
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
+        $this->horario($ana);
+
+        $this->actingAs($ana)->post(route('jornada.entrada'))->assertSessionHas('ok');
+        $this->actingAs($ana)->post(route('jornada.salida'))->assertSessionHas('ok');
+
+        $tramo = Tramo::query()->first();
+        $this->assertSame($ana->id, $tramo->cerrado_por);
+        $this->assertSame('10:45', $tramo->cerrado_at->timezone('Europe/Madrid')->format('H:i'));
+
+        Carbon::setTestNow(Carbon::parse('2026-10-07 11:30:00', 'Europe/Madrid'));
+        $this->actingAs($ana)->post(route('tramos.corregir', $tramo), [
+            'campo' => 'ended_at',
+            'hora' => '11:00',
+            'motivo' => 'hora',
+        ])->assertSessionHas('ok');
+
+        $fresco = $tramo->fresh();
+        $this->assertSame('11:00', $fresco->ended_at->timezone('Europe/Madrid')->format('H:i'));
+        $this->assertSame($ana->id, $fresco->cerrado_por);
+        $this->assertSame('10:45', $fresco->cerrado_at->timezone('Europe/Madrid')->format('H:i'));
+
+        $this->actingAs($ana)
+            ->get(route('registro.show', $fresco->jornada_id))
+            ->assertSee('Salida declarada por Ana López', false)
+            ->assertSee('a las 10:45', false);
+    }
+
+    public function test_el_registro_no_se_queda_en_sesenta_jornadas(): void
+    {
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
+        $inicio = Carbon::parse('2026-01-01', 'Europe/Madrid');
+
+        for ($i = 0; $i < 61; $i++) {
+            Jornada::create([
+                'user_id' => $ana->id,
+                'work_date' => $inicio->copy()->addDays($i)->toDateString(),
+            ]);
+        }
+
+        $this->actingAs($ana)
+            ->get(route('registro'))
+            ->assertSee('lunes 2 de marzo', false)
+            ->assertDontSee('jueves 1 de enero', false)
+            ->assertSee('Días anteriores', false);
+
+        $this->actingAs($ana)
+            ->get(route('registro', ['page' => 2]))
+            ->assertSee('jueves 1 de enero', false);
+
+        $this->actingAs($ana)
+            ->get(route('registro', ['desde' => '2026-01-01', 'hasta' => '2026-01-01']))
+            ->assertSee('jueves 1 de enero', false)
+            ->assertDontSee('viernes 2 de enero', false);
     }
 
     private function persona(string $nombre, string $correo, string $municipio, string $papel = 'trabajadora'): User

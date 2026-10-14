@@ -62,6 +62,10 @@ class JornadaController extends Controller
 
     private function puedeBorrarPrueba(string $email): bool
     {
+        if (! app()->environment('local', 'testing')) {
+            return false;
+        }
+
         return in_array($email, [
             'ana.lopez@abaco.test',
             'marta.ruiz@abaco.test',
@@ -168,6 +172,11 @@ class JornadaController extends Controller
         ]);
 
         return $this->hacer(fn () => $this->jornada->fuera($request->user(), $datos['inicio'], $datos['fin']));
+    }
+
+    public function crearIncidencia(): View
+    {
+        return view('jornada.incidencia');
     }
 
     public function incidencia(Request $request): RedirectResponse

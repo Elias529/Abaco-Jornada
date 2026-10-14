@@ -8,7 +8,7 @@
             <li>
                 <a href="{{ route('equipo.show', $persona) }}">
                     <span>{{ $persona->name }}</span>
-                    <strong>{{ $persona->esResponsable() ? 'Responsable' : 'Trabajadora' }}</strong>
+                    <strong>{{ $persona->esJefa() ? 'Jefa' : ($persona->esTecnico() ? 'Técnica' : 'Trabajadora') }}</strong>
                 </a>
                 <span class="secundario">
                     {{ $persona->municipality }}

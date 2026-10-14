@@ -14,10 +14,10 @@
         <a href="{{ route('jornada') }}" style="color: #066A75; font-weight: bold;">Abrir Ábaco Jornada</a>
     </p>
 
-    <p>Si hoy no te tocaba trabajar, díselo a tu responsable.</p>
+    <p>Si hoy no te tocaba trabajar, díselo a tu jefa.</p>
 
     @if ($conCopia)
-        <p>Este aviso va también, con copia, a tu responsable.</p>
+        <p>Este aviso va también, con copia, a tu jefa.</p>
     @endif
 
     <p style="font-size: 13px; color: #4B6B6B;">

@@ -1,8 +1,7 @@
 <?php
 
-use App\Http\Middleware\EnsureFichaje;
-use App\Http\Middleware\EnsureJefe;
-use App\Http\Middleware\EnsureResponsable;
+use App\Http\Middleware\EnsureJefa;
+use App\Http\Middleware\EnsureTecnico;
 use App\Http\Middleware\EnsureUserIsActive;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -18,9 +17,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'activo' => EnsureUserIsActive::class,
-            'responsable' => EnsureResponsable::class,
-            'jefe' => EnsureJefe::class,
-            'fichaje' => EnsureFichaje::class,
+            'jefa' => EnsureJefa::class,
+            'tecnico' => EnsureTecnico::class,
         ]);
         $middleware->redirectGuestsTo('/login');
         $middleware->redirectUsersTo('/');

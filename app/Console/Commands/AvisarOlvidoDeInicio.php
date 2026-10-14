@@ -20,23 +20,22 @@ class AvisarOlvidoDeInicio extends Command
     {
         $ahora = now();
         $enviados = 0;
-        $responsables = User::query()
+        $jefas = User::query()
             ->where('active', true)
-            ->where('role', 'responsable')
+            ->where('role', 'jefa')
             ->pluck('email', 'id');
 
         User::query()
             ->where('active', true)
-            ->where('role', '!=', 'jefe')
             ->orderBy('id')
-            ->each(function (User $persona) use ($jornada, $ahora, $responsables, &$enviados): void {
+            ->each(function (User $persona) use ($jornada, $ahora, $jefas, &$enviados): void {
                 $horaPrevista = $jornada->avisarDeInicio($persona, $ahora);
 
                 if ($horaPrevista === null) {
                     return;
                 }
 
-                $copia = $responsables->except($persona->id)->values()->all();
+                $copia = $jefas->except($persona->id)->values()->all();
 
                 try {
                     $this->enviar($persona, $horaPrevista, $copia);
@@ -54,7 +53,7 @@ class AvisarOlvidoDeInicio extends Command
     }
 
     /**
-     * Manda el correo a la persona con copia a las responsables. Si el
+     * Manda el correo a la persona con copia a las jefas. Si el
      * servidor rechaza la copia (una dirección que no existe, por ejemplo),
      * el aviso a la persona no se pierde: se reintenta sin copia.
      *
@@ -71,7 +70,7 @@ class AvisarOlvidoDeInicio extends Command
                 throw $error;
             }
 
-            Log::warning('No se pudo copiar a la responsable ('.implode(', ', $copia).'): '.$error->getMessage());
+            Log::warning('No se pudo copiar a la jefa ('.implode(', ', $copia).'): '.$error->getMessage());
             Mail::to($persona->email)->send(new OlvidoDeInicio($persona, $horaPrevista));
         }
     }

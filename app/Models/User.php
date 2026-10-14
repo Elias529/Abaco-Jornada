@@ -18,18 +18,22 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
-    public function esResponsable(): bool
+    /**
+     * Gestiona el equipo y, además, hace las funciones de dirección: estado de
+     * todas las personas, resumen del mes y consulta de registros con motivo.
+     */
+    public function esJefa(): bool
     {
-        return $this->role === 'responsable';
+        return $this->role === 'jefa';
     }
 
     /**
-     * La dirección consulta los registros de todas las personas y no los cambia.
-     * No ficha: el personal de alta dirección queda fuera del registro de jornada.
+     * El administrador técnico ficha como cualquier persona del equipo y, además,
+     * gestiona las actualizaciones y comprueba la base de datos activa.
      */
-    public function esJefe(): bool
+    public function esTecnico(): bool
     {
-        return $this->role === 'jefe';
+        return $this->role === 'tecnico';
     }
 
     public function horarios(): HasMany

@@ -15,7 +15,7 @@ Jornada es una aplicación web. La persona entra con su cuenta y el servidor con
 - Registro propio, copia CSV y corrección de una hora. La hora anterior se conserva, con quién la cambió y cuándo.
 - Consulta del registro de otra persona con un motivo, y ese acceso queda escrito.
 - Avisos por cierres sin completar. Por debajo de 8 en 28 días el registro no cambia de estado.
-- Tres papeles: trabajadora, responsable y dirección. La dirección solo consulta. La baja cierra el acceso y no borra las jornadas.
+- Tres papeles: trabajadora, jefa y administrador técnico. La jefa gestiona el equipo y consulta los registros con motivo. El técnico ficha y gestiona actualizaciones y la base de datos activa. La baja cierra el acceso y no borra las jornadas.
 
 ## Fuera
 
@@ -27,6 +27,6 @@ Jornada es una aplicación web. La persona entra con su cuenta y el servidor con
 
 ## Pendiente
 
-Lo que falta para confiar en registros reales está en [plan.md](plan.md). La cola de fichaje sin conexión ya no existe. Sigue pendiente impedir que las horas se solapen o queden imposibles, y dejar la demostración fuera de un entorno con datos reales.
+Lo que falta para confiar en registros reales está en [plan.md](plan.md). La cola de fichaje sin conexión ya no existe. Una corrección y una reunión ya no pueden pisar otro rato, dos correcciones seguidas no dejan una hora imposible, y el borrado de prueba solo existe en la demo.
 
 Pablo, el 9 de octubre de 2026, dejó por confirmar quién valida y actualiza el calendario. La aplicación usa ya el calendario del municipio de Madrid para todas las personas. Esa confirmación sigue abierta en [reuniones.md](reuniones.md).

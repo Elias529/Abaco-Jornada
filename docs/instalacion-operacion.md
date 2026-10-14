@@ -60,7 +60,7 @@ Una copia solo del código no recupera los fichajes.
 4. Vuelve a arrancar con `php artisan serve`.
 5. Entra y abre un registro que sepas que estaba en la copia.
 
-No hay una pantalla de copias. La restauración es sustituir el archivo. Conviene probar este recorrido en el entorno elegido antes de depender de él. Está anotado como pendiente en [pruebas.md](pruebas.md).
+El administrador técnico puede hacer una copia desde Sistema; se guarda en `storage/app/copias`. Esa pantalla también actualiza (`migrate`) y siempre hace antes una copia. La restauración es sustituir el archivo. Conviene probar este recorrido en el entorno elegido antes de depender de él. Está anotado como pendiente en [pruebas.md](pruebas.md).
 
 ## Pruebas
 
