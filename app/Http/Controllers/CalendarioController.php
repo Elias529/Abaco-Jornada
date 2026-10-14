@@ -23,7 +23,7 @@ class CalendarioController extends Controller
             'anio' => $anio,
             'sinCalendario' => $this->jornada->anioSinCalendario(now()),
             'fallos' => FalloComun::query()->orderByDesc('falla_date')->limit(12)->get(),
-            'esResponsable' => $request->user()->esResponsable(),
+            'esJefa' => $request->user()->esJefa(),
         ]);
     }
 

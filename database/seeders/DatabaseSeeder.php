@@ -14,10 +14,11 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        $marta = $this->persona('Marta Ruiz', 'marta.ruiz@abaco.test', 'responsable', 'Madrid');
+        $marta = $this->persona('Marta Ruiz', 'marta.ruiz@abaco.test', 'jefa', 'Madrid');
         $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'trabajadora', 'Madrid');
+        $carmen = $this->persona('Carmen Ortega', 'carmen.ortega@abaco.test', 'tecnico', 'Madrid');
 
-        foreach ([$marta, $ana] as $persona) {
+        foreach ([$marta, $ana, $carmen] as $persona) {
             Horario::create([
                 'user_id' => $persona->id,
                 'morning_start' => '09:00',
@@ -33,9 +34,6 @@ class DatabaseSeeder extends Seeder
             'absence_date' => '2026-10-15',
             'tipo' => 'vacaciones',
         ]);
-
-        // La dirección no ficha: no lleva horario y su jornada no se registra.
-        $this->persona('Carmen Ortega', 'carmen.ortega@abaco.test', 'jefe', 'Madrid');
 
         $this->call(FestivosSeeder::class);
     }

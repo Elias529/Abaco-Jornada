@@ -1,9 +1,9 @@
-@extends('layouts.app', ['titulo' => 'Equipo'])
+@extends('layouts.app', ['titulo' => 'Estado'])
 
 @section('contenido')
-    <h1>Equipo</h1>
+    <h1>Estado del equipo</h1>
     <p class="fecha">{{ $fecha }}</p>
-    <p class="secundario">Ves el horario y el estado de cada persona. Para abrir su registro hace falta un motivo. Nada de lo que ves se puede cambiar desde aquí.</p>
+    <p class="secundario">Ves el horario y el estado de cada persona. Para abrir su registro hace falta un motivo. Nada de lo que ves se puede cambiar desde aquí; para dar de alta o cambiar horarios, usa Equipo.</p>
 
     <section class="resumen resumen-fila" aria-label="Ahora">
         <div>
@@ -36,8 +36,10 @@
                     <span class="secundario">
                         {{ $fila['horario'] ? $fila['horario']->texto() : 'Sin horario asignado' }}
                         · {{ $fila['persona']->municipality }}
-                        @if ($fila['persona']->esResponsable())
-                            · responsable
+                        @if ($fila['persona']->esJefa())
+                            · jefa
+                        @elseif ($fila['persona']->esTecnico())
+                            · técnico
                         @endif
                     </span>
                 </li>

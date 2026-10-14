@@ -1,7 +1,7 @@
 @extends('layouts.app', ['ancha' => true, 'titulo' => 'Día'])
 
 @section('contenido')
-    <a class="volver" href="{{ $esResponsable && auth()->id() !== $persona->id ? route('equipo.registro', $persona) : route('registro') }}">Volver al registro</a>
+    <a class="volver" href="{{ $esJefa && auth()->id() !== $persona->id ? route('equipo.registro', $persona) : route('registro') }}">Volver al registro</a>
     <h1>{{ \App\Support\Tiempo::fecha($jornada->work_date) }}</h1>
     <p>{{ $persona->name }}</p>
     <p>Total {{ $total }}@if ($jornada->closed_late). Cerrada al día siguiente.@endif</p>
@@ -59,7 +59,7 @@
                     <button class="boton boton-secundario" type="submit">Guardar corrección</button>
                 </form>
             @else
-                <p class="secundario">Para cambiar este día, habla con tu responsable.</p>
+                <p class="secundario">Para cambiar este día, habla con tu jefa.</p>
             @endif
 
             @foreach ($tramo->correcciones as $correccion)

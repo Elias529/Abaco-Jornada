@@ -7,6 +7,7 @@ use App\Models\Horario;
 use App\Models\Jornada;
 use App\Models\Tramo;
 use App\Models\User;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Tests\TestCase;
@@ -125,7 +126,7 @@ class JornadaTest extends TestCase
 
     public function test_la_baja_conserva_la_jornada(): void
     {
-        $marta = $this->persona('Marta Ruiz', 'marta.ruiz@abaco.test', 'Madrid', 'responsable');
+        $marta = $this->persona('Marta Ruiz', 'marta.ruiz@abaco.test', 'Madrid', 'jefa');
         $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
         Jornada::create([
             'user_id' => $ana->id,
@@ -200,7 +201,7 @@ class JornadaTest extends TestCase
     public function test_ana_y_marta_pueden_borrar_el_fichaje_de_hoy_para_probar(): void
     {
         $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
-        $marta = $this->persona('Marta Ruiz', 'marta.ruiz@abaco.test', 'Madrid', 'responsable');
+        $marta = $this->persona('Marta Ruiz', 'marta.ruiz@abaco.test', 'Madrid', 'jefa');
         $lucia = $this->persona('Lucía Vega', 'lucia.vega@abaco.test', 'Alcalá de Henares');
         $deAna = Jornada::create([
             'user_id' => $ana->id,
@@ -372,7 +373,7 @@ class JornadaTest extends TestCase
 
     public function test_el_fallo_comun_y_el_horario_no_cuentan(): void
     {
-        $marta = $this->persona('Marta Ruiz', 'marta.ruiz@abaco.test', 'Madrid', 'responsable');
+        $marta = $this->persona('Marta Ruiz', 'marta.ruiz@abaco.test', 'Madrid', 'jefa');
         $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
         $this->horario($ana);
         $anterior = Aviso::create([
@@ -415,7 +416,7 @@ class JornadaTest extends TestCase
 
     public function test_la_consulta_pide_motivo_y_queda_escrita(): void
     {
-        $marta = $this->persona('Marta Ruiz', 'marta.ruiz@abaco.test', 'Madrid', 'responsable');
+        $marta = $this->persona('Marta Ruiz', 'marta.ruiz@abaco.test', 'Madrid', 'jefa');
         $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
         Jornada::create(['user_id' => $ana->id, 'work_date' => '2026-10-06']);
 
@@ -575,7 +576,7 @@ class JornadaTest extends TestCase
     public function test_fuera_de_la_demo_no_se_borran_fichajes_ni_se_ven_las_cuentas(): void
     {
         $this->app['env'] = 'production';
-        $this->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class);
+        $this->withoutMiddleware(PreventRequestForgery::class);
         $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
         Jornada::create(['user_id' => $ana->id, 'work_date' => '2026-10-07']);
 

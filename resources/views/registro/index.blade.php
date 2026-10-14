@@ -2,7 +2,7 @@
 
 @section('contenido')
     <h1>{{ $consulta ? 'Registro de '.$persona->name : 'Mi registro' }}</h1>
-    <p class="secundario">Ves los tuyos y puedes sacar una copia. Se conservan cuatro años, el plazo del artículo 34.9 del Estatuto de los Trabajadores. Ábaco lo confirma. Una copia ya sacada no se reescribe sola.</p>
+    <p class="secundario">{{ $consulta ? 'Ves los registros de '.$persona->name.' y puedes sacar una copia.' : 'Ves los tuyos y puedes sacar una copia.' }} Se conservan cuatro años, el plazo del artículo 34.9 del Estatuto de los Trabajadores. Ábaco lo confirma. Una copia ya sacada no se reescribe sola.</p>
     <p>
         <a class="boton boton-secundario" href="{{ $consulta ? route('equipo.csv', $persona) : route('registro.csv') }}">Descargar copia</a>
     </p>

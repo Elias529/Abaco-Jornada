@@ -46,9 +46,17 @@ Cada fila enlaza la regla o la tarea que la aplica. El estado «vigente» es lo 
 
 - Decisión: el papel `jefe` consulta. No entra en las rutas que escriben fichajes, horarios o accesos. Abrir el registro de otra persona exige un motivo y deja constancia.
 - Motivo: la alta dirección queda fuera del registro de jornada y la consulta tiene que ser trazable.
-- Alternativa descartada: dar a la dirección las mismas acciones que a la responsable.
+- Alternativa descartada: dar a la dirección las mismas acciones que a la jefa.
+- Estado: sustituida por la decisión del 2026-10-14.
+
+## 2026-10-14 · Desaparece la dirección y aparece el administrador técnico
+
+- Decisión: el papel `jefe` desaparece. La jefa (papel `jefa`, antes `responsable`; la migración `pasar_el_papel_responsable_a_jefa` renombra las cuentas) hace también sus funciones (estado del equipo, registro con resumen mensual, copia CSV y consultas) y sigue gestionando el equipo. Nace el papel `tecnico`, que ficha como cualquier persona y gestiona actualizaciones y la base de datos activa. La migración `pasar_la_direccion_a_administracion_tecnica` convierte las cuentas `jefe` en `tecnico`.
+- Motivo: la jefa ya conoce al equipo y la consulta con motivo sigue siendo trazable. Hace falta alguien que mantenga el sistema sin ver datos de las personas.
+- Alternativa descartada: que el técnico fuera también jefe, porque vería los registros.
+- Límite del técnico: copia y actualización solo con SQLite en archivo. Antes de actualizar se hace una copia y, si no se puede, no se toca nada. El panel enseña nombres de tabla y número de filas, nunca el contenido.
 - Estado: vigente.
-- Aplica en: `tests/Feature/JefeTest.php`.
+- Aplica en: `tests/Feature/JefeTest.php`, `tests/Feature/TecnicoTest.php` y `tests/Feature/SistemaEnArchivoTest.php`.
 
 ## 2026-10-07 · El exceso no se autoriza en la aplicación
 
