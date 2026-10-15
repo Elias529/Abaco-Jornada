@@ -199,16 +199,14 @@ class TicketTest extends TestCase
         $tecnico = User::factory()->tecnico()->create();
 
         $this->actingAs($ana)->post(route('jornada.incidencia'), [
-            'inicio' => '09:00',
-            'fin' => '10:30',
             'motivo' => 'Se cayó la red',
         ])->assertSessionHas('ok');
 
-        $this->assertDatabaseCount('tramos', 1);
+        $this->assertDatabaseCount('tramos', 0);
+        $this->assertDatabaseCount('incidencias', 1);
         $ticket = Ticket::where('user_id', $ana->id)->firstOrFail();
         $this->assertSame('Incidencia de conexión', $ticket->asunto);
         $this->assertStringContainsString('Se cayó la red', $ticket->descripcion);
-        $this->assertStringContainsString('de 09:00 a 10:30', $ticket->descripcion);
         Mail::assertSent(TicketNuevo::class, fn (TicketNuevo $correo) => $correo->hasTo($tecnico->email));
 
         $this->actingAs($tecnico)->get(route('tecnico.tickets'))
@@ -226,13 +224,11 @@ class TicketTest extends TestCase
         $ana = User::factory()->create();
 
         $this->actingAs($ana)->post(route('jornada.incidencia'), [
-            'inicio' => '10:00',
-            'fin' => '09:00',
-            'motivo' => 'Horas al revés',
-        ])->assertSessionHas('aviso');
+            'motivo' => '',
+        ])->assertSessionHasErrors('motivo');
 
         $this->assertSame(0, Ticket::count());
-        $this->assertDatabaseCount('tramos', 0);
+        $this->assertDatabaseCount('incidencias', 0);
     }
 
     public function test_si_el_correo_falla_la_incidencia_queda_en_el_registro_y_en_el_ticket(): void
@@ -243,12 +239,11 @@ class TicketTest extends TestCase
         Mail::shouldReceive('to')->once()->andThrow(new RuntimeException('sin conexión'));
 
         $this->actingAs($ana)->post(route('jornada.incidencia'), [
-            'inicio' => '09:00',
-            'fin' => '10:30',
             'motivo' => 'Se cayó la red',
         ])->assertSessionHas('ok');
 
-        $this->assertDatabaseCount('tramos', 1);
+        $this->assertDatabaseCount('tramos', 0);
+        $this->assertDatabaseCount('incidencias', 1);
         $this->assertSame(1, Ticket::where('user_id', $ana->id)->count());
     }
 

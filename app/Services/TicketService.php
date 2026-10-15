@@ -43,20 +43,6 @@ class TicketService
     }
 
     /**
-     * La incidencia de conexión que alguien declara en Hoy llega también al
-     * técnico, como un ticket con el mismo texto y las horas declaradas.
-     */
-    public function abrirPorIncidenciaDeConexion(User $autor, string $motivo, string $inicio, string $fin): Ticket
-    {
-        return $this->abrir(
-            $autor,
-            'Incidencia de conexión',
-            $motivo."\n\nHoras declaradas: de ".$inicio.' a '.$fin.'.',
-            '/jornada/incidencia',
-        );
-    }
-
-    /**
      * Quien lo abrió puede reabrir un ticket resuelto escribiendo de nuevo.
      * Cuando el técnico contesta a uno abierto, pasa a en curso.
      */

@@ -60,9 +60,9 @@ Cada fila enlaza la regla o la tarea que la aplica. El estado «vigente» es lo 
 
 ## 2026-10-15 · «Comunicar incidencia» también llega al técnico
 
-- Decisión: al guardar una incidencia de conexión en Hoy, se abre además un ticket para el administrador técnico con el motivo y las horas declaradas. Él lo ve en Tickets, recibe el correo y puede contestar. La incidencia sigue guardándose en el registro de la persona como hasta ahora.
+- Decisión: al enviar una incidencia desde Hoy, la jefa la ve en Incidencias y se abre además un ticket para el administrador técnico con el mismo texto. Él lo ve en Tickets, recibe el correo y puede contestar. No se declaran horas.
 - Motivo: el botón guardaba la incidencia en el registro pero no avisaba a nadie, y el técnico no podía ayudar.
-- Alternativa descartada: sustituir el formulario por un ticket. Perderíamos las horas declaradas en el registro y la constancia de quién las declara y cuándo las recibe el servidor.
+- Alternativa descartada: sustituir el texto de la jefa por un ticket. La jefa dejaría de ver la lista de incidencias.
 - Estado: vigente.
 - Aplica en: `tests/Feature/TicketTest.php`.
 

@@ -155,18 +155,10 @@ class RegistroController extends Controller
     {
         $this->autorizar($visor, $persona);
 
-        $desde = $request->query('desde');
-        $hasta = $request->query('hasta');
-        $desde = is_string($desde) ? $desde : '';
-        $hasta = is_string($hasta) ? $hasta : '';
-        $buscado = $desde !== '' || $hasta !== '';
+        $filtros = $this->filtros($request);
+        $buscado = $filtros['desde'] !== '' || $filtros['hasta'] !== '' || $filtros['estado'] !== '' || $filtros['incidencia'] !== '';
         $jornadas = $buscado
-            ? Jornada::query()
-                ->with('tramos')
-                ->where('user_id', $persona->id)
-                ->when($desde !== '', fn ($q) => $q->whereDate('work_date', '>=', $desde))
-                ->when($hasta !== '', fn ($q) => $q->whereDate('work_date', '<=', $hasta))
-                ->orderByDesc('work_date')
+            ? $this->csv->consulta($persona, $filtros['desde'], $filtros['hasta'], $filtros['estado'], $filtros['incidencia'])
                 ->paginate(60)
                 ->withQueryString()
             : new LengthAwarePaginator([], 0, 60);
@@ -176,8 +168,10 @@ class RegistroController extends Controller
             'consulta' => $consulta,
             'jornadas' => $jornadas,
             'buscado' => $buscado,
-            'desde' => $desde,
-            'hasta' => $hasta,
+            'desde' => $filtros['desde'],
+            'hasta' => $filtros['hasta'],
+            'estado' => $filtros['estado'],
+            'incidencia' => $filtros['incidencia'],
             'tabla' => $this->csv,
             'explicaciones' => $persona->explicaciones()->latest()->limit(10)->get(),
             'consultas' => $consulta
@@ -192,16 +186,31 @@ class RegistroController extends Controller
     {
         $this->autorizar($visor, $persona);
 
-        $desde = $request->query('desde');
-        $hasta = $request->query('hasta');
-        $desde = is_string($desde) ? $desde : '';
-        $hasta = is_string($hasta) ? $hasta : '';
+        $filtros = $this->filtros($request);
 
-        if ($desde === '' && $hasta === '') {
+        if ($filtros['desde'] === '' && $filtros['hasta'] === '' && $filtros['estado'] === '' && $filtros['incidencia'] === '') {
             return $this->csv->descargarVacio($persona);
         }
 
-        return $this->csv->descargar($persona, $desde, $hasta);
+        return $this->csv->descargar($persona, $filtros['desde'], $filtros['hasta'], $filtros['estado'], $filtros['incidencia']);
+    }
+
+    /**
+     * @return array{desde: string, hasta: string, estado: string, incidencia: string}
+     */
+    private function filtros(Request $request): array
+    {
+        $desde = $request->query('desde');
+        $hasta = $request->query('hasta');
+        $estado = $request->query('estado');
+        $incidencia = $request->query('incidencia');
+
+        return [
+            'desde' => is_string($desde) ? $desde : '',
+            'hasta' => is_string($hasta) ? $hasta : '',
+            'estado' => in_array($estado, ['cerrada', 'pendiente', 'tardia'], true) ? $estado : '',
+            'incidencia' => in_array($incidencia, ['si', 'no'], true) ? $incidencia : '',
+        ];
     }
 
     private function pedirMotivo(Request $request, User $persona): ?View

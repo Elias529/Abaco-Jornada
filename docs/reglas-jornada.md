@@ -52,7 +52,7 @@ Si pasan 20 minutos desde la hora de inicio y no hay fichaje, un comando puede a
 
 El fichaje necesita conexión y la confirmación del servidor. Si el navegador está sin red, el envío no sale y no se guarda nada en el ordenador. El texto es «No guardado: sin conexión».
 
-Al recuperar la conexión, la persona puede comunicar la incidencia y declarar el inicio y el fin. El servidor guarda el motivo, la persona que lo declara y la hora de recepción (`anotado_at`). El tramo queda cerrado, con situación `incidencia`. No es un fichaje en directo y no abre un aviso de olvido. Esas horas sí cuentan en el total del día. La incidencia llega además al administrador técnico como un ticket («Incidencia de conexión», con el motivo y las horas declaradas), con el correo habitual y la posibilidad de conversar en Ayuda. Si el ticket o el correo fallan, la incidencia queda guardada en el registro igualmente. Después se puede empezar la jornada si todavía no hay un tramo de trabajo normal.
+Al recuperar la conexión, la persona puede comunicar la incidencia. No hace falta escribir horas: el texto queda en Incidencias para la jefa y, además, llega al administrador técnico como un ticket («Incidencia de conexión») para que pueda contestarlo en Ayuda. Si el ticket o el correo fallan, el texto de la jefa se guarda igualmente. No abre un fichaje ni un aviso de olvido.
 
 ## Papeles
 

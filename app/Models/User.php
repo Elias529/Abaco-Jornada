@@ -56,6 +56,11 @@ class User extends Authenticatable
         return $this->hasMany(Explicacion::class);
     }
 
+    public function incidencias(): HasMany
+    {
+        return $this->hasMany(Incidencia::class);
+    }
+
     public function horarioEn(Carbon $fecha): ?Horario
     {
         return $this->horarios()

@@ -24,7 +24,7 @@ La revisión de Pablo del 9 de octubre de 2026 vio 18 pruebas y 92 aserciones. D
 | `test_la_jefa_ve_marcados_los_cierres_sin_resolver_de_mas_de_siete_dias` | Estado y la ficha marcan los avisos sin explicar de hace más de 7 días y no crean avisos |
 | `test_el_fallo_comun_y_el_horario_no_cuentan` | Un fallo común o un cambio de horario deja el aviso fuera de la cuenta |
 | `test_la_consulta_pide_motivo_y_queda_escrita` | Ver el registro de otra persona exige motivo y queda anotado |
-| `test_la_incidencia_de_conexion_declara_horas_sin_fichar_en_directo` | Sin convertir la caída de red en un fichaje en directo ni en un olvido. Guarda motivo, autora y hora de recepción |
+| `test_la_incidencia_se_envia_sin_horas_y_la_jefa_la_ve` | La trabajadora envía el texto, sin horas. La jefa lo ve en la lista y en el detalle. La jefa no comunica incidencias |
 | `JefeTest` | La jefa hace las funciones de dirección: estado, registro con motivo, resumen mensual, CSV y consultas. Los demás papeles no entran |
 | `TecnicoTest` | El técnico ficha, solo él entra en Sistema, el panel no enseña datos de personas, lista cambios pendientes y exige confirmar |
 | `SistemaEnArchivoTest` | La copia es una base completa; actualizar copia antes de aplicar; si falla, queda la copia y la anotación |

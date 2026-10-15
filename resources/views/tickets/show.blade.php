@@ -8,48 +8,48 @@
     </p>
     <h1>{{ $ticket->asunto }}</h1>
     <p class="secundario">
-        {{ $ticket->etiquetaDeEstado() }}
-        · Abierto por {{ $ticket->autor->name }}
+        Abierto por {{ $ticket->autor->name }}
         el {{ \App\Support\Tiempo::fecha($ticket->created_at) }} a las {{ $ticket->created_at->format('H:i') }}
         @if ($ticket->pagina)
             · desde {{ $ticket->pagina }}
         @endif
     </p>
 
-    <article class="tarjeta">
-        <p>{!! nl2br(e($ticket->descripcion)) !!}</p>
+    <article class="tarjeta tarjeta-incidencia">
+        <p class="pastilla pastilla-{{ $ticket->estado }}">{{ $ticket->etiquetaDeEstado() }}</p>
+        <p class="incidencia-texto">{!! nl2br(e($ticket->descripcion)) !!}</p>
     </article>
 
     <h2>Conversación</h2>
     @if ($ticket->mensajes->isEmpty())
-        <p class="secundario">Todavía nadie ha contestado.</p>
+        <p class="incidencia-vacia">Todavía nadie ha contestado.</p>
     @else
-        <ul class="lista">
+        <ul class="lista lista-incidencias">
             @foreach ($ticket->mensajes as $mensaje)
-                <li class="{{ $mensaje->autor->esTecnico() ? 'mensaje-tecnico' : '' }}">
+                <li class="incidencia-fila {{ $mensaje->autor->esTecnico() ? 'mensaje-tecnico' : '' }}">
                     <span>
                         <strong>{{ $mensaje->autor->name }}</strong>
                         @if ($mensaje->autor->esTecnico())
-                            · técnico
+                            <span class="pastilla">técnico</span>
                         @endif
                     </span>
-                    <span>{!! nl2br(e($mensaje->cuerpo)) !!}</span>
+                    <span class="incidencia-texto">{!! nl2br(e($mensaje->cuerpo)) !!}</span>
                     <span class="secundario">{{ \App\Support\Tiempo::fecha($mensaje->created_at) }} {{ $mensaje->created_at->format('H:i') }}</span>
                 </li>
             @endforeach
         </ul>
     @endif
 
-    <form method="post" action="{{ route('tickets.mensaje', $ticket) }}" class="formulario">
+    <form method="post" action="{{ route('tickets.mensaje', $ticket) }}" class="formulario formulario-ticket">
         @csrf
         <label for="cuerpo">{{ $ticket->estaResuelto() ? 'Si el problema sigue, escribe aquí. Se reabrirá.' : 'Escribe un mensaje' }}</label>
         <textarea id="cuerpo" name="cuerpo" maxlength="2000" required>{{ old('cuerpo') }}</textarea>
-        <button class="boton boton-principal" type="submit">Enviar mensaje</button>
+        <button class="boton-hoy" type="submit">Enviar mensaje</button>
     </form>
 
     @if ($esTecnico)
         <h2>Estado</h2>
-        <form method="post" action="{{ route('tecnico.tickets.estado', $ticket) }}" class="formulario">
+        <form method="post" action="{{ route('tecnico.tickets.estado', $ticket) }}" class="formulario formulario-ticket">
             @csrf
             <label for="estado">Cambiar el estado</label>
             <select id="estado" name="estado" required>
