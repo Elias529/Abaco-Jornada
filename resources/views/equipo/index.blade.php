@@ -12,6 +12,9 @@
                 </a>
                 <span class="secundario">
                     {{ $persona->municipality }}
+                    @if ($persona->ends_on)
+                        · hasta {{ \App\Support\Tiempo::fecha($persona->ends_on) }}
+                    @endif
                     @if (! $persona->active)
                         · acceso cerrado
                     @endif

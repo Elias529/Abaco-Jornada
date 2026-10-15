@@ -11,7 +11,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
 
-#[Fillable(['name', 'email', 'password', 'role', 'active', 'starts_on', 'municipality', 'centro'])]
+#[Fillable(['name', 'email', 'password', 'role', 'active', 'starts_on', 'ends_on', 'municipality', 'centro'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -69,6 +69,16 @@ class User extends Authenticatable
             ->first();
     }
 
+    public function estaEnPlantillaEl(Carbon $fecha): bool
+    {
+        $dia = $fecha->toDateString();
+        if (! $this->starts_on || $dia < $this->starts_on->toDateString()) {
+            return false;
+        }
+
+        return ! $this->ends_on || $dia <= $this->ends_on->toDateString();
+    }
+
     protected function casts(): array
     {
         return [
@@ -76,6 +86,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'active' => 'boolean',
             'starts_on' => 'date',
+            'ends_on' => 'date',
         ];
     }
 }
