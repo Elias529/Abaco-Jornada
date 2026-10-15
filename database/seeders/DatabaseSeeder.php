@@ -34,8 +34,6 @@ class DatabaseSeeder extends Seeder
             'absence_date' => '2026-10-15',
             'tipo' => 'vacaciones',
         ]);
-
-        $this->call(FestivosSeeder::class);
     }
 
     private function persona(string $nombre, string $correo, string $papel, string $municipio): User
@@ -48,6 +46,7 @@ class DatabaseSeeder extends Seeder
             'active' => true,
             'starts_on' => '2026-01-07',
             'municipality' => $municipio,
+            'centro' => 'ES-MD',
         ]);
     }
 }

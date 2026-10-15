@@ -8,14 +8,16 @@ use App\Models\Correccion;
 use App\Models\Jornada;
 use App\Models\Tramo;
 use App\Services\JornadaService;
-use Illuminate\Support\Facades\DB;
+use App\Services\TicketService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
+use Throwable;
 
 class JornadaController extends Controller
 {
-    public function __construct(private JornadaService $jornada) {}
+    public function __construct(private JornadaService $jornada, private TicketService $tickets) {}
 
     public function index(Request $request): View
     {
@@ -195,12 +197,29 @@ class JornadaController extends Controller
             'motivo.required' => 'Escribe el motivo de la incidencia.',
         ]);
 
-        return $this->hacer(fn () => $this->jornada->declararIncidencia(
-            $request->user(),
-            $datos['inicio'],
-            $datos['fin'],
-            $datos['motivo'],
-        ));
+        return $this->hacer(function () use ($request, $datos): string {
+            $mensaje = $this->jornada->declararIncidencia(
+                $request->user(),
+                $datos['inicio'],
+                $datos['fin'],
+                $datos['motivo'],
+            );
+
+            try {
+                $this->tickets->abrirPorIncidenciaDeConexion(
+                    $request->user(),
+                    trim($datos['motivo']),
+                    $datos['inicio'],
+                    $datos['fin'],
+                );
+            } catch (Throwable $error) {
+                report($error);
+
+                return $mensaje;
+            }
+
+            return $mensaje.' El técnico la ha recibido.';
+        });
     }
 
     public function festivo(Request $request): RedirectResponse

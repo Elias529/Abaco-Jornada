@@ -40,6 +40,7 @@ Route::middleware(['auth', 'activo'])->group(function () {
     Route::get('/registro/{jornada}', [RegistroController::class, 'show'])->name('registro.show');
     Route::post('/tramos/{tramo}/corregir', [RegistroController::class, 'corregir'])->name('tramos.corregir');
 
+    // El calendario lo ve toda la plantilla. Los festivos salen de Nager.Date, filtrados por el centro de quien mira.
     Route::get('/calendario', [CalendarioController::class, 'index'])->name('calendario');
 
     // Tickets: cualquier persona cuenta un problema; solo ella y el técnico lo ven.
@@ -61,7 +62,6 @@ Route::middleware(['auth', 'activo'])->group(function () {
         Route::post('/equipo/{user}/registro', [RegistroController::class, 'motivo'])->name('equipo.motivo');
         Route::get('/equipo/{user}/copia.csv', [RegistroController::class, 'csvDe'])->name('equipo.csv');
 
-        Route::post('/calendario', [CalendarioController::class, 'store'])->name('calendario.store');
         Route::post('/calendario/fallo', [CalendarioController::class, 'fallo'])->name('calendario.fallo');
 
         // Funciones de dirección: estado del equipo y registros en solo lectura.

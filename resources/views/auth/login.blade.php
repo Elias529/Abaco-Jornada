@@ -1,8 +1,10 @@
 @extends('layouts.app', ['acceso' => true, 'titulo' => 'Entrar'])
 
 @section('contenido')
-    <img class="isotipo isotipo-acceso" src="{{ asset('marca/logos/abacoqd_isotipo.svg') }}" alt="">
-    <h1>Ábaco Jornada</h1>
+    <div class="marca-acceso">
+        <img class="isotipo isotipo-acceso" src="{{ asset('marca/logos/abacoqd_isotipo.svg') }}" alt="">
+        <h1>Ábaco Jornada</h1>
+    </div>
     <p class="secundario">Entra con el correo que te dio tu jefa.</p>
 
     <form method="post" action="{{ route('login') }}" class="formulario">

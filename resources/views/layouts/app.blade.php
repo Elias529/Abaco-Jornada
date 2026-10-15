@@ -13,19 +13,19 @@
 
     @auth
         <header class="barra">
-            <a class="marca" href="{{ route('jornada') }}">
-                <span class="marca-logo">
+            <form class="marca" method="get" action="{{ route('jornada') }}">
+                <button class="marca-logo" type="submit">
                     <img class="isotipo" src="{{ asset('marca/logos/abacoqd_isotipo.svg') }}" alt="">
-                </span>
-                <span class="marca-nombre">Jornada</span>
-            </a>
+                    <span class="marca-nombre">Jornada</span>
+                </button>
+            </form>
             <nav class="menu" aria-label="Secciones">
                 <a href="{{ route('jornada') }}" @if (request()->routeIs('jornada')) aria-current="page" @endif>Hoy</a>
                 <a href="{{ route('registro') }}" @if (request()->routeIs('registro', 'registro.show')) aria-current="page" @endif>Mi registro</a>
                 <a href="{{ route('calendario') }}" @if (request()->routeIs('calendario')) aria-current="page" @endif>Calendario</a>
                 @if (auth()->user()->esJefa())
                     <a href="{{ route('equipo.index') }}" @if (request()->routeIs('equipo.*')) aria-current="page" @endif>Equipo</a>
-                    <a href="{{ route('jefe.index') }}" @if (request()->routeIs('jefe.index', 'jefe.persona', 'jefe.registro', 'jefe.motivo', 'jefe.dia')) aria-current="page" @endif>Estado</a>
+                    <a href="{{ route('jefe.index') }}" @if (request()->routeIs('jefe.index', 'jefe.persona', 'jefe.registro', 'jefe.dia')) aria-current="page" @endif>Estado</a>
                     <a href="{{ route('jefe.consultas') }}" @if (request()->routeIs('jefe.consultas')) aria-current="page" @endif>Consultas</a>
                 @endif
                 @if (auth()->user()->esTecnico())
@@ -35,6 +35,9 @@
                 <a href="{{ route('tickets.index', ['desde' => request()->routeIs('tickets.*') ? null : '/'.ltrim(request()->path(), '/')]) }}" @if (request()->routeIs('tickets.*')) aria-current="page" @endif>Ayuda</a>
             </nav>
             <div class="barra-cuenta">
+                @if (auth()->user()->esJefa() && request()->routeIs('jefe.*'))
+                    <span class="solo-lectura">Solo lectura</span>
+                @endif
                 <span class="persona">{{ auth()->user()->name }}</span>
                 <form method="post" action="{{ route('logout') }}">
                     @csrf
@@ -63,7 +66,9 @@
             @yield('contenido')
         </main>
 
-        <p class="nota-datos">Guardamos tu nombre, tu horario y las horas de la jornada. No guardamos ubicación.</p>
+        @if (auth()->check() && auth()->user()->esJefa() && request()->routeIs('jefe.*'))
+            <p class="nota-datos">Aquí solo consultas. Lo guardado no se cambia, y cada vez que abres el registro de una persona queda escrito quién lo hizo y por qué.</p>
+        @endif
     </div>
     <script src="{{ asset('js/reloj.js') }}?v={{ filemtime(public_path('js/reloj.js')) }}"></script>
 </body>

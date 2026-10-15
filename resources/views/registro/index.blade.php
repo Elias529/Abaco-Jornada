@@ -3,50 +3,62 @@
 @section('contenido')
     <h1>{{ $consulta ? 'Registro de '.$persona->name : 'Mi registro' }}</h1>
     <p class="secundario">{{ $consulta ? 'Ves los registros de '.$persona->name.' y puedes sacar una copia.' : 'Ves los tuyos y puedes sacar una copia.' }} Se conservan cuatro años, el plazo del artículo 34.9 del Estatuto de los Trabajadores. Ábaco lo confirma. Una copia ya sacada no se reescribe sola.</p>
-    <p>
-        <a class="boton boton-secundario" href="{{ $consulta ? route('equipo.csv', $persona) : route('registro.csv') }}">Descargar copia</a>
-    </p>
-    <form method="get" class="filtro-registro">
-        <label for="desde">Desde</label>
-        <input id="desde" name="desde" type="date" value="{{ $desde }}">
-        <label for="hasta">Hasta</label>
-        <input id="hasta" name="hasta" type="date" value="{{ $hasta }}">
+    <form method="get" class="filtro-registro" action="{{ $consulta ? route('equipo.registro', $persona) : route('registro') }}">
+        <div class="fechas-registro">
+            <div>
+                <label for="desde">Desde</label>
+                <input id="desde" name="desde" type="date" value="{{ $desde }}">
+            </div>
+            <div>
+                <label for="hasta">Hasta</label>
+                <input id="hasta" name="hasta" type="date" value="{{ $hasta }}">
+            </div>
+        </div>
         <button class="boton boton-secundario" type="submit">Ver</button>
+        <button class="boton boton-secundario" type="submit" formaction="{{ $consulta ? route('equipo.csv', $persona) : route('registro.csv') }}">Descargar Excel</button>
     </form>
+    <p class="secundario">Elige el rango y pulsa Ver. La descarga lleva las mismas columnas y esos días.</p>
 
-    @if ($jornadas->isEmpty())
-        <p>Todavía no hay jornadas.</p>
-    @else
-        <ul class="lista">
-            @foreach ($jornadas as $jornada)
-                <li>
-                    <a href="{{ route('registro.show', $jornada) }}">
-                        <span>{{ \App\Support\Tiempo::fecha($jornada->work_date) }}</span>
-                        <strong>{{ \App\Support\Tiempo::texto($servicio->minutosRegistrados($persona, $jornada)) }}</strong>
-                    </a>
-                    <span class="secundario">
-                        @if ($jornada->tramoAbierto())
-                            Pendiente de cerrar
-                        @elseif ($jornada->closed_late)
-                            Cerrada al día siguiente
-                        @else
-                            Cerrada
-                        @endif
-                    </span>
-                </li>
-            @endforeach
-        </ul>
-        @if ($jornadas->hasPages())
-            <p class="paginas">
-                @if ($jornadas->previousPageUrl())
-                    <a href="{{ $jornadas->previousPageUrl() }}">Días más recientes</a>
+    <div class="tabla-envoltorio">
+        <table class="tabla-registro">
+            <thead>
+                <tr>
+                    @foreach (\App\Services\RegistroCsv::COLUMNAS as $columna)
+                        <th>{{ $columna }}</th>
+                    @endforeach
+                </tr>
+            </thead>
+            <tbody>
+                @if ($buscado)
+                    @forelse ($jornadas as $jornada)
+                        @php($fila = $tabla->fila($persona, $jornada))
+                        <tr>
+                            <td><a href="{{ route('registro.show', $jornada) }}">{{ $fila['Fecha'] }}</a></td>
+                            <td>{{ $fila['Inicio'] }}</td>
+                            <td>{{ $fila['Fin'] }}</td>
+                            <td>{{ $fila['Total'] }}</td>
+                            <td>{{ $fila['Estado'] }}</td>
+                            <td>{{ $fila['Incidencia'] }}</td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="6">No hay jornadas en ese rango.</td>
+                        </tr>
+                    @endforelse
                 @endif
-                <span>Página {{ $jornadas->currentPage() }} de {{ $jornadas->lastPage() }}</span>
-                @if ($jornadas->nextPageUrl())
-                    <a href="{{ $jornadas->nextPageUrl() }}">Días anteriores</a>
-                @endif
-            </p>
-        @endif
+            </tbody>
+        </table>
+    </div>
+    @if ($buscado && $jornadas->hasPages())
+        <p class="paginas">
+            @if ($jornadas->previousPageUrl())
+                <a href="{{ $jornadas->previousPageUrl() }}">Días más recientes</a>
+            @endif
+            <span>Página {{ $jornadas->currentPage() }} de {{ $jornadas->lastPage() }}</span>
+            @if ($jornadas->nextPageUrl())
+                <a href="{{ $jornadas->nextPageUrl() }}">Días anteriores</a>
+            @endif
+        </p>
     @endif
 
     @if ($propio)

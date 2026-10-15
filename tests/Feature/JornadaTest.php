@@ -2,11 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Models\Ausencia;
 use App\Models\Aviso;
 use App\Models\Horario;
 use App\Models\Jornada;
 use App\Models\Tramo;
 use App\Models\User;
+use App\Services\NagerFestivos;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -101,27 +103,35 @@ class JornadaTest extends TestCase
             ->assertRedirect(route('jornada'));
     }
 
-    public function test_la_trabajadora_ve_los_festivos_y_no_los_cambia(): void
+    public function test_la_trabajadora_ve_los_festivos_de_su_centro(): void
     {
-        $this->seed();
-        $ana = User::query()->where('email', 'ana.lopez@abaco.test')->first();
+        $this->festivosPublicos($this->muestraNager());
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
 
         $this->actingAs($ana)
             ->get(route('calendario'))
             ->assertOk()
             ->assertSee('Calendario', false)
-            ->assertSee('San Isidro', false)
-            ->assertDontSee('Guardar festivo', false)
-            ->assertDontSee('Marcar fallo común', false);
+            ->assertSee('enero', false)
+            ->assertSee('diciembre', false)
+            ->assertSee('ES-MD', false)
+            ->assertSee('Festivo Nacional', false)
+            ->assertSee('Festivo Autonómico', false)
+            ->assertSee('Año Nuevo', false)
+            ->assertSee('Jueves Santo', false)
+            ->assertDontSee('Festivo Local', false)
+            ->assertDontSee('Día de Andalucía', false)
+            ->assertDontSee('Solo observancia', false)
+            ->assertDontSee('Quién falta', false)
+            ->assertDontSee('Fallo común', false)
+            ->assertDontSee('Guardar festivo', false);
 
         $this->actingAs($ana)
-            ->post(route('calendario.store'), [
+            ->post('/calendario', [
                 'holiday_date' => '2026-10-20',
                 'name' => 'Inventado',
             ])
-            ->assertRedirect(route('jornada'));
-
-        $this->assertDatabaseMissing('festivos', ['name' => 'Inventado']);
+            ->assertStatus(405);
     }
 
     public function test_la_baja_conserva_la_jornada(): void
@@ -143,24 +153,26 @@ class JornadaTest extends TestCase
         ])->assertSessionHas('aviso');
     }
 
-    public function test_quien_esta_en_otra_comunidad_sigue_el_calendario_de_madrid(): void
+    public function test_el_festivo_sigue_el_centro_y_no_el_municipio(): void
     {
-        $this->seed();
-        $otra = $this->persona('Nuria Soler', 'nuria.soler@abaco.test', 'Alcalá de Henares');
-        $this->horario($otra);
-        $ana = User::query()->where('email', 'ana.lopez@abaco.test')->first();
+        $this->festivosPublicos($this->muestraNager());
+        $madrid = $this->persona('Nuria Soler', 'nuria.soler@abaco.test', 'Alcalá de Henares');
+        $cataluna = $this->persona('Laia Puig', 'laia.puig@abaco.test', 'Madrid');
+        $cataluna->update(['centro' => 'ES-CT']);
+        $this->horario($madrid);
+        $this->horario($cataluna);
 
-        Carbon::setTestNow(Carbon::parse('2026-05-15 10:30:00', 'Europe/Madrid'));
+        Carbon::setTestNow(Carbon::parse('2026-04-02 10:30:00', 'Europe/Madrid'));
 
-        $this->actingAs($otra)
+        $this->actingAs($madrid)
             ->get(route('jornada'))
             ->assertSee('Hoy es festivo en tu centro', false)
             ->assertDontSee('¿Ya estabas trabajando?', false);
 
-        $this->actingAs($ana)
+        $this->actingAs($cataluna)
             ->get(route('jornada'))
-            ->assertSee('Hoy es festivo en tu centro', false)
-            ->assertDontSee('¿Ya estabas trabajando?', false);
+            ->assertDontSee('Hoy es festivo en tu centro', false)
+            ->assertSee('¿Ya estabas trabajando?', false);
     }
 
     public function test_la_reunion_conserva_la_hora_prevista(): void
@@ -302,9 +314,10 @@ class JornadaTest extends TestCase
 
     public function test_el_festivo_del_centro_pregunta_si_hay_trabajo(): void
     {
-        $this->seed();
-        $ana = User::query()->where('email', 'ana.lopez@abaco.test')->first();
-        Carbon::setTestNow(Carbon::parse('2026-05-15 10:30:00', 'Europe/Madrid'));
+        $this->festivosPublicos($this->muestraNager());
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
+        $this->horario($ana);
+        Carbon::setTestNow(Carbon::parse('2026-04-02 10:30:00', 'Europe/Madrid'));
 
         $this->actingAs($ana)
             ->get(route('jornada'))
@@ -335,7 +348,7 @@ class JornadaTest extends TestCase
         $this->assertSame('20:00', $tramo->ended_at->timezone('Europe/Madrid')->format('H:i'));
     }
 
-    public function test_por_debajo_de_ocho_avisos_el_registro_no_cambia(): void
+    public function test_un_solo_cierre_sin_completar_ya_se_avisa_y_no_cambia_el_registro(): void
     {
         $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
         $this->horario($ana);
@@ -346,29 +359,46 @@ class JornadaTest extends TestCase
             'started_at' => '2026-10-06 09:00:00',
             'ended_at' => '2026-10-06 18:00:00',
         ]);
-
         Carbon::setTestNow(Carbon::parse('2026-10-07 08:00:00', 'Europe/Madrid'));
-        foreach (range(1, 7) as $dias) {
-            Aviso::create([
-                'user_id' => $ana->id,
-                'tipo' => 'cierre',
-                'work_date' => Carbon::parse('2026-10-07')->subDays($dias)->toDateString(),
-                'cuenta' => true,
-            ]);
-        }
 
         $this->actingAs($ana)->get(route('jornada'))->assertDontSee('cierres sin completar', false);
+
+        Aviso::create(['user_id' => $ana->id, 'tipo' => 'cierre', 'work_date' => '2026-10-06', 'cuenta' => true]);
+        $this->actingAs($ana)->get(route('jornada'))->assertSee('Tienes 1 cierre sin completar', false);
+
+        Aviso::create(['user_id' => $ana->id, 'tipo' => 'olvido', 'work_date' => '2026-10-05', 'cuenta' => true]);
+        $this->actingAs($ana)->get(route('jornada'))->assertSee('Tienes 2 cierres sin completar', false);
+
         $this->assertSame('18:00', $tramo->fresh()->ended_at->timezone('Europe/Madrid')->format('H:i'));
+    }
+
+    public function test_un_aviso_sin_explicar_no_caduca_con_el_tiempo(): void
+    {
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
+        $this->horario($ana);
+        Carbon::setTestNow(Carbon::parse('2026-10-07 08:00:00', 'Europe/Madrid'));
+
+        Aviso::create(['user_id' => $ana->id, 'tipo' => 'cierre', 'work_date' => '2026-07-01', 'cuenta' => true]);
+
+        $this->actingAs($ana)->get(route('jornada'))->assertSee('Tienes 1 cierre sin completar', false);
+    }
+
+    public function test_explicar_un_aviso_deja_de_contarlo(): void
+    {
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
+        $this->horario($ana);
+        Carbon::setTestNow(Carbon::parse('2026-10-07 08:00:00', 'Europe/Madrid'));
 
         Aviso::create([
             'user_id' => $ana->id,
-            'tipo' => 'olvido',
-            'work_date' => '2026-09-20',
+            'tipo' => 'cierre',
+            'work_date' => '2026-10-06',
             'cuenta' => true,
+            'responded_at' => '2026-10-06 19:00:00',
         ]);
 
-        $this->actingAs($ana)->get(route('jornada'))->assertSee('Este mes tienes 8 cierres sin completar', false);
-        $this->assertSame('18:00', $tramo->fresh()->ended_at->timezone('Europe/Madrid')->format('H:i'));
+        $this->actingAs($ana)->get(route('jornada'))->assertDontSee('cierres sin completar', false);
+        $this->assertDatabaseCount('avisos', 1);
     }
 
     public function test_el_fallo_comun_y_el_horario_no_cuentan(): void
@@ -423,7 +453,7 @@ class JornadaTest extends TestCase
         $this->actingAs($marta)
             ->get(route('equipo.registro', $ana))
             ->assertSee('hace falta un motivo', false)
-            ->assertDontSee('Descargar copia', false);
+            ->assertDontSee('Descargar Excel', false);
 
         $this->actingAs($marta)
             ->post(route('equipo.motivo', $ana), ['reason' => 'Revisión del artículo 34.9'])
@@ -431,7 +461,7 @@ class JornadaTest extends TestCase
 
         $this->actingAs($marta)
             ->get(route('equipo.registro', $ana))
-            ->assertSee('Descargar copia', false);
+            ->assertSee('Descargar Excel', false);
 
         $this->assertDatabaseHas('consultas', [
             'viewer_id' => $marta->id,
@@ -560,6 +590,10 @@ class JornadaTest extends TestCase
 
         $this->actingAs($ana)
             ->get(route('registro'))
+            ->assertDontSee('9 h 0 min', false);
+
+        $this->actingAs($ana)
+            ->get(route('registro', ['desde' => '2026-10-07', 'hasta' => '2026-10-07']))
             ->assertSee('9 h 0 min', false)
             ->assertDontSee('12 h', false);
 
@@ -568,7 +602,7 @@ class JornadaTest extends TestCase
             ->assertSee('9 h 0 min', false)
             ->assertDontSee('12 h', false);
 
-        $copia = $this->actingAs($ana)->get(route('registro.csv'))->assertOk()->streamedContent();
+        $copia = $this->actingAs($ana)->get(route('registro.csv', ['desde' => '2026-10-07', 'hasta' => '2026-10-07']))->assertOk()->streamedContent();
         $this->assertStringContainsString('9 h 0 min', $copia);
         $this->assertStringNotContainsString('12 h', $copia);
     }
@@ -673,18 +707,197 @@ class JornadaTest extends TestCase
 
         $this->actingAs($ana)
             ->get(route('registro'))
+            ->assertDontSee('lunes 2 de marzo', false)
+            ->assertDontSee('jueves 1 de enero', false);
+
+        $this->actingAs($ana)
+            ->get(route('registro', ['desde' => '2026-01-01', 'hasta' => '2026-03-02']))
             ->assertSee('lunes 2 de marzo', false)
             ->assertDontSee('jueves 1 de enero', false)
             ->assertSee('Días anteriores', false);
 
         $this->actingAs($ana)
-            ->get(route('registro', ['page' => 2]))
+            ->get(route('registro', ['desde' => '2026-01-01', 'hasta' => '2026-03-02', 'page' => 2]))
             ->assertSee('jueves 1 de enero', false);
 
         $this->actingAs($ana)
             ->get(route('registro', ['desde' => '2026-01-01', 'hasta' => '2026-01-01']))
             ->assertSee('jueves 1 de enero', false)
             ->assertDontSee('viernes 2 de enero', false);
+    }
+
+    public function test_la_tabla_y_el_excel_usan_el_rango_y_marcan_la_incidencia(): void
+    {
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
+        $this->horario($ana);
+        $normal = Jornada::create(['user_id' => $ana->id, 'work_date' => '2026-10-06']);
+        Tramo::create([
+            'jornada_id' => $normal->id,
+            'tipo' => Tramo::TRABAJO,
+            'started_at' => '2026-10-06 09:00:00',
+            'ended_at' => '2026-10-06 18:00:00',
+        ]);
+        $incidencia = Jornada::create(['user_id' => $ana->id, 'work_date' => '2026-10-07']);
+        Tramo::create([
+            'jornada_id' => $incidencia->id,
+            'tipo' => Tramo::TRABAJO,
+            'started_at' => '2026-10-07 09:00:00',
+            'ended_at' => '2026-10-07 10:30:00',
+            'situacion' => 'incidencia',
+        ]);
+
+        $this->actingAs($ana)
+            ->get(route('registro', ['desde' => '2026-10-07', 'hasta' => '2026-10-07']))
+            ->assertOk()
+            ->assertSee('Incidencia', false)
+            ->assertSee('Sí', false)
+            ->assertSee('miércoles 7 de octubre', false)
+            ->assertDontSee('martes 6 de octubre', false);
+
+        $copia = $this->actingAs($ana)
+            ->get(route('registro.csv', ['desde' => '2026-10-07', 'hasta' => '2026-10-07']))
+            ->assertOk()
+            ->streamedContent();
+
+        $this->assertStringContainsString('Fecha;Inicio;Fin;Total;Estado;Incidencia', $copia);
+        $this->assertStringContainsString('"miércoles 7 de octubre";09:00;10:30;"1 h 30 min";Cerrada;Sí', $copia);
+        $this->assertStringNotContainsString('martes 6 de octubre', $copia);
+    }
+
+    public function test_el_calendario_marca_hoy_la_ausencia_y_abre_un_dia_pasado(): void
+    {
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
+        $jornada = Jornada::create(['user_id' => $ana->id, 'work_date' => '2026-10-06']);
+        Ausencia::create([
+            'user_id' => $ana->id,
+            'absence_date' => '2026-10-20',
+            'tipo' => 'vacaciones',
+        ]);
+        Ausencia::create([
+            'user_id' => $this->persona('Nuria Vega', 'nuria.vega@abaco.test', 'Madrid')->id,
+            'absence_date' => '2026-11-03',
+            'tipo' => 'permiso',
+        ]);
+
+        $this->actingAs($ana)
+            ->get(route('calendario'))
+            ->assertOk()
+            ->assertSee('casilla-hoy', false)
+            ->assertSee('casilla-vacaciones', false)
+            ->assertSee('/registro/'.$jornada->id, false)
+            ->assertDontSee('Nuria Vega', false)
+            ->assertDontSee('casilla-permiso', false)
+            ->assertDontSee('El calendario de 2027 no está cargado', false)
+            ->assertSee('Año siguiente', false);
+
+        $this->actingAs($ana)
+            ->get(route('calendario', ['anio' => 2027]))
+            ->assertOk()
+            ->assertSee('Calendario 2027', false)
+            ->assertSee('El calendario de 2027 no está cargado', false);
+    }
+
+    public function test_la_responsable_ve_quien_falta(): void
+    {
+        $marta = $this->persona('Marta Ruiz', 'marta.ruiz@abaco.test', 'Madrid', 'jefa');
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
+        Ausencia::create([
+            'user_id' => $ana->id,
+            'absence_date' => '2026-10-20',
+            'tipo' => 'vacaciones',
+        ]);
+
+        $this->actingAs($marta)
+            ->get(route('calendario'))
+            ->assertOk()
+            ->assertSee('1 falta', false)
+            ->assertDontSee('Quién falta', false)
+            ->assertDontSee('Fallo común', false);
+    }
+
+    public function test_un_festivo_en_domingo_se_traslada_al_lunes(): void
+    {
+        $this->festivosPublicos([
+            [
+                'date' => '2026-11-01',
+                'localName' => 'Día de todos los Santos',
+                'global' => true,
+                'counties' => null,
+                'types' => ['Public'],
+            ],
+            [
+                'date' => '2026-12-06',
+                'localName' => 'Día de la Constitución',
+                'global' => true,
+                'counties' => null,
+                'types' => ['Public'],
+            ],
+            [
+                'date' => '2026-08-15',
+                'localName' => 'Asunción',
+                'global' => true,
+                'counties' => null,
+                'types' => ['Public'],
+            ],
+        ]);
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
+        $this->horario($ana);
+        $festivos = app(NagerFestivos::class)->delAnio('ES-MD', 2026);
+
+        $this->assertSame(['2026-08-15', '2026-11-02', '2026-12-07'], $festivos->map(fn ($dia) => $dia->holiday_date->toDateString())->all());
+
+        Carbon::setTestNow(Carbon::parse('2026-11-01 10:30:00', 'Europe/Madrid'));
+        $this->actingAs($ana)->get(route('jornada'))->assertDontSee('Hoy es festivo en tu centro', false);
+
+        Carbon::setTestNow(Carbon::parse('2026-11-02 10:30:00', 'Europe/Madrid'));
+        $this->actingAs($ana)
+            ->get(route('jornada'))
+            ->assertSee('Hoy es festivo en tu centro', false);
+
+        $this->actingAs($ana)
+            ->get(route('calendario'))
+            ->assertSee('Día de todos los Santos', false)
+            ->assertSee('Día de la Constitución', false)
+            ->assertSee('Si cae en domingo, pasa al lunes.', false);
+    }
+
+    public function test_ver_el_calendario_no_borra_la_jornada(): void
+    {
+        $this->festivosPublicos($this->muestraNager());
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
+        Jornada::create(['user_id' => $ana->id, 'work_date' => '2026-04-02']);
+
+        $this->actingAs($ana)
+            ->get(route('calendario'))
+            ->assertOk()
+            ->assertSee('Jueves Santo', false);
+
+        $this->assertNotNull(Jornada::query()->where('user_id', $ana->id)->whereDate('work_date', '2026-04-02')->first());
+    }
+
+    public function test_el_alta_no_pide_municipio_y_guarda_madrid(): void
+    {
+        $marta = $this->persona('Marta Ruiz', 'marta.ruiz@abaco.test', 'Madrid', 'jefa');
+
+        $this->actingAs($marta)
+            ->get(route('equipo.create'))
+            ->assertOk()
+            ->assertDontSee('Municipio del centro', false);
+
+        $this->actingAs($marta)
+            ->post(route('equipo.store'), [
+                'name' => 'Nuria Vega',
+                'email' => 'nuria.vega@abaco.test',
+                'password' => 'Jornada2026',
+                'starts_on' => '2026-10-13',
+                'morning_start' => '09:00',
+                'morning_end' => '14:00',
+                'afternoon_start' => '15:00',
+                'afternoon_end' => '18:00',
+            ])
+            ->assertSessionHas('ok');
+
+        $this->assertSame('Madrid', User::query()->where('email', 'nuria.vega@abaco.test')->first()->municipality);
     }
 
     private function persona(string $nombre, string $correo, string $municipio, string $papel = 'trabajadora'): User
@@ -697,7 +910,45 @@ class JornadaTest extends TestCase
             'active' => true,
             'starts_on' => '2026-01-07',
             'municipality' => $municipio,
+            'centro' => 'ES-MD',
         ]);
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function muestraNager(): array
+    {
+        return [
+            [
+                'date' => '2026-01-01',
+                'localName' => 'Año Nuevo',
+                'global' => true,
+                'counties' => null,
+                'types' => ['Public'],
+            ],
+            [
+                'date' => '2026-02-28',
+                'localName' => 'Día de Andalucía',
+                'global' => false,
+                'counties' => ['ES-AN'],
+                'types' => ['Public'],
+            ],
+            [
+                'date' => '2026-04-02',
+                'localName' => 'Jueves Santo',
+                'global' => false,
+                'counties' => ['ES-MD'],
+                'types' => ['Public'],
+            ],
+            [
+                'date' => '2026-06-24',
+                'localName' => 'Solo observancia',
+                'global' => true,
+                'counties' => null,
+                'types' => ['Observance'],
+            ],
+        ];
     }
 
     private function horario(User $user): void

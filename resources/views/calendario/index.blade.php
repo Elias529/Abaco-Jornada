@@ -2,57 +2,89 @@
 
 @section('contenido')
     <h1>Calendario {{ $anio }}</h1>
+    <p class="anios">
+        @if ($anio > 2020)
+            <a href="{{ route('calendario', ['anio' => $anio - 1]) }}">Año anterior</a>
+        @endif
+        @if ($puedeAvanzar)
+            <a href="{{ route('calendario', ['anio' => $anioSiguiente]) }}">Año siguiente</a>
+        @endif
+    </p>
     @if ($sinCalendario)
         <p class="franja" role="status">El calendario de {{ $anio }} no está cargado. No inventamos festivos. Los días ya trabajados se quedan como se registraron.</p>
-    @else
-        <p class="secundario">El centro de trabajo está en Madrid. Este calendario vale para toda la plantilla, también para quien esté en otra comunidad.</p>
+    @endif
+    @if (! $sinCalendario)
+        <p class="secundario">Festivos públicos del centro {{ $centro }}. En rojo, los de todo el país. En verde, los de tu comunidad. Si cae en domingo, pasa al lunes.</p>
     @endif
 
-    <ul class="lista">
-        @forelse ($festivos as $festivo)
-            <li>
-                <span>{{ \App\Support\Tiempo::fecha($festivo->holiday_date) }} · {{ $festivo->name }}</span>
-                <strong>{{ $festivo->ambito() }}</strong>
-            </li>
-        @empty
-            <li>Este año no tiene festivos cargados.</li>
-        @endforelse
+    <ul class="leyenda">
+        <li><span class="muestra muestra-estado"></span> Festivo Nacional</li>
+        <li><span class="muestra muestra-comunidad"></span> Festivo Autonómico</li>
+        <li><span class="muestra muestra-hoy"></span> Hoy</li>
+        <li><span class="muestra muestra-vacaciones"></span> Vacaciones</li>
+        <li><span class="muestra muestra-permiso"></span> Permiso</li>
     </ul>
 
-    @unless ($esJefa)
-        <p class="secundario">Puedes consultar los festivos. Los carga tu jefa.</p>
-    @endunless
-
-    @if ($esJefa)
-
-    <form method="post" action="{{ route('calendario.store') }}" class="formulario">
-        @csrf
-        <label for="holiday_date">Día</label>
-        <input id="holiday_date" name="holiday_date" type="date" required>
-        <label for="name">Nombre</label>
-        <input id="name" name="name" required maxlength="120">
-        <button class="boton boton-principal" type="submit">Guardar festivo</button>
-    </form>
-
-    <h2>Fallo común</h2>
-    <p class="secundario">Si el mismo aviso sale a la vez por una caída o un calendario mal cargado, no entra en la cuenta de cada persona.</p>
-    <form method="post" action="{{ route('calendario.fallo') }}" class="formulario">
-        @csrf
-        <label for="falla_date">Día</label>
-        <input id="falla_date" name="falla_date" type="date" required>
-        <label for="note">Qué falló</label>
-        <input id="note" name="note" required maxlength="200">
-        <button class="boton boton-secundario" type="submit">Marcar fallo común</button>
-    </form>
-    @if ($fallos->isNotEmpty())
-        <ul class="lista">
-            @foreach ($fallos as $fallo)
-                <li>
-                    <span>{{ \App\Support\Tiempo::fecha($fallo->falla_date) }}</span>
-                    <span class="secundario">{{ $fallo->note }}</span>
-                </li>
-            @endforeach
-        </ul>
-    @endif
-    @endif
+    <div class="anio">
+        @foreach ($meses as $mes)
+            <section class="mes-caja">
+                <h2>{{ $mes['nombre'] }}</h2>
+                <div class="rejilla-mes">
+                    @foreach (['L', 'M', 'X', 'J', 'V', 'S', 'D'] as $letra)
+                        <span class="cabecera-dia">{{ $letra }}</span>
+                    @endforeach
+                    @foreach ($mes['dias'] as $dia)
+                        @if ($dia === null)
+                            <span class="casilla casilla-vacia"></span>
+                        @else
+                            @php
+                                $festivo = $dia['festivo'];
+                                $clases = 'casilla';
+                                if ($dia['hoy']) {
+                                    $clases .= ' casilla-hoy';
+                                }
+                                if ($festivo) {
+                                    $clases .= ' casilla-'.$festivo->ambito;
+                                } elseif ($dia['finde']) {
+                                    $clases .= ' casilla-finde';
+                                }
+                                if ($dia['ausencia']) {
+                                    $clases .= ' casilla-'.$dia['ausencia']->tipo;
+                                }
+                                $titulo = collect([
+                                    $festivo ? $festivo->name.'. '.$festivo->etiqueta().'.' : null,
+                                    $dia['ausencia'] ? $dia['ausencia']->tipoTexto().'.' : null,
+                                    $dia['hoy'] ? 'Hoy.' : null,
+                                    $dia['registro'] ? 'Abrir el registro.' : null,
+                                ])->filter()->implode(' ');
+                            @endphp
+                            @if ($dia['registro'])
+                                <a class="{{ $clases }}" href="{{ $dia['registro'] }}" @if ($titulo !== '') title="{{ $titulo }}" @endif>
+                            @else
+                                <span class="{{ $clases }}" @if ($titulo !== '') title="{{ $titulo }}" @endif>
+                            @endif
+                                <strong>{{ $dia['numero'] }}</strong>
+                                @if ($dia['hoy'])
+                                    <small>Hoy</small>
+                                @endif
+                                @if ($festivo)
+                                    <small>{{ $festivo->name }}</small>
+                                @endif
+                                @if ($dia['ausencia'])
+                                    <small>{{ $dia['ausencia']->tipoTexto() }}</small>
+                                @endif
+                                @if ($esJefa && $dia['faltan']->isNotEmpty())
+                                    <small>{{ $dia['faltan']->count() }} {{ $dia['faltan']->count() === 1 ? 'falta' : 'faltan' }}</small>
+                                @endif
+                            @if ($dia['registro'])
+                                </a>
+                            @else
+                                </span>
+                            @endif
+                        @endif
+                    @endforeach
+                </div>
+            </section>
+        @endforeach
+    </div>
 @endsection

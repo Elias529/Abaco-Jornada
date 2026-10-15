@@ -2,26 +2,51 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Ausencia;
 use App\Models\FalloComun;
-use App\Models\Festivo;
+use App\Models\Jornada;
 use App\Services\JornadaService;
-use Illuminate\Database\UniqueConstraintViolationException;
+use App\Services\NagerFestivos;
+use App\Support\DiaFestivo;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\View\View;
 
 class CalendarioController extends Controller
 {
-    public function __construct(private JornadaService $jornada) {}
+    public function __construct(private JornadaService $jornada, private NagerFestivos $festivos) {}
 
     public function index(Request $request): View
     {
-        $anio = now()->year;
+        $anio = (int) $request->query('anio', now()->year);
+        if ($anio < 2020 || $anio > now()->year + 1) {
+            $anio = now()->year;
+        }
+
+        $usuario = $request->user();
+        $festivos = $this->festivos->delAnio((string) $usuario->centro, $anio);
+        $propias = $usuario->ausencias()->whereYear('absence_date', $anio)->get()
+            ->keyBy(fn (Ausencia $ausencia) => $ausencia->absence_date->toDateString());
+        $jornadas = Jornada::query()
+            ->where('user_id', $usuario->id)
+            ->whereYear('work_date', $anio)
+            ->get()
+            ->keyBy(fn (Jornada $jornada) => $jornada->work_date->toDateString());
+        $faltas = $usuario->esJefa()
+            ? Ausencia::query()->with('user')->whereYear('absence_date', $anio)->orderBy('absence_date')->get()
+            : collect();
 
         return view('calendario.index', [
-            'festivos' => Festivo::query()->whereYear('holiday_date', $anio)->orderBy('holiday_date')->get(),
+            'festivos' => $festivos,
+            'centro' => $usuario->centro,
+            'meses' => $this->meses($anio, $festivos, $propias, $jornadas, $faltas->groupBy(fn (Ausencia $ausencia) => $ausencia->absence_date->toDateString())),
             'anio' => $anio,
-            'sinCalendario' => $this->jornada->anioSinCalendario(now()),
+            'anioSiguiente' => $anio + 1,
+            'puedeAvanzar' => $anio < now()->year + 1,
+            'sinCalendario' => $festivos->isEmpty(),
+            'faltas' => $faltas,
             'fallos' => FalloComun::query()->orderByDesc('falla_date')->limit(12)->get(),
             'esJefa' => $request->user()->esJefa(),
         ]);
@@ -63,5 +88,46 @@ class CalendarioController extends Controller
         $this->jornada->falloComun($datos['falla_date'], trim($datos['note']));
 
         return back()->with('ok', 'Guardado. Ese aviso no entra en la cuenta de cada persona.');
+    }
+
+    /**
+     * @param  Collection<int, DiaFestivo>  $festivos
+     * @param  Collection<string, Ausencia>  $propias
+     * @param  Collection<string, Jornada>  $jornadas
+     * @param  Collection<string, Collection<int, Ausencia>>  $faltas
+     * @return list<array{nombre: string, dias: list<array<string, mixed>|null>}>
+     */
+    private function meses(int $anio, Collection $festivos, Collection $propias, Collection $jornadas, Collection $faltas): array
+    {
+        $porDia = $festivos->keyBy(fn (DiaFestivo $festivo) => $festivo->holiday_date->toDateString());
+        $hoy = now()->toDateString();
+        $nombres = [
+            'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+            'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
+        ];
+        $meses = [];
+
+        foreach ($nombres as $indice => $nombre) {
+            $inicio = Carbon::create($anio, $indice + 1, 1);
+            $dias = array_fill(0, $inicio->dayOfWeekIso - 1, null);
+
+            for ($dia = 1; $dia <= $inicio->daysInMonth; $dia++) {
+                $fecha = Carbon::create($anio, $indice + 1, $dia)->toDateString();
+                $jornada = $jornadas->get($fecha);
+                $dias[] = [
+                    'numero' => $dia,
+                    'hoy' => $fecha === $hoy,
+                    'finde' => Carbon::parse($fecha)->isWeekend(),
+                    'festivo' => $porDia->get($fecha),
+                    'ausencia' => $propias->get($fecha),
+                    'faltan' => $faltas->get($fecha, collect()),
+                    'registro' => $jornada && $fecha < $hoy ? route('registro.show', $jornada) : null,
+                ];
+            }
+
+            $meses[] = ['nombre' => $nombre, 'dias' => $dias];
+        }
+
+        return $meses;
     }
 }

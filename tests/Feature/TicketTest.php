@@ -7,6 +7,7 @@ use App\Mail\TicketResuelto;
 use App\Models\Ticket;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Mail;
 use RuntimeException;
 use Tests\TestCase;
@@ -189,6 +190,66 @@ class TicketTest extends TestCase
             ->assertSee('Cerrado uno')->assertDontSee('Pendiente uno');
         $this->actingAs($tecnico)->get(route('tecnico.tickets', ['estado' => 'todos']))
             ->assertSee('Pendiente uno')->assertSee('Cerrado uno');
+    }
+
+    public function test_comunicar_una_incidencia_de_conexion_abre_un_ticket_para_el_tecnico(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-10-07 10:45:00', 'Europe/Madrid'));
+        $ana = User::factory()->create();
+        $tecnico = User::factory()->tecnico()->create();
+
+        $this->actingAs($ana)->post(route('jornada.incidencia'), [
+            'inicio' => '09:00',
+            'fin' => '10:30',
+            'motivo' => 'Se cayó la red',
+        ])->assertSessionHas('ok');
+
+        $this->assertDatabaseCount('tramos', 1);
+        $ticket = Ticket::where('user_id', $ana->id)->firstOrFail();
+        $this->assertSame('Incidencia de conexión', $ticket->asunto);
+        $this->assertStringContainsString('Se cayó la red', $ticket->descripcion);
+        $this->assertStringContainsString('de 09:00 a 10:30', $ticket->descripcion);
+        Mail::assertSent(TicketNuevo::class, fn (TicketNuevo $correo) => $correo->hasTo($tecnico->email));
+
+        $this->actingAs($tecnico)->get(route('tecnico.tickets'))
+            ->assertOk()
+            ->assertSee('Incidencia de conexión');
+        $this->actingAs($tecnico)->get(route('tickets.show', $ticket))
+            ->assertOk()
+            ->assertSee('Se cayó la red');
+    }
+
+    public function test_una_incidencia_rechazada_no_abre_ticket(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-10-07 10:45:00', 'Europe/Madrid'));
+        User::factory()->tecnico()->create();
+        $ana = User::factory()->create();
+
+        $this->actingAs($ana)->post(route('jornada.incidencia'), [
+            'inicio' => '10:00',
+            'fin' => '09:00',
+            'motivo' => 'Horas al revés',
+        ])->assertSessionHas('aviso');
+
+        $this->assertSame(0, Ticket::count());
+        $this->assertDatabaseCount('tramos', 0);
+    }
+
+    public function test_si_el_correo_falla_la_incidencia_queda_en_el_registro_y_en_el_ticket(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-10-07 10:45:00', 'Europe/Madrid'));
+        User::factory()->tecnico()->create();
+        $ana = User::factory()->create();
+        Mail::shouldReceive('to')->once()->andThrow(new RuntimeException('sin conexión'));
+
+        $this->actingAs($ana)->post(route('jornada.incidencia'), [
+            'inicio' => '09:00',
+            'fin' => '10:30',
+            'motivo' => 'Se cayó la red',
+        ])->assertSessionHas('ok');
+
+        $this->assertDatabaseCount('tramos', 1);
+        $this->assertSame(1, Ticket::where('user_id', $ana->id)->count());
     }
 
     public function test_un_estado_inexistente_se_rechaza(): void

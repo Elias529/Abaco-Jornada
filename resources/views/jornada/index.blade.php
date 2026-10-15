@@ -13,7 +13,7 @@
             @else
                 <p>{{ $banner['texto'] }}</p>
                 @if (($banner['accion'] ?? null) === 'registro')
-                    <a class="franja-accion" href="{{ route('registro') }}">Revisarlos</a>
+                    <a class="franja-accion" href="{{ route('registro') }}">Revisar</a>
                 @elseif (($banner['accion'] ?? null) === 'calendario')
                     <a class="franja-accion" href="{{ route('calendario') }}">Cargar calendario</a>
                 @elseif (($banner['accion'] ?? null) === 'cierre')

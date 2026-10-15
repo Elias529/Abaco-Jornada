@@ -34,6 +34,7 @@ class UserFactory extends Factory
             'active' => true,
             'starts_on' => '2026-01-07',
             'municipality' => 'Madrid',
+            'centro' => 'ES-MD',
         ];
     }
 
