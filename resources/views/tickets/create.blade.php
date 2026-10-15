@@ -5,7 +5,7 @@
     <h1>Abrir un ticket</h1>
     <p class="secundario">Cuenta qué ha pasado y dónde. El técnico lo recibe con tu nombre. No pongas datos de salud ni de clientes.</p>
 
-    <form method="post" action="{{ route('tickets.store') }}" class="formulario">
+    <form method="post" action="{{ route('tickets.store') }}" class="formulario formulario-ticket">
         @csrf
         <input type="hidden" name="desde" value="{{ $desde }}">
 
@@ -19,6 +19,6 @@
             <p class="secundario">Página desde la que lo abres: {{ $desde }}</p>
         @endif
 
-        <button class="boton boton-principal" type="submit">Enviar al técnico</button>
+        <button class="boton-hoy" type="submit">Enviar al técnico</button>
     </form>
 @endsection

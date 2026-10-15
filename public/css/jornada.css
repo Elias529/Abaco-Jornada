@@ -1222,3 +1222,46 @@ form.bandeja-incidencias .campo-ancho select {
 }
 
 .tarjeta-incidencia { border-left: 4px solid var(--marca-primario); }
+
+.pastilla-abierto { background: var(--estado-pendiente); }
+
+.pastilla-en_curso { background: var(--marca-suave); }
+
+.pastilla-resuelto {
+    background: transparent;
+    color: var(--texto-suave);
+    border: 1px solid var(--linea);
+}
+
+.filtro-ticket {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0 18px;
+    border: 1px solid var(--marca-acento);
+    border-radius: 999px;
+    background: var(--fondo-pagina);
+    color: var(--marca-primario);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.filtro-ticket:hover,
+.filtro-ticket:focus-visible { color: var(--marca-primario-oscuro); }
+
+.filtros-ticket { justify-content: flex-start; }
+
+.formulario-ticket {
+    margin-top: 20px;
+    padding: 18px;
+    background: var(--fondo-ventana);
+    border: 1px solid var(--linea);
+    border-radius: 16px;
+}
+
+.formulario-ticket .boton { width: auto; min-width: 140px; }
+
+.formulario-ticket .boton-hoy { align-self: flex-start; }
+
+.bandeja-incidencias > .incidencia-texto { margin: 0; max-width: 520px; }
