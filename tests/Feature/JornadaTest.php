@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Ausencia;
 use App\Models\Aviso;
 use App\Models\Horario;
+use App\Models\Incidencia;
 use App\Models\Jornada;
 use App\Models\Tramo;
 use App\Models\User;
@@ -649,6 +650,30 @@ class JornadaTest extends TestCase
             ->get(route('jornada'))
             ->assertSee('Empezar jornada', false)
             ->assertSee('Comunicar incidencia', false);
+    }
+
+    public function test_la_jefa_filtra_incidencias_por_un_rango_de_fechas(): void
+    {
+        $marta = $this->persona('Marta Ruiz', 'marta.ruiz@abaco.test', 'Madrid', 'jefa');
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
+        Incidencia::create(['user_id' => $ana->id, 'cuerpo' => 'La de ayer'])
+            ->forceFill(['created_at' => '2026-10-06 09:00:00'])
+            ->save();
+        Incidencia::create(['user_id' => $ana->id, 'cuerpo' => 'La de hoy'])
+            ->forceFill(['created_at' => '2026-10-07 10:00:00'])
+            ->save();
+
+        $this->actingAs($marta)
+            ->get(route('incidencias.index', ['desde' => '2026-10-07', 'hasta' => '2026-10-07']))
+            ->assertOk()
+            ->assertSee('La de hoy', false)
+            ->assertDontSee('La de ayer', false)
+            ->assertSee('>Hoy<', false);
+
+        $this->actingAs($marta)
+            ->get(route('incidencias.index', ['desde' => '2026-10-06', 'hasta' => '2026-10-07']))
+            ->assertSee('La de hoy', false)
+            ->assertSee('La de ayer', false);
     }
 
     public function test_la_salida_guarda_quien_la_declaro_y_una_correccion_no_lo_borra(): void
