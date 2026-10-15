@@ -4,7 +4,7 @@
     <p><a class="enlace" href="{{ route('jefe.index') }}">Volver al estado del equipo</a></p>
     <h1>{{ $persona->name }}</h1>
     <p>{{ $persona->email }}</p>
-    <p class="secundario">Centro en {{ $persona->municipality }}. El registro cuenta desde {{ $persona->starts_on ? \App\Support\Tiempo::fecha($persona->starts_on) : 'sin fecha' }}.</p>
+    <p class="secundario">Centro en {{ $persona->municipality }}. El registro cuenta desde {{ $persona->starts_on ? \App\Support\Tiempo::fecha($persona->starts_on) : 'sin fecha' }}{{ $persona->ends_on ? ', hasta '.\App\Support\Tiempo::fecha($persona->ends_on) : ', sin fecha de fin' }}.</p>
 
     <div class="estado estado-consulta" aria-live="polite">
         <img class="icono-estado icono-pequeno" src="{{ asset('marca/iconos/'.$estado['icono']) }}" alt="">

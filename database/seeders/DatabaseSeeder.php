@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
         foreach ([$marta, $ana, $carmen] as $persona) {
             Horario::create([
                 'user_id' => $persona->id,
+                'tipo' => 'partida',
                 'morning_start' => '09:00',
                 'morning_end' => '14:00',
                 'afternoon_start' => '15:00',

@@ -2,21 +2,30 @@
 
 namespace App\Http\Controllers;
 
+use App\DuracionEstancia;
 use App\Exceptions\ReglaJornada;
 use App\Models\Ausencia;
 use App\Models\Consulta;
 use App\Models\Horario;
 use App\Models\User;
 use App\Services\JornadaService;
+use App\Services\NagerFestivos;
+use App\Support\RejillaCalendario;
+use App\TipoJornada;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class EquipoController extends Controller
 {
-    public function __construct(private JornadaService $jornada) {}
+    public function __construct(
+        private JornadaService $jornada,
+        private NagerFestivos $festivos,
+    ) {}
 
     public function index(): View
     {
@@ -26,17 +35,79 @@ class EquipoController extends Controller
         ]);
     }
 
-    public function create(): View
+    public function create(Request $request): View
     {
-        return view('equipo.create', ['esJefa' => true]);
+        $tipo = TipoJornada::tryFrom((string) $request->old('tipo', $request->query('tipo', '')));
+        $startsOn = $this->fechaConsulta($request, 'starts_on') ?? now()->toDateString();
+        $duracion = DuracionEstancia::tryFrom((string) $request->old('duracion', $request->query('duracion', '')));
+        $endsOnInput = $this->fechaConsulta($request, 'ends_on');
+        $endsOn = $duracion?->fechaFin(Carbon::parse($startsOn), $endsOnInput);
+        $periodoListo = $duracion !== null
+            && ($duracion !== DuracionEstancia::HastaElDia || $endsOn !== null);
+
+        $anioInicio = Carbon::parse($startsOn)->year;
+        $anioFin = $endsOn ? Carbon::parse($endsOn)->year : max(now()->year + 1, $anioInicio);
+        $navegaAnios = ! $periodoListo || $duracion === DuracionEstancia::Indefinido;
+        $anio = (int) $request->query('anio', $periodoListo ? $anioInicio : now()->year);
+        if ($periodoListo && $navegaAnios) {
+            $anio = max($anioInicio, min($anio, $anioFin));
+        } elseif ($periodoListo) {
+            $anio = $anioInicio;
+        } elseif ($anio < 2020 || $anio > now()->year + 1) {
+            $anio = now()->year;
+        }
+
+        $centro = (string) $request->user()->centro;
+        $aniosFestivos = $periodoListo && $endsOn
+            ? range($anioInicio, $anioFin)
+            : [$anio];
+        $festivos = collect();
+        foreach (array_unique($aniosFestivos) as $anioFestivo) {
+            $festivos = $festivos->concat($this->festivos->delAnio($centro, $anioFestivo));
+        }
+        $consulta = array_filter([
+            'tipo' => $tipo?->value,
+            'starts_on' => $startsOn,
+            'duracion' => $duracion?->value,
+            'ends_on' => $duracion === DuracionEstancia::HastaElDia ? $endsOnInput : null,
+        ]);
+        $meses = RejillaCalendario::meses($anio, $festivos, $periodoListo ? $startsOn : null, $periodoListo ? $endsOn : null, $periodoListo);
+        $aniosMeses = collect($meses)->pluck('anio')->unique();
+
+        return view('equipo.create', [
+            'esJefa' => true,
+            'anio' => $anio,
+            'anioSiguiente' => $anio + 1,
+            'puedeAvanzar' => $navegaAnios && $anio < ($periodoListo ? $anioFin : now()->year + 1),
+            'puedeRetroceder' => $navegaAnios && $anio > ($periodoListo ? $anioInicio : 2020),
+            'navegaAnios' => $navegaAnios,
+            'centro' => $request->user()->municipality ?: $centro,
+            'festivos' => $festivos,
+            'sinCalendario' => $festivos->isEmpty(),
+            'meses' => $meses,
+            'muestraAnioMes' => $aniosMeses->count() > 1,
+            'tipo' => $tipo,
+            'tipos' => TipoJornada::cases(),
+            'duracion' => $duracion,
+            'duraciones' => DuracionEstancia::cases(),
+            'startsOn' => $startsOn,
+            'endsOn' => $endsOnInput,
+            'finPeriodo' => $endsOn,
+            'periodoListo' => $periodoListo,
+            'consulta' => $consulta,
+        ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
         $datos = $this->validarPersona($request, true);
+        $tipo = TipoJornada::from($datos['tipo']);
+        $duracion = DuracionEstancia::from($datos['duracion']);
+        $endsOn = $duracion->fechaFin(Carbon::parse($datos['starts_on']), $datos['ends_on'] ?? null);
+        $datos = array_merge($datos, $tipo->horas());
 
         try {
-            DB::transaction(function () use ($datos) {
+            DB::transaction(function () use ($datos, $tipo, $endsOn) {
                 $persona = User::create([
                     'name' => $datos['name'],
                     'email' => $datos['email'],
@@ -44,10 +115,11 @@ class EquipoController extends Controller
                     'role' => 'trabajadora',
                     'active' => true,
                     'starts_on' => $datos['starts_on'],
+                    'ends_on' => $endsOn,
                     'municipality' => JornadaService::CENTRO,
                     'centro' => 'ES-MD',
                 ]);
-                $this->guardarHorario($persona, $datos, $datos['starts_on']);
+                $this->guardarHorario($persona, $datos, $datos['starts_on'], $tipo);
             });
         } catch (ReglaJornada $e) {
             return back()->with('aviso', $e->getMessage())->withInput();
@@ -78,7 +150,7 @@ class EquipoController extends Controller
         ])['effective_from'];
 
         try {
-            $this->guardarHorario($user, $datos, $datos['effective_from']);
+            $this->guardarHorario($user, $datos, $datos['effective_from'], null);
             $this->jornada->excluirAvisosDeHorario($user, $datos['effective_from']);
         } catch (ReglaJornada $e) {
             return back()->with('aviso', $e->getMessage())->withInput();
@@ -127,20 +199,27 @@ class EquipoController extends Controller
             'name' => ['required', 'string', 'max:120'],
             'email' => ['required', 'email', 'max:190', 'unique:users,email'],
             'starts_on' => ['required', 'date'],
+            'duracion' => ['required', Rule::enum(DuracionEstancia::class)],
+            'ends_on' => ['nullable', 'required_if:duracion,'.DuracionEstancia::HastaElDia->value, 'date', 'after_or_equal:starts_on'],
+            'tipo' => ['required', Rule::enum(TipoJornada::class)],
         ];
         if ($conClave) {
             $reglas['password'] = ['required', 'string', 'min:8'];
         }
 
-        $datos = $request->validate($reglas, [
+        return $request->validate($reglas, [
             'name.required' => 'Escribe el nombre.',
             'email.required' => 'Escribe el correo.',
             'email.unique' => 'Ese correo ya está en uso.',
             'password.min' => 'La contraseña necesita al menos 8 caracteres.',
             'starts_on.required' => 'Elige desde qué día cuenta el registro.',
+            'duracion.required' => 'Elige cuánto tiempo estará en la empresa.',
+            'duracion.enum' => 'Elige cuánto tiempo estará en la empresa.',
+            'ends_on.required_if' => 'Elige el último día en la empresa.',
+            'ends_on.after_or_equal' => 'El último día no puede ser anterior al inicio.',
+            'tipo.required' => 'Elige el tipo de jornada.',
+            'tipo.enum' => 'Elige un tipo de jornada válido.',
         ]);
-
-        return array_merge($datos, $this->validarHorario($request));
     }
 
     private function validarHorario(Request $request): array
@@ -166,21 +245,37 @@ class EquipoController extends Controller
         ]);
     }
 
-    private function guardarHorario(User $persona, array $datos, string $desde): void
+    private function guardarHorario(User $persona, array $datos, string $desde, ?TipoJornada $tipo): void
     {
+        $tardeIgual = $datos['afternoon_start'] === $datos['afternoon_end'];
+        $tardeValida = $tardeIgual
+            ? $datos['morning_end'] === $datos['afternoon_start']
+            : $datos['afternoon_start'] < $datos['afternoon_end'];
+
         if (! ($datos['morning_start'] < $datos['morning_end']
             && $datos['morning_end'] <= $datos['afternoon_start']
-            && $datos['afternoon_start'] < $datos['afternoon_end'])) {
+            && $tardeValida)) {
             throw new ReglaJornada('Revisa el horario: la mañana va antes que la tarde, y cada tramo termina después de empezar.');
         }
 
         Horario::create([
             'user_id' => $persona->id,
+            'tipo' => $tipo?->value,
             'morning_start' => $datos['morning_start'],
             'morning_end' => $datos['morning_end'],
             'afternoon_start' => $datos['afternoon_start'],
             'afternoon_end' => $datos['afternoon_end'],
             'effective_from' => $desde,
         ]);
+    }
+
+    private function fechaConsulta(Request $request, string $campo): ?string
+    {
+        $valor = $request->old($campo, $request->query($campo));
+        if (! is_string($valor) || preg_match('/^\d{4}-\d{2}-\d{2}$/', $valor) !== 1) {
+            return null;
+        }
+
+        return $valor;
     }
 }

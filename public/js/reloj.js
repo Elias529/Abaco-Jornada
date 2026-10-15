@@ -117,6 +117,9 @@
                 }
                 return;
             }
+            if ((form.getAttribute("method") || "get").toLowerCase() !== "post") {
+                return;
+            }
             if (form.dataset.enviando === "1") {
                 event.preventDefault();
                 return;
