@@ -109,7 +109,7 @@
     document.querySelectorAll("form").forEach(function (form) {
         form.addEventListener("submit", function (event) {
             form.querySelectorAll("[data-hora]").forEach(sincronizarHora);
-            if (!navigator.onLine) {
+            if (!navigator.onLine && form.querySelector("[data-hora]")) {
                 event.preventDefault();
                 const aviso = document.querySelector("[data-sin-conexion]");
                 if (aviso) {
