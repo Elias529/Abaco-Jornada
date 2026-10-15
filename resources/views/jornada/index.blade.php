@@ -103,10 +103,12 @@
                     @endif
                     @include('jornada.fuera')
                 </div>
-                <div class="incidencia-aparte">
-                    <a class="boton boton-secundario enlace-incidencia" href="{{ route('jornada.incidencia.crear') }}">Comunicar incidencia</a>
-                    <p class="secundario aviso-conexion" data-conexion-vuelta hidden>Ya hay conexión. Entra y declara las horas que no se guardaron.</p>
-                </div>
+                @unless ($esJefa)
+                    <div class="incidencia-aparte">
+                        <a class="boton boton-secundario enlace-incidencia" href="{{ route('jornada.incidencia.crear') }}">Comunicar incidencia</a>
+                        <p class="secundario aviso-conexion" data-conexion-vuelta hidden>Ya hay conexión. Entra y declara las horas que no se guardaron.</p>
+                    </div>
+                @endunless
             @endif
 
             <div class="rejilla">

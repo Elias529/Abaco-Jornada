@@ -3,6 +3,7 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CalendarioController;
 use App\Http\Controllers\EquipoController;
+use App\Http\Controllers\IncidenciaController;
 use App\Http\Controllers\JefeController;
 use App\Http\Controllers\JornadaController;
 use App\Http\Controllers\RegistroController;
@@ -63,6 +64,9 @@ Route::middleware(['auth', 'activo'])->group(function () {
         Route::get('/equipo/{user}/copia.csv', [RegistroController::class, 'csvDe'])->name('equipo.csv');
 
         Route::post('/calendario/fallo', [CalendarioController::class, 'fallo'])->name('calendario.fallo');
+
+        Route::get('/incidencias', [IncidenciaController::class, 'index'])->name('incidencias.index');
+        Route::get('/incidencias/{incidencia}', [IncidenciaController::class, 'show'])->name('incidencias.show');
 
         // Funciones de dirección: estado del equipo y registros en solo lectura.
         // Lo único que se escribe es el motivo de cada consulta, que queda anotado.

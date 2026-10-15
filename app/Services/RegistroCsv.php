@@ -6,6 +6,7 @@ use App\Models\Jornada;
 use App\Models\Tramo;
 use App\Models\User;
 use App\Support\Tiempo;
+use Illuminate\Database\Eloquent\Builder;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
@@ -47,17 +48,33 @@ class RegistroCsv
         ];
     }
 
-    public function descargar(User $persona, ?string $desde = null, ?string $hasta = null): StreamedResponse
+    /**
+     * @return Builder<Jornada>
+     */
+    public function consulta(User $persona, string $desde, string $hasta, string $estado, string $incidencia): Builder
     {
-        $desde = is_string($desde) && $desde !== '' ? $desde : null;
-        $hasta = is_string($hasta) && $hasta !== '' ? $hasta : null;
-        $jornadas = Jornada::query()
+        return Jornada::query()
             ->with('tramos')
             ->where('user_id', $persona->id)
-            ->when($desde, fn ($q) => $q->whereDate('work_date', '>=', $desde))
-            ->when($hasta, fn ($q) => $q->whereDate('work_date', '<=', $hasta))
-            ->orderByDesc('work_date')
-            ->get();
+            ->when($desde !== '', fn ($q) => $q->whereDate('work_date', '>=', $desde))
+            ->when($hasta !== '', fn ($q) => $q->whereDate('work_date', '<=', $hasta))
+            ->when($estado === 'pendiente', fn ($q) => $q->whereHas('tramos', fn ($tramo) => $tramo->whereNull('ended_at')))
+            ->when($estado === 'tardia', fn ($q) => $q
+                ->where('closed_late', true)
+                ->whereDoesntHave('tramos', fn ($tramo) => $tramo->whereNull('ended_at')))
+            ->when($estado === 'cerrada', fn ($q) => $q
+                ->where('closed_late', false)
+                ->whereDoesntHave('tramos', fn ($tramo) => $tramo->whereNull('ended_at')))
+            ->when($incidencia === 'si', fn ($q) => $q->whereHas('tramos', fn ($tramo) => $tramo->where('situacion', 'incidencia')))
+            ->when($incidencia === 'no', fn ($q) => $q->whereDoesntHave('tramos', fn ($tramo) => $tramo->where('situacion', 'incidencia')))
+            ->orderByDesc('work_date');
+    }
+
+    public function descargar(User $persona, ?string $desde = null, ?string $hasta = null, string $estado = '', string $incidencia = ''): StreamedResponse
+    {
+        $desde = is_string($desde) ? $desde : '';
+        $hasta = is_string($hasta) ? $hasta : '';
+        $jornadas = $this->consulta($persona, $desde, $hasta, $estado, $incidencia)->get();
 
         return $this->archivo($persona, $jornadas);
     }

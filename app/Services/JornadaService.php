@@ -763,7 +763,7 @@ class JornadaService
             ];
         }
 
-        if ($user->esJefa() && $this->anioSinCalendario($ahora)) {
+        if ($user->esJefa() && $this->anioSinCalendario($user, $ahora)) {
             return [
                 'texto' => 'El calendario de '.$ahora->year.' no está cargado. No inventamos festivos. Los días ya trabajados se quedan como se registraron.',
                 'accion' => 'calendario',

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Exceptions\ReglaJornada;
 use App\Models\Aviso;
 use App\Models\Correccion;
+use App\Models\Incidencia;
 use App\Models\Jornada;
 use App\Models\Tramo;
 use App\Services\JornadaService;
@@ -174,33 +175,34 @@ class JornadaController extends Controller
         return $this->hacer(fn () => $this->jornada->fuera($request->user(), $datos['inicio'], $datos['fin']));
     }
 
-    public function crearIncidencia(): View
+    public function crearIncidencia(Request $request): View|RedirectResponse
     {
+        if ($request->user()->esJefa()) {
+            return redirect()->route('incidencias.index');
+        }
+
         return view('jornada.incidencia');
     }
 
     public function incidencia(Request $request): RedirectResponse
     {
-        $this->normalizarHora($request, 'inicio');
-        $this->normalizarHora($request, 'fin');
+        if ($request->user()->esJefa()) {
+            return redirect()->route('incidencias.index');
+        }
+
         $datos = $request->validate([
-            'inicio' => ['required', 'date_format:H:i'],
-            'fin' => ['required', 'date_format:H:i'],
             'motivo' => ['required', 'string', 'max:500'],
         ], [
-            'inicio.required' => 'Elige la hora de inicio.',
-            'fin.required' => 'Elige la hora de fin.',
-            'inicio.date_format' => 'Elige una hora.',
-            'fin.date_format' => 'Elige una hora.',
             'motivo.required' => 'Escribe el motivo de la incidencia.',
+            'motivo.max' => 'El motivo puede tener hasta 500 caracteres.',
         ]);
 
-        return $this->hacer(fn () => $this->jornada->declararIncidencia(
-            $request->user(),
-            $datos['inicio'],
-            $datos['fin'],
-            $datos['motivo'],
-        ));
+        Incidencia::create([
+            'user_id' => $request->user()->id,
+            'cuerpo' => trim($datos['motivo']),
+        ]);
+
+        return redirect()->route('jornada')->with('ok', 'Enviada. La jefa ya tiene tu incidencia.');
     }
 
     public function festivo(Request $request): RedirectResponse
