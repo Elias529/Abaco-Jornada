@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Aviso;
 use App\Models\Consulta;
 use App\Models\Correccion;
 use App\Models\Horario;
@@ -67,6 +68,36 @@ class JefeTest extends TestCase
         $this->assertCount(3, $respuesta->viewData('personas'));
         $this->assertDatabaseCount('avisos', 0);
         $this->assertDatabaseCount('jornadas', 1);
+    }
+
+    public function test_la_jefa_ve_marcados_los_cierres_sin_resolver_de_mas_de_siete_dias(): void
+    {
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test');
+        $lucia = $this->persona('Lucía Vega', 'lucia.vega@abaco.test');
+        $jefa = $this->jefa();
+
+        $this->actingAs($jefa)->get(route('jefe.index'))->assertDontSee('sin resolver de hace más de', false);
+
+        Aviso::create(['user_id' => $ana->id, 'tipo' => 'cierre', 'work_date' => '2026-09-20', 'cuenta' => true]);
+        Aviso::create(['user_id' => $ana->id, 'tipo' => 'cierre', 'work_date' => '2026-09-25', 'cuenta' => true]);
+        Aviso::create(['user_id' => $ana->id, 'tipo' => 'cierre', 'work_date' => '2026-09-26', 'cuenta' => true, 'responded_at' => '2026-09-27 10:00:00']);
+        Aviso::create(['user_id' => $ana->id, 'tipo' => 'cierre', 'work_date' => '2026-09-27', 'cuenta' => false, 'exclusion' => 'comun']);
+        Aviso::create(['user_id' => $ana->id, 'tipo' => 'cierre', 'work_date' => '2026-10-05', 'cuenta' => true]);
+        Aviso::create(['user_id' => $lucia->id, 'tipo' => 'cierre', 'work_date' => '2026-10-05', 'cuenta' => true]);
+
+        $respuesta = $this->actingAs($jefa)
+            ->get(route('jefe.index'))
+            ->assertOk()
+            ->assertSee('1 persona tiene', false)
+            ->assertSee('2 cierres sin resolver', false)
+            ->assertSee('de hace más de 7 días', false);
+
+        $this->assertSame(2, $respuesta->viewData('personas')->firstWhere('persona.id', $ana->id)['antiguos']);
+        $this->assertSame(0, $respuesta->viewData('personas')->firstWhere('persona.id', $lucia->id)['antiguos']);
+
+        $this->actingAs($jefa)->get(route('jefe.persona', $ana))->assertSee('Tiene 2 cierres sin resolver', false);
+        $this->actingAs($jefa)->get(route('jefe.persona', $lucia))->assertDontSee('sin resolver de hace más de', false);
+        $this->assertDatabaseCount('avisos', 6);
     }
 
     public function test_solo_la_jefa_entra_en_las_pantallas_de_direccion(): void

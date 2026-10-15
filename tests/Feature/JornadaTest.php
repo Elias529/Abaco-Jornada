@@ -4,11 +4,11 @@ namespace Tests\Feature;
 
 use App\Models\Ausencia;
 use App\Models\Aviso;
-use App\Services\NagerFestivos;
 use App\Models\Horario;
 use App\Models\Jornada;
 use App\Models\Tramo;
 use App\Models\User;
+use App\Services\NagerFestivos;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -348,7 +348,7 @@ class JornadaTest extends TestCase
         $this->assertSame('20:00', $tramo->ended_at->timezone('Europe/Madrid')->format('H:i'));
     }
 
-    public function test_por_debajo_de_ocho_avisos_el_registro_no_cambia(): void
+    public function test_un_solo_cierre_sin_completar_ya_se_avisa_y_no_cambia_el_registro(): void
     {
         $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
         $this->horario($ana);
@@ -359,29 +359,46 @@ class JornadaTest extends TestCase
             'started_at' => '2026-10-06 09:00:00',
             'ended_at' => '2026-10-06 18:00:00',
         ]);
-
         Carbon::setTestNow(Carbon::parse('2026-10-07 08:00:00', 'Europe/Madrid'));
-        foreach (range(1, 7) as $dias) {
-            Aviso::create([
-                'user_id' => $ana->id,
-                'tipo' => 'cierre',
-                'work_date' => Carbon::parse('2026-10-07')->subDays($dias)->toDateString(),
-                'cuenta' => true,
-            ]);
-        }
 
         $this->actingAs($ana)->get(route('jornada'))->assertDontSee('cierres sin completar', false);
+
+        Aviso::create(['user_id' => $ana->id, 'tipo' => 'cierre', 'work_date' => '2026-10-06', 'cuenta' => true]);
+        $this->actingAs($ana)->get(route('jornada'))->assertSee('Tienes 1 cierre sin completar', false);
+
+        Aviso::create(['user_id' => $ana->id, 'tipo' => 'olvido', 'work_date' => '2026-10-05', 'cuenta' => true]);
+        $this->actingAs($ana)->get(route('jornada'))->assertSee('Tienes 2 cierres sin completar', false);
+
         $this->assertSame('18:00', $tramo->fresh()->ended_at->timezone('Europe/Madrid')->format('H:i'));
+    }
+
+    public function test_un_aviso_sin_explicar_no_caduca_con_el_tiempo(): void
+    {
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
+        $this->horario($ana);
+        Carbon::setTestNow(Carbon::parse('2026-10-07 08:00:00', 'Europe/Madrid'));
+
+        Aviso::create(['user_id' => $ana->id, 'tipo' => 'cierre', 'work_date' => '2026-07-01', 'cuenta' => true]);
+
+        $this->actingAs($ana)->get(route('jornada'))->assertSee('Tienes 1 cierre sin completar', false);
+    }
+
+    public function test_explicar_un_aviso_deja_de_contarlo(): void
+    {
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
+        $this->horario($ana);
+        Carbon::setTestNow(Carbon::parse('2026-10-07 08:00:00', 'Europe/Madrid'));
 
         Aviso::create([
             'user_id' => $ana->id,
-            'tipo' => 'olvido',
-            'work_date' => '2026-09-20',
+            'tipo' => 'cierre',
+            'work_date' => '2026-10-06',
             'cuenta' => true,
+            'responded_at' => '2026-10-06 19:00:00',
         ]);
 
-        $this->actingAs($ana)->get(route('jornada'))->assertSee('Este mes tienes 8 cierres sin completar', false);
-        $this->assertSame('18:00', $tramo->fresh()->ended_at->timezone('Europe/Madrid')->format('H:i'));
+        $this->actingAs($ana)->get(route('jornada'))->assertDontSee('cierres sin completar', false);
+        $this->assertDatabaseCount('avisos', 1);
     }
 
     public function test_el_fallo_comun_y_el_horario_no_cuentan(): void

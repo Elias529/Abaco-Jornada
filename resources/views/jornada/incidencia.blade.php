@@ -6,7 +6,7 @@
     <section class="panel pantalla-formulario">
         <p class="etiqueta-estado">Sin conexión</p>
         <h1>Declarar las horas</h1>
-        <p class="secundario pantalla-texto">El fichaje no se guardó. Cuéntanos qué pasó y escribe el inicio y el fin. No es un fichaje en directo ni un olvido: el servidor anota quién lo declara y a qué hora lo recibe.</p>
+        <p class="secundario pantalla-texto">El fichaje no se guardó. Cuéntanos qué pasó y escribe el inicio y el fin. No es un fichaje en directo ni un olvido: el servidor anota quién lo declara y a qué hora lo recibe. El técnico recibe tu mensaje y puede contestarte en Ayuda.</p>
 
         <form method="post" action="{{ route('jornada.incidencia') }}" class="formulario">
             @csrf

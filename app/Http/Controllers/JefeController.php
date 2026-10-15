@@ -39,11 +39,14 @@ class JefeController extends Controller
                 'persona' => $persona,
                 'horario' => $persona->horarioEn($ahora),
                 'estado' => $this->jornada->estadoDe($persona, $ahora),
+                'antiguos' => $this->jornada->cierresSinResolverAntiguos($persona, $ahora),
             ]);
 
         return view('jefe.index', [
             'fecha' => Tiempo::fecha($ahora),
             'personas' => $personas,
+            'conCierresAntiguos' => $personas->where('antiguos', '>', 0)->count(),
+            'diasHastaAvisar' => JornadaService::DIAS_HASTA_AVISAR_A_LA_JEFA,
             'cuentas' => [
                 'trabajando' => $personas->where('estado.estado', 'trabajando')->count(),
                 'pausa' => $personas->where('estado.estado', 'pausa')->count(),
@@ -57,6 +60,8 @@ class JefeController extends Controller
         return view('jefe.persona', [
             'persona' => $user,
             'estado' => $this->jornada->estadoDe($user),
+            'antiguos' => $this->jornada->cierresSinResolverAntiguos($user, now()),
+            'diasHastaAvisar' => JornadaService::DIAS_HASTA_AVISAR_A_LA_JEFA,
             'horarios' => $user->horarios()->orderByDesc('effective_from')->get(),
             'ausencias' => $user->ausencias()->orderByDesc('absence_date')->get(),
             'consultas' => $this->consultasDe($user, 8),
