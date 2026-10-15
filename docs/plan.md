@@ -34,5 +34,5 @@ Corregir antes de usar registros reales.
 | Dos horarios con la misma fecha de vigencia | Está escrito cuál prevalece y hay una prueba | Pendiente |
 | Texto «No es una hora extra» y cuándo un año de calendario está completo | El texto no clasifica el exceso. La regla del año está definida | Pendiente |
 | Explicar no cierra una salida ni borra un olvido confirmado | Explicación, corrección y resolución son acciones distintas | Pendiente |
-| Márgenes de 8 avisos, 7 días y cierre de ayer | Estar por debajo del umbral no da por bueno un día sin cerrar | Parcial. La prueba de los 8 avisos existe; falta el resto de elusiones |
+| Márgenes de 7 días y cierre de ayer | Ningún margen da por bueno un día sin cerrar | Parcial. El margen de 8 avisos y su reinicio a 28 días ya no existen (decisión del 2026-10-15); falta revisar el resto de elusiones |
 | Desconexión, cambio de cuenta, sesión caducada, copia restaurada y dos ediciones a la vez | Probado en el entorno elegido, no solo en la base de pruebas | Pendiente |

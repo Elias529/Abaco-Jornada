@@ -18,9 +18,9 @@ use Illuminate\Support\Facades\DB;
 
 class JornadaService
 {
-    public const MARGEN_AVISOS = 8;
-
     public const MINUTOS_HASTA_AVISO_DE_INICIO = 20;
+
+    public const DIAS_HASTA_AVISAR_A_LA_JEFA = 7;
 
     public const CENTRO = 'Madrid';
 
@@ -566,16 +566,33 @@ class JornadaService
         return true;
     }
 
+    /**
+     * Avisos que cuentan y siguen sin explicar. No hay umbral ni ventana de
+     * tiempo: un aviso deja de contar solo cuando la persona lo explica.
+     */
     public function problemasSinExplicar(User $user, Carbon $ahora): int
     {
-        $desde = $ahora->copy()->subDays(28)->toDateString();
+        return Aviso::query()
+            ->where('user_id', $user->id)
+            ->where('cuenta', true)
+            ->whereNull('responded_at')
+            ->whereDate('work_date', '<=', $ahora->toDateString())
+            ->count();
+    }
+
+    /**
+     * Avisos sin explicar de hace más de siete días: lo que la jefa debe mirar.
+     * Solo consulta. Cuenta lo mismo que problemasSinExplicar, por antigüedad.
+     */
+    public function cierresSinResolverAntiguos(User $user, Carbon $ahora): int
+    {
+        $limite = $ahora->copy()->subDays(self::DIAS_HASTA_AVISAR_A_LA_JEFA)->toDateString();
 
         return Aviso::query()
             ->where('user_id', $user->id)
             ->where('cuenta', true)
             ->whereNull('responded_at')
-            ->whereDate('work_date', '>=', $desde)
-            ->whereDate('work_date', '<=', $ahora->toDateString())
+            ->whereDate('work_date', '<', $limite)
             ->count();
     }
 
@@ -755,10 +772,12 @@ class JornadaService
             ];
         }
 
-        $reiteracion = $this->problemasSinExplicar($user, $ahora);
-        if ($reiteracion >= self::MARGEN_AVISOS) {
+        $sinExplicar = $this->problemasSinExplicar($user, $ahora);
+        if ($sinExplicar >= 1) {
             return [
-                'texto' => 'Este mes tienes '.$reiteracion.' cierres sin completar. Puedes revisarlos o explicarlos aquí.',
+                'texto' => $sinExplicar === 1
+                    ? 'Tienes 1 cierre sin completar. Puedes revisarlo o explicarlo aquí.'
+                    : 'Tienes '.$sinExplicar.' cierres sin completar. Puedes revisarlos o explicarlos aquí.',
                 'accion' => 'registro',
             ];
         }

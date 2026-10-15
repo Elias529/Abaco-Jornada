@@ -38,7 +38,9 @@ Si no hay ningún festivo cargado para el año en curso, no se inventan. Quien m
 
 Se cuenta un aviso por persona, tipo y día. Varios mensajes del mismo cierre son un solo aviso.
 
-El margen es 8 avisos con `cuenta` verdadera, sin respuesta, en los últimos 28 días. Por debajo, el registro no cambia. El texto es «Este mes tienes N cierres sin completar…». Estar por debajo de 8 no convierte un día sin cerrar en un registro correcto.
+No hay umbral ni ventana de tiempo. Cada aviso con `cuenta` verdadera y sin respuesta se cuenta desde el primero y no caduca: deja de contar solo cuando la persona lo explica. En Hoy sale «Tienes N cierres sin completar…» con un enlace para revisarlos. El aviso no cambia el registro por sí solo. Un día sin cerrar nunca es un registro correcto, haya los avisos que haya. El histórico se conserva cuatro años, igual que el resto del registro.
+
+La jefa se entera por la antigüedad y no por el número: en Estado se marca a quien tiene avisos sin explicar de hace más de 7 días (`DIAS_HASTA_AVISAR_A_LA_JEFA`), con un resumen arriba y la misma señal en la ficha de la persona. Es solo consulta y no crea avisos. Los 7 días están pendientes de confirmar con el cliente y con Pablo.
 
 Un fallo común de una fecha marca los avisos de ese día como exclusión común y no cuentan para cada persona.
 
@@ -50,7 +52,7 @@ Si pasan 20 minutos desde la hora de inicio y no hay fichaje, un comando puede a
 
 El fichaje necesita conexión y la confirmación del servidor. Si el navegador está sin red, el envío no sale y no se guarda nada en el ordenador. El texto es «No guardado: sin conexión».
 
-Al recuperar la conexión, la persona puede comunicar la incidencia y declarar el inicio y el fin. El servidor guarda el motivo, la persona que lo declara y la hora de recepción (`anotado_at`). El tramo queda cerrado, con situación `incidencia`. No es un fichaje en directo y no abre un aviso de olvido. Esas horas sí cuentan en el total del día. Después se puede empezar la jornada si todavía no hay un tramo de trabajo normal.
+Al recuperar la conexión, la persona puede comunicar la incidencia. No hace falta escribir horas: el texto queda en Incidencias para la jefa y, además, llega al administrador técnico como un ticket («Incidencia de conexión») para que pueda contestarlo en Ayuda. Si el ticket o el correo fallan, el texto de la jefa se guarda igualmente. No abre un fichaje ni un aviso de olvido.
 
 ## Papeles
 

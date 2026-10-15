@@ -58,6 +58,23 @@ Cada fila enlaza la regla o la tarea que la aplica. El estado «vigente» es lo 
 - Estado: vigente.
 - Aplica en: `tests/Feature/JefeTest.php`, `tests/Feature/TecnicoTest.php` y `tests/Feature/SistemaEnArchivoTest.php`.
 
+## 2026-10-15 · «Comunicar incidencia» también llega al técnico
+
+- Decisión: al enviar una incidencia desde Hoy, la jefa la ve en Incidencias y se abre además un ticket para el administrador técnico con el mismo texto. Él lo ve en Tickets, recibe el correo y puede contestar. No se declaran horas.
+- Motivo: el botón guardaba la incidencia en el registro pero no avisaba a nadie, y el técnico no podía ayudar.
+- Alternativa descartada: sustituir el texto de la jefa por un ticket. La jefa dejaría de ver la lista de incidencias.
+- Estado: vigente.
+- Aplica en: `tests/Feature/TicketTest.php`.
+
+## 2026-10-15 · Los avisos ya no tienen margen de 8 ni reinicio a los 28 días
+
+- Decisión: se quita el umbral de 8 avisos y la ventana de 28 días. Cada cierre sin completar se avisa desde el primero y no caduca por el tiempo: deja de contar solo cuando la persona lo explica. El histórico no se borra y se conserva cuatro años, como el resto del registro.
+- Motivo: con la ventana se podía llegar a 7, esperar a que caducaran y volver a empezar sin que el sistema lo notara. Además, el 8 se podía leer como una tolerancia.
+- Alternativa descartada: quitar solo la ventana y dejar el umbral de 8. Quien llegara a 8 se quedaría ahí para siempre y el margen seguiría existiendo.
+- Aviso a la jefa: el criterio para que la jefa actúe es la antigüedad y no un número de avisos. En Estado marca a quien tiene cierres sin resolver de hace más de 7 días, con un resumen arriba, y lo repite en la ficha de la persona. Es solo consulta: no crea avisos ni manda correos. Hay que confirmar los 7 días con el cliente y con Pablo.
+- Estado: vigente. Sustituye al margen de 8 avisos de `docs/reglas-jornada.md`.
+- Aplica en: `tests/Feature/JornadaTest.php` y `tests/Feature/JefeTest.php`.
+
 ## 2026-10-14 · Los fallos de la aplicación se cuentan en un ticket
 
 - Decisión: cualquier persona, jefa incluida, abre un ticket desde "Ayuda" en el menú. Es una conversación con el técnico. Los estados son abierto, en curso y resuelto. El técnico recibe un correo al abrirse y quien lo abrió recibe otro al resolverse. Si quien lo abrió escribe en uno resuelto, se reabre.

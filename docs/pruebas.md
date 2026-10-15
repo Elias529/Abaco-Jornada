@@ -18,7 +18,10 @@ La revisión de Pablo del 9 de octubre de 2026 vio 18 pruebas y 92 aserciones. D
 | `test_seguir_guarda_la_salida_real_sin_pedir_autorizacion` | Salir más tarde guarda esa hora, sin autorización |
 | `test_el_festivo_del_centro_pregunta_si_hay_trabajo` | El festivo pregunta si hay trabajo real |
 | `test_el_trabajo_fuera_del_equipo_usa_las_horas_indicadas` | El tramo fuera del equipo usa las horas indicadas |
-| `test_por_debajo_de_ocho_avisos_el_registro_no_cambia` | Por debajo de 8 avisos el registro no cambia de estado |
+| `test_un_solo_cierre_sin_completar_ya_se_avisa_y_no_cambia_el_registro` | Un solo cierre sin completar ya se avisa y el aviso no cambia el registro |
+| `test_un_aviso_sin_explicar_no_caduca_con_el_tiempo` | Un aviso sin explicar sigue contando meses después |
+| `test_explicar_un_aviso_deja_de_contarlo` | Explicar un aviso es lo único que lo deja de contar |
+| `test_la_jefa_ve_marcados_los_cierres_sin_resolver_de_mas_de_siete_dias` | Estado y la ficha marcan los avisos sin explicar de hace más de 7 días y no crean avisos |
 | `test_el_fallo_comun_y_el_horario_no_cuentan` | Un fallo común o un cambio de horario deja el aviso fuera de la cuenta |
 | `test_la_consulta_pide_motivo_y_queda_escrita` | Ver el registro de otra persona exige motivo y queda anotado |
 | `test_la_incidencia_se_envia_sin_horas_y_la_jefa_la_ve` | La trabajadora envía el texto, sin horas. La jefa lo ve en la lista y en el detalle. La jefa no comunica incidencias |

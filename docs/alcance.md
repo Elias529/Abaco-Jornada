@@ -14,7 +14,7 @@ Jornada es una aplicación web. La persona entra con su cuenta y el servidor con
 - Horario en el alta. Calendario de festivos del centro de Madrid para toda la plantilla.
 - Registro propio, copia CSV y corrección de una hora. La hora anterior se conserva, con quién la cambió y cuándo.
 - Consulta del registro de otra persona con un motivo, y ese acceso queda escrito.
-- Avisos por cierres sin completar. Por debajo de 8 en 28 días el registro no cambia de estado.
+- Avisos por cierres sin completar. Cada uno cuenta desde el primero y no caduca hasta que la persona lo explica. No hay margen de 8 ni reinicio por tiempo. La jefa ve marcados en Estado los cierres sin resolver de hace más de 7 días.
 - Tres papeles: trabajadora, jefa y administrador técnico. La jefa gestiona el equipo y consulta los registros con motivo. El técnico ficha y gestiona actualizaciones y la base de datos activa. La baja cierra el acceso y no borra las jornadas.
 - Tickets: cualquier persona cuenta un fallo de la aplicación al técnico y conversan hasta resolverlo.
 

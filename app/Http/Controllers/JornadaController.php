@@ -9,14 +9,16 @@ use App\Models\Incidencia;
 use App\Models\Jornada;
 use App\Models\Tramo;
 use App\Services\JornadaService;
-use Illuminate\Support\Facades\DB;
+use App\Services\TicketService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
+use Throwable;
 
 class JornadaController extends Controller
 {
-    public function __construct(private JornadaService $jornada) {}
+    public function __construct(private JornadaService $jornada, private TicketService $tickets) {}
 
     public function index(Request $request): View
     {
@@ -202,7 +204,20 @@ class JornadaController extends Controller
             'cuerpo' => trim($datos['motivo']),
         ]);
 
-        return redirect()->route('jornada')->with('ok', 'Enviada. La jefa ya tiene tu incidencia.');
+        try {
+            $this->tickets->abrir(
+                $request->user(),
+                'Incidencia de conexión',
+                trim($datos['motivo']),
+                '/jornada/incidencia',
+            );
+        } catch (Throwable $error) {
+            report($error);
+
+            return redirect()->route('jornada')->with('ok', 'Enviada. La jefa ya tiene tu incidencia.');
+        }
+
+        return redirect()->route('jornada')->with('ok', 'Enviada. La jefa ya tiene tu incidencia. El técnico la ha recibido.');
     }
 
     public function festivo(Request $request): RedirectResponse

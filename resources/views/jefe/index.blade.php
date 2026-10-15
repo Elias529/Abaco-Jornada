@@ -5,6 +5,13 @@
     <p class="fecha">{{ $fecha }}</p>
     <p class="secundario">Ves el horario y el estado de cada persona. Para abrir su registro hace falta un motivo. Nada de lo que ves se puede cambiar desde aquí; para dar de alta o cambiar horarios, usa Equipo.</p>
 
+    @if ($conCierresAntiguos > 0)
+        <p class="franja" role="status">
+            {{ $conCierresAntiguos === 1 ? '1 persona tiene' : $conCierresAntiguos.' personas tienen' }}
+            cierres sin resolver de hace más de {{ $diasHastaAvisar }} días. Aparecen marcadas en la lista.
+        </p>
+    @endif
+
     <section class="resumen resumen-fila" aria-label="Ahora">
         <div>
             <span>Trabajando</span>
@@ -42,6 +49,12 @@
                             · técnico
                         @endif
                     </span>
+                    @if ($fila['antiguos'] > 0)
+                        <strong>
+                            {{ $fila['antiguos'] === 1 ? '1 cierre sin resolver' : $fila['antiguos'].' cierres sin resolver' }}
+                            de hace más de {{ $diasHastaAvisar }} días
+                        </strong>
+                    @endif
                 </li>
             @endforeach
         </ul>
