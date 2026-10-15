@@ -16,12 +16,16 @@
                 </select>
             </div>
             <div class="campo-incidencia">
-                <label for="fecha">Fecha</label>
-                <input id="fecha" name="fecha" type="date" value="{{ $fecha }}">
+                <label for="desde">Desde</label>
+                <input id="desde" name="desde" type="date" value="{{ $desde }}">
+            </div>
+            <div class="campo-incidencia">
+                <label for="hasta">Hasta</label>
+                <input id="hasta" name="hasta" type="date" value="{{ $hasta }}">
             </div>
             <button class="boton boton-secundario" type="submit">Ver</button>
         </form>
-        <a class="boton-hoy @if ($fecha === $hoy && $personaId === null) boton-hoy-activo @endif" href="{{ route('incidencias.index', ['fecha' => $hoy]) }}">Hoy</a>
+        <a class="boton-hoy @if ($desde === $hoy && $hasta === $hoy && $personaId === null) boton-hoy-activo @endif" href="{{ route('incidencias.index', ['desde' => $hoy, 'hasta' => $hoy]) }}">Hoy</a>
     </section>
 
     @if ($incidencias->isEmpty())

@@ -147,7 +147,6 @@
                     <span>Semana</span>
                     <strong>{{ $semanaTexto }}</strong>
                 </div>
-                <a href="{{ route('registro') }}">Mi registro</a>
             </section>
             <p class="secundario">{{ $horarioTexto }}</p>
         </aside>

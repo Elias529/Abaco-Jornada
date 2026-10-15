@@ -536,7 +536,7 @@ input, textarea { padding-left: 14px; padding-right: 14px; }
     margin-top: 16px;
 }
 
-.resumen div, .resumen a {
+.resumen div {
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -546,13 +546,6 @@ input, textarea { padding-left: 14px; padding-right: 14px; }
     border-radius: 8px;
     background: var(--fondo-pagina);
     color: var(--texto);
-    text-decoration: none;
-}
-
-.resumen a {
-    color: var(--marca-primario);
-    font-weight: 600;
-    font-size: 16px;
 }
 
 .resumen span { font-size: 12px; color: var(--texto-suave); }
@@ -940,7 +933,7 @@ a.casilla:hover, a.casilla:focus-visible {
         grid-row: auto;
     }
 
-    .resumen { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .resumen { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
     .lista a { flex-wrap: wrap; }
 }
@@ -962,9 +955,9 @@ html[data-tema="oscuro"] {
         border-color: var(--marca-turquesa);
     }
 
-    .resumen div, .resumen a { background: var(--fondo-oscuro); }
+    .resumen div { background: var(--fondo-oscuro); }
 
-    .resumen strong, .resumen a { color: var(--marca-turquesa); }
+    .resumen strong { color: var(--marca-turquesa); }
 
     .franja .boton-secundario {
         background: var(--fondo-ventana);

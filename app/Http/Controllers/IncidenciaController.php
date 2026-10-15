@@ -12,9 +12,9 @@ class IncidenciaController extends Controller
     public function index(Request $request): View
     {
         $persona = $request->query('persona');
-        $fecha = $request->query('fecha');
         $personaId = is_string($persona) && ctype_digit($persona) ? (int) $persona : null;
-        $fecha = is_string($fecha) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha) === 1 ? $fecha : '';
+        $desde = $this->fecha($request->query('desde'));
+        $hasta = $this->fecha($request->query('hasta'));
 
         if ($personaId !== null && ! User::query()->whereKey($personaId)->exists()) {
             $personaId = null;
@@ -23,7 +23,8 @@ class IncidenciaController extends Controller
         $incidencias = Incidencia::query()
             ->with('autor')
             ->when($personaId !== null, fn ($q) => $q->where('user_id', $personaId))
-            ->when($fecha !== '', fn ($q) => $q->whereDate('created_at', $fecha))
+            ->when($desde !== '', fn ($q) => $q->whereDate('created_at', '>=', $desde))
+            ->when($hasta !== '', fn ($q) => $q->whereDate('created_at', '<=', $hasta))
             ->latest('id')
             ->get();
 
@@ -31,7 +32,8 @@ class IncidenciaController extends Controller
             'incidencias' => $incidencias,
             'personas' => User::query()->orderBy('name')->get(),
             'personaId' => $personaId,
-            'fecha' => $fecha,
+            'desde' => $desde,
+            'hasta' => $hasta,
             'hoy' => now()->toDateString(),
         ]);
     }
@@ -41,5 +43,10 @@ class IncidenciaController extends Controller
         return view('incidencias.show', [
             'incidencia' => $incidencia->load('autor'),
         ]);
+    }
+
+    private function fecha(mixed $valor): string
+    {
+        return is_string($valor) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $valor) === 1 ? $valor : '';
     }
 }
