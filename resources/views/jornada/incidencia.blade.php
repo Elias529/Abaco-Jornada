@@ -5,7 +5,7 @@
 
     <section class="panel pantalla-formulario">
         <h1>Incidencia</h1>
-        <p class="secundario pantalla-texto">Cuenta qué ha pasado. La jefa lo verá en Incidencias y el técnico lo recibe en Ayuda. No hace falta escribir las horas.</p>
+        <p class="secundario pantalla-texto">Cuenta qué ha pasado. La jefa lo verá en Incidencias. No hace falta escribir las horas.</p>
 
         <form method="post" action="{{ route('jornada.incidencia') }}" class="formulario">
             @csrf

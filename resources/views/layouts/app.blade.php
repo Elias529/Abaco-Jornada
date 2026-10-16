@@ -34,14 +34,33 @@
                 @if (auth()->user()->esJefa())
                     <a href="{{ route('equipo.index') }}" @if (request()->routeIs('equipo.*')) aria-current="page" @endif>Equipo</a>
                     <a href="{{ route('jefe.index') }}" @if (request()->routeIs('jefe.index', 'jefe.persona', 'jefe.registro', 'jefe.dia')) aria-current="page" @endif>Estado</a>
-                    <a href="{{ route('jefe.consultas') }}" @if (request()->routeIs('jefe.consultas')) aria-current="page" @endif>Consultas</a>
-                    <a href="{{ route('incidencias.index') }}" @if (request()->routeIs('incidencias.*')) aria-current="page" @endif>Incidencias</a>
+                    <a href="{{ route('jefe.consultas', ($solicitudesNuevas ?? 0) > 0 ? ['vista' => 'vacaciones'] : []) }}" @if (request()->routeIs('jefe.consultas')) aria-current="page" @endif @if (($solicitudesNuevas ?? 0) > 0) aria-label="Consultas, {{ $solicitudesNuevas === 1 ? '1 nueva' : $solicitudesNuevas.' nuevas' }}" @endif>
+                        Consultas
+                        @if (($solicitudesNuevas ?? 0) > 0)
+                            <span class="aviso-ticket" aria-hidden="true">{{ $solicitudesNuevas }}</span>
+                        @endif
+                    </a>
+                    <a href="{{ route('incidencias.index') }}" @if (request()->routeIs('incidencias.*')) aria-current="page" @endif @if (($incidenciasNuevas ?? 0) > 0) aria-label="Incidencias, {{ $incidenciasNuevas === 1 ? '1 nueva' : $incidenciasNuevas.' nuevas' }}" @endif>
+                        Incidencias
+                        @if (($incidenciasNuevas ?? 0) > 0)
+                            <span class="aviso-ticket" aria-hidden="true">{{ $incidenciasNuevas }}</span>
+                        @endif
+                    </a>
                 @endif
                 @if (auth()->user()->esTecnico())
                     <a href="{{ route('tecnico.index') }}" @if (request()->routeIs('tecnico.index', 'tecnico.copia', 'tecnico.actualizar')) aria-current="page" @endif>Sistema</a>
-                    <a href="{{ route('tecnico.tickets') }}" @if (request()->routeIs('tecnico.tickets*', 'tickets.show')) aria-current="page" @endif>Tickets</a>
+                    <a href="{{ route('tecnico.tickets') }}" @if (request()->routeIs('tecnico.tickets*', 'tickets.show')) aria-current="page" @endif @if (($ticketsNuevos ?? 0) > 0) aria-label="Tickets, {{ $ticketsNuevos === 1 ? '1 nuevo' : $ticketsNuevos.' nuevos' }}" @endif>
+                        Tickets
+                        @if (($ticketsNuevos ?? 0) > 0)
+                            <span class="aviso-ticket" aria-hidden="true">{{ $ticketsNuevos }}</span>
+                        @endif
+                    </a>
+                    <a href="{{ route('jornada.incidencia.crear') }}" @if (request()->routeIs('jornada.incidencia.crear')) aria-current="page" @endif>Comunicar incidencia</a>
                 @else
                     <a href="{{ route('tickets.index', ['desde' => request()->routeIs('tickets.*') ? null : '/'.ltrim(request()->path(), '/')]) }}" @if (request()->routeIs('tickets.*')) aria-current="page" @endif>Ayuda</a>
+                    @unless (auth()->user()->esJefa())
+                        <a href="{{ route('jornada.incidencia.crear') }}" @if (request()->routeIs('jornada.incidencia.crear')) aria-current="page" @endif>Comunicar incidencia</a>
+                    @endunless
                 @endif
             </nav>
             <div class="barra-cuenta">

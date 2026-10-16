@@ -2,16 +2,20 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Ausencia;
 use App\Models\Consulta;
 use App\Models\Jornada;
+use App\Models\SolicitudVacaciones;
 use App\Models\User;
 use App\Services\JornadaService;
 use App\Services\RegistroCsv;
 use App\Support\Tiempo;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -145,15 +149,81 @@ class JefeController extends Controller
         return $this->csv->descargar($user);
     }
 
-    public function consultas(): View
+    public function consultas(Request $request): View
     {
         return view('jefe.consultas', [
+            'vista' => $request->query('vista') === 'vacaciones' ? 'vacaciones' : 'consulta',
             'consultas' => Consulta::query()
                 ->with('viewer', 'subject')
                 ->latest()
                 ->limit(100)
                 ->get(),
+            'solicitudes' => SolicitudVacaciones::query()
+                ->with('autor')
+                ->latest('id')
+                ->get(),
         ]);
+    }
+
+    public function decidirVacaciones(Request $request, SolicitudVacaciones $solicitud): RedirectResponse
+    {
+        $datos = $request->validate([
+            'decision' => ['required', 'in:aprobada,rechazada'],
+        ], [
+            'decision.required' => 'Elige si la apruebas o la rechazas.',
+            'decision.in' => 'Elige si la apruebas o la rechazas.',
+        ]);
+
+        if ($solicitud->estado !== SolicitudVacaciones::PENDIENTE) {
+            return back()->with('aviso', 'Esa solicitud ya está revisada.');
+        }
+
+        if ($datos['decision'] === SolicitudVacaciones::RECHAZADA) {
+            $solicitud->update([
+                'estado' => SolicitudVacaciones::RECHAZADA,
+                'decidida_por' => $request->user()->id,
+                'decidida_at' => now(),
+            ]);
+
+            return back()->with('ok', 'Rechazada. Esas vacaciones no se añaden al calendario.');
+        }
+
+        try {
+            DB::transaction(function () use ($request, $solicitud) {
+                $actual = SolicitudVacaciones::query()->lockForUpdate()->findOrFail($solicitud->id);
+
+                if ($actual->estado !== SolicitudVacaciones::PENDIENTE) {
+                    return;
+                }
+
+                $dia = $actual->starts_on->copy();
+
+                while ($dia->lte($actual->ends_on)) {
+                    Ausencia::create([
+                        'user_id' => $actual->user_id,
+                        'absence_date' => $dia->toDateString(),
+                        'tipo' => 'vacaciones',
+                    ]);
+                    $dia->addDay();
+                }
+
+                $actual->update([
+                    'estado' => SolicitudVacaciones::APROBADA,
+                    'decidida_por' => $request->user()->id,
+                    'decidida_at' => now(),
+                ]);
+            });
+        } catch (UniqueConstraintViolationException) {
+            return back()->with('aviso', 'Esos días ya tienen una ausencia.');
+        }
+
+        $solicitud->refresh();
+
+        if ($solicitud->estado !== SolicitudVacaciones::APROBADA) {
+            return back()->with('aviso', 'Esa solicitud ya está revisada.');
+        }
+
+        return back()->with('ok', 'Aprobada. Esas vacaciones ya están en su calendario.');
     }
 
     /**

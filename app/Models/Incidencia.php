@@ -13,7 +13,18 @@ class Incidencia extends Model
     protected $fillable = [
         'user_id',
         'cuerpo',
+        'vista_at',
     ];
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'vista_at' => 'datetime',
+        ];
+    }
 
     public function autor(): BelongsTo
     {

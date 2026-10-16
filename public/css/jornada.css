@@ -172,6 +172,21 @@ body {
     color: var(--fondo-tinta);
 }
 
+.aviso-ticket {
+    display: inline-grid;
+    place-items: center;
+    min-width: 18px;
+    height: 18px;
+    margin-left: 8px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: var(--estado-pendiente);
+    color: var(--fondo-tinta);
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1;
+}
+
 .barra-cuenta {
     display: flex;
     align-items: center;
@@ -1219,6 +1234,160 @@ form.bandeja-incidencias .campo-ancho select {
 }
 
 .pastilla-pendiente { background: var(--estado-pendiente); }
+
+.pastilla-aprobada { background: #d7efea; }
+
+.pastilla-rechazada {
+    background: transparent;
+    color: var(--texto-suave);
+    border: 1px solid var(--linea);
+}
+
+.solicitud-vacaciones { margin: 24px 0 8px; }
+
+.rango-abre {
+    width: 100%;
+    min-height: 44px;
+    padding: 10px 14px;
+    border: 1px solid var(--linea);
+    border-radius: 8px;
+    background: var(--fondo-pagina);
+    color: var(--texto);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.rango-aviso {
+    margin: 4px 0 0;
+    color: var(--estado-error-tecnico);
+}
+
+.rango-panel {
+    width: 260px;
+    max-width: 100%;
+    margin-top: 8px;
+    padding: 8px;
+    border: 1px solid var(--linea);
+    border-radius: 12px;
+    background: var(--fondo-ventana);
+}
+
+.rango-mes {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+    margin-bottom: 4px;
+    font-size: 13px;
+}
+
+.rango-mes button {
+    width: 28px;
+    min-height: 28px;
+    border: 0;
+    border-radius: 6px;
+    background: var(--fondo-pagina);
+    color: var(--marca-primario);
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.rango-dias {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+}
+
+.rango-letra,
+.rango-dias button,
+.rango-dias > span {
+    display: grid;
+    place-items: center;
+    min-height: 26px;
+    border-radius: 6px;
+    font-size: 12px;
+}
+
+.rango-letra { color: var(--texto-suave); font-weight: 600; }
+
+.rango-dias button {
+    border: 0;
+    background: transparent;
+    color: var(--texto);
+    font: inherit;
+    cursor: pointer;
+}
+
+.rango-dias button:disabled { color: var(--linea); cursor: default; }
+
+.rango-medio { background: var(--marca-suave); }
+
+.rango-elegido {
+    background: var(--marca-primario);
+    color: #fff;
+}
+
+.bloque-consultas { margin-top: 32px; }
+
+.bloque-consultas h2 { margin-bottom: 4px; }
+
+.bloque-consultas h3 {
+    margin: 28px 0 0;
+    font-size: 16px;
+}
+
+.lista-consultas { margin-top: 14px; }
+
+.lista-consultas li { border-radius: 16px; }
+
+.lista-consultas li.solicitud-pendiente {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 16px 24px;
+    align-items: center;
+}
+
+.consulta-cuerpo {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.consulta-cabeza {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 12px;
+}
+
+.consulta-cabeza > span { font-weight: 600; }
+
+.consulta-cabeza .pastilla { margin: 0; }
+
+.consulta-motivo,
+.consulta-nota { margin: 0; }
+
+.consulta-nota { color: var(--texto-suave); }
+
+.solicitud-acciones {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0;
+}
+
+.solicitud-acciones .boton { width: 148px; }
+
+@media (max-width: 640px) {
+    .lista-consultas li.solicitud-pendiente { grid-template-columns: 1fr; }
+
+    .solicitud-acciones { flex-direction: row; flex-wrap: wrap; }
+
+    .solicitud-acciones .boton { width: auto; min-width: 140px; }
+}
 
 .pastilla-tardia { background: #d7ecec; }
 

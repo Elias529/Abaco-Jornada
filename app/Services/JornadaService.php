@@ -516,6 +516,99 @@ class JornadaService
         return 'Guardado. La hora ha quedado en las '.Tiempo::hora($guardada).'.';
     }
 
+    public function guardarHoras(User $actor, Tramo $tramo, ?string $inicioHora, ?string $finHora, string $motivo, ?string $nota): string
+    {
+        if (! array_key_exists($motivo, Correccion::MOTIVOS)) {
+            throw new ReglaJornada('Elige un motivo de la lista.');
+        }
+
+        $inicioHora = is_string($inicioHora) && $inicioHora !== '' ? substr($inicioHora, 0, 5) : null;
+        $finHora = is_string($finHora) && $finHora !== '' ? substr($finHora, 0, 5) : null;
+        if ($inicioHora === null && $finHora === null) {
+            throw new ReglaJornada('Elige la hora de inicio, la de fin, o las dos.');
+        }
+
+        $tramo->load('jornada.user');
+        $jornada = $tramo->jornada;
+        $duena = $jornada->user;
+
+        if ($actor->id !== $duena->id && ! $actor->esJefa()) {
+            throw new ReglaJornada('Solo puedes ver tu registro.');
+        }
+        if (! $actor->esJefa() && $jornada->work_date->lt(now()->subDays(7)->startOfDay())) {
+            throw new ReglaJornada('Para cambiar este día, habla con tu jefa.');
+        }
+
+        $nota = $nota !== null ? trim($nota) : null;
+        if ($nota === '') {
+            $nota = null;
+        }
+
+        $texto = '';
+
+        DB::transaction(function () use ($actor, $tramo, $jornada, $duena, $inicioHora, $finHora, $motivo, $nota, &$texto) {
+            $this->bloquear($duena);
+            $fresco = Tramo::query()->whereKey($tramo->id)->lockForUpdate()->first();
+            if (! $fresco) {
+                throw new ReglaJornada('Ese tramo ya no está.');
+            }
+
+            $nuevoInicio = $inicioHora !== null ? $this->momento($jornada->work_date, $inicioHora) : $fresco->started_at;
+            $nuevoFin = $finHora !== null ? $this->momento($jornada->work_date, $finHora) : $fresco->ended_at;
+            $cambiaInicio = $inicioHora !== null && ! $nuevoInicio->equalTo($fresco->started_at);
+            $cambiaFin = $finHora !== null && ($fresco->ended_at === null || ! $nuevoFin->equalTo($fresco->ended_at));
+
+            if (! $cambiaInicio && ! $cambiaFin) {
+                throw new ReglaJornada('Esas horas ya son las que están guardadas.');
+            }
+            if ($nuevoInicio->greaterThan(now()) || ($nuevoFin && $nuevoFin->greaterThan(now()))) {
+                throw new ReglaJornada('Esa hora todavía no ha llegado.');
+            }
+            if ($nuevoFin && $nuevoFin->lessThanOrEqualTo($nuevoInicio)) {
+                throw new ReglaJornada('La salida tiene que ser después de la entrada.');
+            }
+
+            $jornada->unsetRelation('tramos');
+            $jornada->load('tramos');
+            if ($this->solapa($jornada, $nuevoInicio, $nuevoFin ?? now(), $fresco->id)) {
+                throw new ReglaJornada('Esa hora se cruza con un tramo que ya está guardado.');
+            }
+
+            $teniaFin = $fresco->ended_at !== null;
+            if ($cambiaInicio) {
+                $this->anotar($actor, $fresco, 'started_at', $fresco->started_at, $nuevoInicio, $motivo, $nota);
+            }
+            if ($cambiaFin && $teniaFin) {
+                $this->anotar($actor, $fresco, 'ended_at', $fresco->ended_at, $nuevoFin, $motivo, $nota);
+            }
+
+            $datos = [];
+            if ($cambiaInicio) {
+                $datos['started_at'] = $nuevoInicio;
+            }
+            if ($cambiaFin && $teniaFin) {
+                $datos['ended_at'] = $nuevoFin;
+            }
+            if ($datos !== []) {
+                $fresco->update($datos);
+            }
+            if ($cambiaFin && ! $teniaFin) {
+                $this->declararSalida($fresco, $actor, $nuevoFin, now());
+                $this->responder($duena, 'cierre', $jornada->work_date);
+            }
+
+            if ($cambiaInicio && $cambiaFin) {
+                $texto = 'Guardado. El inicio ha quedado en las '.Tiempo::hora($nuevoInicio).' y el fin en las '.Tiempo::hora($nuevoFin).'.';
+            } elseif ($cambiaInicio) {
+                $texto = 'Guardado. La hora de inicio ha quedado en las '.Tiempo::hora($nuevoInicio).'.';
+            } else {
+                $texto = 'Guardado. La hora de fin ha quedado en las '.Tiempo::hora($nuevoFin).'.';
+            }
+        });
+
+        return $texto;
+    }
+
     public function minutosDeJornada(Jornada $jornada, ?Carbon $hasta = null): int
     {
         $hasta ??= now();

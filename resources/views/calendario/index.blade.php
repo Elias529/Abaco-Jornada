@@ -87,4 +87,45 @@
             </section>
         @endforeach
     </div>
+
+    @unless ($esJefa)
+        <section class="tarjeta solicitud-vacaciones">
+            <h2>Solicitar vacaciones</h2>
+            <p class="secundario">La jefa lo ve en Consultas y decide si lo aprueba.</p>
+            <form method="post" action="{{ route('calendario.vacaciones') }}" class="formulario">
+                @csrf
+                <div class="rango-fechas" data-rango>
+                    <label for="vacaciones-fechas">Fechas</label>
+                    <button id="vacaciones-fechas" class="rango-abre" type="button" data-rango-abre aria-expanded="false">Elige el primer y el último día</button>
+                    <input type="hidden" name="desde" value="{{ old('desde') }}">
+                    <input type="hidden" name="hasta" value="{{ old('hasta') }}">
+                    <p class="rango-aviso" data-rango-aviso hidden>Elige el primer día y después el último.</p>
+                    <div class="rango-panel" data-rango-panel hidden>
+                        <div class="rango-mes">
+                            <button type="button" data-rango-prev aria-label="Mes anterior">‹</button>
+                            <strong data-rango-titulo></strong>
+                            <button type="button" data-rango-next aria-label="Mes siguiente">›</button>
+                        </div>
+                        <div class="rango-dias" data-rango-dias></div>
+                    </div>
+                </div>
+                <label for="vacaciones-nota">Nota, si hace falta</label>
+                <textarea id="vacaciones-nota" name="nota" maxlength="500">{{ old('nota') }}</textarea>
+                <button class="boton boton-principal" type="submit">Solicitar vacaciones</button>
+            </form>
+            @if ($solicitudes->isNotEmpty())
+                <ul class="lista">
+                    @foreach ($solicitudes as $solicitud)
+                        <li>
+                            <span>{{ $solicitud->periodoTexto() }}</span>
+                            <strong class="pastilla pastilla-{{ $solicitud->estado }}">{{ $solicitud->estadoTexto() }}</strong>
+                            @if ($solicitud->nota)
+                                <span class="secundario">{{ $solicitud->nota }}</span>
+                            @endif
+                        </li>
+                    @endforeach
+                </ul>
+            @endif
+        </section>
+    @endunless
 @endsection

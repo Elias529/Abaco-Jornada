@@ -14,7 +14,6 @@ use App\Services\RegistroCsv;
 use App\Support\Tiempo;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -82,6 +81,10 @@ class RegistroController extends Controller
 
     public function corregir(Request $request, Tramo $tramo): RedirectResponse
     {
+        if (! $request->filled('campo')) {
+            return $this->guardarHoras($request, $tramo);
+        }
+
         $hora = $request->input('hora');
         if (is_string($hora) && strlen($hora) >= 5) {
             $request->merge(['hora' => substr($hora, 0, 5)]);
@@ -105,6 +108,43 @@ class RegistroController extends Controller
                 $tramo,
                 $datos['campo'],
                 $datos['hora'],
+                $datos['motivo'],
+                $datos['nota'] ?? null,
+            );
+        } catch (ReglaJornada $e) {
+            return back()->with('aviso', $e->getMessage());
+        }
+
+        return back()->with('ok', $mensaje);
+    }
+
+    private function guardarHoras(Request $request, Tramo $tramo): RedirectResponse
+    {
+        foreach (['inicio', 'fin'] as $campo) {
+            $valor = $request->input($campo);
+            if (is_string($valor) && strlen($valor) >= 5) {
+                $request->merge([$campo => substr($valor, 0, 5)]);
+            }
+        }
+
+        $datos = $request->validate([
+            'inicio' => ['nullable', 'date_format:H:i'],
+            'fin' => ['nullable', 'date_format:H:i'],
+            'motivo' => ['required', 'in:'.implode(',', array_keys(Correccion::MOTIVOS))],
+            'nota' => ['nullable', 'string', 'max:500'],
+        ], [
+            'inicio.date_format' => 'Elige una hora de inicio.',
+            'fin.date_format' => 'Elige una hora de fin.',
+            'motivo.required' => 'Elige un motivo.',
+            'nota.max' => 'La nota puede tener hasta 500 caracteres.',
+        ]);
+
+        try {
+            $mensaje = $this->jornada->guardarHoras(
+                $request->user(),
+                $tramo,
+                $datos['inicio'] ?? null,
+                $datos['fin'] ?? null,
                 $datos['motivo'],
                 $datos['nota'] ?? null,
             );
@@ -157,11 +197,9 @@ class RegistroController extends Controller
 
         $filtros = $this->filtros($request);
         $buscado = $filtros['desde'] !== '' || $filtros['hasta'] !== '' || $filtros['estado'] !== '' || $filtros['incidencia'] !== '';
-        $jornadas = $buscado
-            ? $this->csv->consulta($persona, $filtros['desde'], $filtros['hasta'], $filtros['estado'], $filtros['incidencia'])
-                ->paginate(60)
-                ->withQueryString()
-            : new LengthAwarePaginator([], 0, 60);
+        $jornadas = $this->csv->consulta($persona, $filtros['desde'], $filtros['hasta'], $filtros['estado'], $filtros['incidencia'])
+            ->paginate(60)
+            ->withQueryString();
 
         return view('registro.index', [
             'persona' => $persona,
@@ -187,10 +225,6 @@ class RegistroController extends Controller
         $this->autorizar($visor, $persona);
 
         $filtros = $this->filtros($request);
-
-        if ($filtros['desde'] === '' && $filtros['hasta'] === '' && $filtros['estado'] === '' && $filtros['incidencia'] === '') {
-            return $this->csv->descargarVacio($persona);
-        }
 
         return $this->csv->descargar($persona, $filtros['desde'], $filtros['hasta'], $filtros['estado'], $filtros['incidencia']);
     }

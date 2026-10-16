@@ -178,6 +178,32 @@ class TicketTest extends TestCase
             ->assertSee($ticket->asunto);
     }
 
+    public function test_el_tecnico_ve_un_aviso_cuando_hay_un_ticket_nuevo(): void
+    {
+        $tecnico = User::factory()->tecnico()->create();
+        $ana = User::factory()->create();
+
+        $this->actingAs($tecnico)->get(route('jornada'))
+            ->assertOk()
+            ->assertDontSee('aviso-ticket', false);
+
+        Ticket::factory()->create(['user_id' => $ana->id]);
+        Ticket::factory()->enCurso()->create(['user_id' => $ana->id]);
+        Ticket::factory()->resuelto()->create(['user_id' => $ana->id]);
+
+        $this->actingAs($tecnico)->get(route('jornada'))
+            ->assertSee('aviso-ticket', false)
+            ->assertSee('Tickets, 1 nuevo', false);
+
+        $this->actingAs($ana)->get(route('jornada'))
+            ->assertDontSee('aviso-ticket', false);
+
+        Ticket::query()->where('estado', Ticket::ABIERTO)->update(['estado' => Ticket::EN_CURSO]);
+
+        $this->actingAs($tecnico)->get(route('jornada'))
+            ->assertDontSee('aviso-ticket', false);
+    }
+
     public function test_el_tecnico_filtra_los_tickets_por_estado(): void
     {
         $tecnico = User::factory()->tecnico()->create();
