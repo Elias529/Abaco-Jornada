@@ -43,6 +43,11 @@
         </details>
     @endif
     <script>
+        window.addEventListener('pageshow', function (evento) {
+            if (evento.persisted) {
+                window.location.reload();
+            }
+        });
         (function () {
             var boton = document.querySelector('[data-ver-clave]');
             var campo = document.getElementById('password');

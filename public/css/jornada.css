@@ -774,6 +774,7 @@ a.casilla:hover, a.casilla:focus-visible {
 .casilla small {
     display: block;
     overflow: hidden;
+    overflow-wrap: anywhere;
 }
 
 .casilla-vacia { background: transparent; }
@@ -911,7 +912,36 @@ a.casilla:hover, a.casilla:focus-visible {
         padding: 12px 16px;
     }
 
-    .menu { order: 3; width: 100%; }
+    .menu {
+        order: 3;
+        flex: 1 0 100%;
+        width: auto;
+        min-width: 0;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overscroll-behavior-x: contain;
+        padding-bottom: 2px;
+        scrollbar-width: none;
+    }
+
+    .menu::-webkit-scrollbar { display: none; }
+
+    .menu a { flex: 0 0 auto; }
+
+    .barra-cuenta {
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 4px 12px;
+        max-width: 100%;
+        margin-left: auto;
+    }
+
+    .persona {
+        max-width: 140px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
 
     .pagina { width: min(1120px, calc(100% - 32px)); }
 
@@ -1043,7 +1073,7 @@ html[data-tema="oscuro"] {
 .formulario-mes .fila select { flex: 1; }
 
 @media (max-width: 900px) {
-    .anio { grid-template-columns: 1fr; }
+    .anio { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 520px) {
@@ -1051,8 +1081,8 @@ html[data-tema="oscuro"] {
 }
 
 .lista .lista-tecnica { flex-direction: row; justify-content: space-between; gap: 12px; padding: 12px 16px; }
-.casilla { display: flex; align-items: center; gap: 12px; }
-.casilla input { width: 20px; min-height: 20px; flex: 0 0 auto; accent-color: var(--marca-primario); }
+label.casilla { display: flex; align-items: center; gap: 12px; }
+label.casilla input { width: 20px; min-height: 20px; flex: 0 0 auto; accent-color: var(--marca-primario); }
 .tarjeta .lista { margin-top: 12px; }
 .paginas a[aria-current="page"] { font-weight: 700; text-decoration: none; }
 .lista li.mensaje-tecnico { border-left: 4px solid var(--marca-primario); }
@@ -1258,3 +1288,115 @@ form.bandeja-incidencias .campo-ancho select {
 .formulario-ticket .boton-hoy { align-self: flex-start; }
 
 .bandeja-incidencias > .incidencia-texto { margin: 0; max-width: 520px; }
+
+@media (max-width: 640px) {
+    h1 { font-size: 26px; }
+
+    .pagina { width: min(1120px, calc(100% - 24px)); padding: 20px 0 32px; }
+
+    .pagina-acceso {
+        width: min(440px, calc(100% - 24px));
+        padding: 20px 0;
+    }
+
+    .pagina-acceso main { padding: 20px; }
+
+    .fichar {
+        width: min(1120px, calc(100% - 24px));
+        gap: 12px;
+        margin-top: 16px;
+    }
+
+    .panel { padding: 16px; }
+
+    .franja, .guardado, .sin-conexion { padding: 12px 14px; }
+
+    .franja-linea, .franja-acciones, .pagina-fichar .nota-datos {
+        width: min(1120px, calc(100% - 24px));
+    }
+
+    p, li, h1, h2, td, .lista a span { overflow-wrap: anywhere; }
+
+    .anio { grid-template-columns: 1fr; }
+
+    .mes-caja { padding: 10px; }
+
+    .rejilla-mes { gap: 3px; }
+
+    .casilla { min-height: 44px; padding: 3px; }
+
+    .resumen-fila { grid-template-columns: 1fr; }
+
+    .campo-incidencia,
+    .campo-ancho { flex: 1 1 100%; min-width: 0; }
+
+    .campo-incidencia select,
+    .campo-incidencia input,
+    .campo-ancho select,
+    .filtro-registro input,
+    .filtro-registro select {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .filtros-incidencia,
+    .fechas-registro { width: 100%; flex-wrap: wrap; }
+
+    .filtros-incidencia .boton,
+    section.bandeja-incidencias > .boton-hoy,
+    form.bandeja-incidencias > .boton-hoy { width: 100%; }
+
+    .formulario,
+    .formulario-ticket,
+    .pantalla-formulario,
+    .accion-principal { max-width: none; }
+
+    .formulario-ticket .boton { width: 100%; min-width: 0; }
+
+    .lista .lista-tecnica { flex-wrap: wrap; }
+
+    .lista a { align-items: flex-start; }
+
+    .tabla-envoltorio { overflow: visible; }
+
+    .tabla-registro thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        border: 0;
+    }
+
+    .tabla-registro,
+    .tabla-registro tbody,
+    .tabla-registro tr,
+    .tabla-registro td { display: block; width: 100%; }
+
+    .tabla-registro tr {
+        padding: 8px 0;
+        border-bottom: 1px solid var(--linea);
+    }
+
+    .tabla-registro tbody tr:last-child { border-bottom: 0; }
+
+    .tabla-registro td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        white-space: normal;
+        border-bottom: 0;
+        padding: 6px 16px;
+    }
+
+    .tabla-registro td::before {
+        content: attr(data-etiqueta);
+        flex: 0 0 auto;
+        color: var(--texto-suave);
+        font-size: 12px;
+        font-weight: 600;
+    }
+}

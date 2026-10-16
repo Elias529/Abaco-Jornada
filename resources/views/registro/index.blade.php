@@ -52,11 +52,11 @@
                 @foreach ($jornadas as $jornada)
                     @php($fila = $tabla->fila($persona, $jornada))
                     <tr>
-                        <td><a href="{{ route('registro.show', $jornada) }}">{{ $fila['Fecha'] }}</a></td>
-                        <td>{{ $fila['Inicio'] }}</td>
-                        <td>{{ $fila['Fin'] }}</td>
-                        <td>{{ $fila['Total'] }}</td>
-                        <td>
+                        <td data-etiqueta="Fecha"><a href="{{ route('registro.show', $jornada) }}">{{ $fila['Fecha'] }}</a></td>
+                        <td data-etiqueta="Inicio">{{ $fila['Inicio'] }}</td>
+                        <td data-etiqueta="Fin">{{ $fila['Fin'] }}</td>
+                        <td data-etiqueta="Total">{{ $fila['Total'] }}</td>
+                        <td data-etiqueta="Estado">
                             @if ($fila['Estado'] === 'Pendiente de cerrar')
                                 <span class="pastilla pastilla-pendiente">{{ $fila['Estado'] }}</span>
                             @elseif ($fila['Estado'] === 'Cerrada al día siguiente')
@@ -65,7 +65,7 @@
                                 <span class="pastilla">{{ $fila['Estado'] }}</span>
                             @endif
                         </td>
-                        <td>
+                        <td data-etiqueta="Incidencia">
                             @if ($fila['Incidencia'] === 'Sí')
                                 <span class="pastilla">Sí</span>
                             @else

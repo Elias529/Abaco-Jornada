@@ -608,6 +608,19 @@ class JornadaTest extends TestCase
         $this->assertStringNotContainsString('12 h', $copia);
     }
 
+    public function test_el_acceso_no_se_queda_congelado_si_la_sesion_sigue_abierta(): void
+    {
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
+
+        $acceso = $this->get(route('login'))->assertOk();
+        $this->assertStringContainsString('no-store', (string) $acceso->headers->get('Cache-Control'));
+        $acceso->assertSee('evento.persisted', false);
+
+        $this->actingAs($ana)
+            ->get(route('login'))
+            ->assertRedirect(route('jornada'));
+    }
+
     public function test_fuera_de_la_demo_no_se_borran_fichajes_ni_se_ven_las_cuentas(): void
     {
         $this->app['env'] = 'production';
