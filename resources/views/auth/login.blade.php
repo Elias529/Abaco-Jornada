@@ -8,7 +8,7 @@
     <p class="secundario">Entra con el correo que te dio tu jefa.</p>
     <button type="button" class="tema" data-tema-toggle>Modo oscuro</button>
 
-    <form method="post" action="{{ route('login') }}" class="formulario">
+    <form method="post" action="{{ route('login', absolute: false) }}" class="formulario">
         @csrf
         <label for="email">Correo</label>
         <input id="email" name="email" type="email" autocomplete="username" value="{{ old('email') }}" required>

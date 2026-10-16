@@ -916,6 +916,8 @@ class JornadaTest extends TestCase
                 'email' => 'nuria.vega@abaco.test',
                 'password' => 'Jornada2026',
                 'starts_on' => '2026-10-13',
+                'duracion' => 'indefinido',
+                'tipo' => 'partida',
                 'morning_start' => '09:00',
                 'morning_end' => '14:00',
                 'afternoon_start' => '15:00',

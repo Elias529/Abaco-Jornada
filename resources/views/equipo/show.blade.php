@@ -4,7 +4,7 @@
     <a class="volver" href="{{ route('equipo.index') }}">Volver al equipo</a>
     <h1>{{ $persona->name }}</h1>
     <p>{{ $persona->email }}</p>
-    <p class="secundario">Centro en {{ $persona->municipality }}. El registro cuenta desde {{ $persona->starts_on ? \App\Support\Tiempo::fecha($persona->starts_on) : 'sin fecha' }}.</p>
+    <p class="secundario">Centro en {{ $persona->municipality }}. El registro cuenta desde {{ $persona->starts_on ? \App\Support\Tiempo::fecha($persona->starts_on) : 'sin fecha' }}{{ $persona->ends_on ? ', hasta '.\App\Support\Tiempo::fecha($persona->ends_on) : ', sin fecha de fin' }}.</p>
     <p>
         <a class="boton boton-secundario" href="{{ route('equipo.registro', $persona) }}">Ver registro</a>
     </p>
@@ -13,7 +13,7 @@
     <ul class="lista">
         @forelse ($horarios as $horario)
             <li>
-                <span>Desde {{ \App\Support\Tiempo::fecha($horario->effective_from) }}</span>
+                <span>Desde {{ \App\Support\Tiempo::fecha($horario->effective_from) }}@if ($horario->tipoJornada()) · {{ $horario->tipoJornada()->etiqueta() }}@endif</span>
                 <strong>{{ $horario->texto() }}</strong>
             </li>
         @empty

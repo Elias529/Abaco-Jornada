@@ -82,7 +82,7 @@ class JornadaService
             $notas[] = 'Hoy tienes una ausencia prevista. No hace falta fichar.';
         }
 
-        $puedeAbrir = $user->starts_on && $ahora->toDateString() >= $user->starts_on->toDateString();
+        $puedeAbrir = $user->estaEnPlantillaEl($ahora);
         $puedePorFestivo = ! $festivo || $respuestaFestivo === 'si';
 
         return [
@@ -100,7 +100,7 @@ class JornadaService
             'totalTexto' => $hoy?->estaCerrada() ? 'Hoy has trabajado '.Tiempo::texto($minutosHoy).'.' : null,
             'porEncimaTexto' => $porEncima ? 'Tiempo por encima del horario: '.Tiempo::texto($porEncima).'. No es una hora extra y no hace falta autorización.' : null,
             'horarioTexto' => $horario ? 'Tu horario es de '.$horario->texto().'.' : 'Todavía no tienes un horario asignado.',
-            'comidaTexto' => $horario ? 'Tu pausa de comida es de '.$horario->comidaTexto().'.' : null,
+            'comidaTexto' => $horario && ! $horario->sinTarde() ? 'Tu pausa de comida es de '.$horario->comidaTexto().'.' : null,
             'notaDia' => implode(' ', $notas),
             'banner' => $banner,
             'pendiente' => $banner !== null,
@@ -553,7 +553,7 @@ class JornadaService
 
     public function esDiaEsperado(User $user, Carbon $fecha): bool
     {
-        if (! $user->starts_on || $fecha->toDateString() < $user->starts_on->toDateString()) {
+        if (! $user->estaEnPlantillaEl($fecha)) {
             return false;
         }
         if ($fecha->dayOfWeekIso >= 6) {
@@ -617,6 +617,10 @@ class JornadaService
 
         if (! $user->starts_on || $ahora->toDateString() < $user->starts_on->toDateString()) {
             return $this->estadoDeConsulta('sin_empezar', 'Su registro todavía no ha empezado', 'fuera_de_jornada.svg');
+        }
+
+        if ($user->ends_on && $ahora->toDateString() > $user->ends_on->toDateString()) {
+            return $this->estadoDeConsulta('cerrado', 'Su tiempo en la empresa ya ha terminado', 'fuera_de_jornada.svg');
         }
 
         $hoy = $this->jornadaDe($user, $ahora);
@@ -863,6 +867,10 @@ class JornadaService
 
     private function asegurarFechaDeAlta(User $user, Carbon $ahora): void
     {
+        if ($user->ends_on && $ahora->toDateString() > $user->ends_on->toDateString()) {
+            throw new ReglaJornada('Tu tiempo en la empresa terminó el '.Tiempo::fecha($user->ends_on).'.');
+        }
+
         if (! $user->starts_on || $ahora->toDateString() < $user->starts_on->toDateString()) {
             $fecha = $user->starts_on ? Tiempo::fecha($user->starts_on) : 'más adelante';
             throw new ReglaJornada('Tu registro empieza el '.$fecha.'.');
