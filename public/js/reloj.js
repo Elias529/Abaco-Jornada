@@ -109,6 +109,25 @@
     document.querySelectorAll("form").forEach(function (form) {
         form.addEventListener("submit", function (event) {
             form.querySelectorAll("[data-hora]").forEach(sincronizarHora);
+            const rango = form.querySelector("[data-rango]");
+            if (rango) {
+                const desdeRango = rango.querySelector("[name=desde]");
+                const hastaRango = rango.querySelector("[name=hasta]");
+                const avisoRango = rango.querySelector("[data-rango-aviso]");
+                if (!desdeRango.value || !hastaRango.value) {
+                    event.preventDefault();
+                    if (avisoRango) {
+                        avisoRango.hidden = false;
+                    }
+                    const abreRango = rango.querySelector("[data-rango-abre]");
+                    const panelRango = rango.querySelector("[data-rango-panel]");
+                    if (abreRango && panelRango) {
+                        abreRango.setAttribute("aria-expanded", "true");
+                        panelRango.hidden = false;
+                    }
+                    return;
+                }
+            }
             if (!navigator.onLine && form.querySelector("[data-hora]")) {
                 event.preventDefault();
                 const aviso = document.querySelector("[data-sin-conexion]");
@@ -140,5 +159,130 @@
         if (aviso && !aviso.hidden && vuelta) {
             vuelta.hidden = false;
         }
+    });
+
+    document.querySelectorAll("[data-rango]").forEach(function (caja) {
+        const abre = caja.querySelector("[data-rango-abre]");
+        const panel = caja.querySelector("[data-rango-panel]");
+        const dias = caja.querySelector("[data-rango-dias]");
+        const titulo = caja.querySelector("[data-rango-titulo]");
+        const desde = caja.querySelector("[name=desde]");
+        const hasta = caja.querySelector("[name=hasta]");
+        const aviso = caja.querySelector("[data-rango-aviso]");
+        const nombres = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+        let primero = desde.value || "";
+        let ultimo = hasta.value || "";
+
+        function hoy() {
+            return new Intl.DateTimeFormat("en-CA", {
+                timeZone: "Europe/Madrid",
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+            }).format(new Date());
+        }
+
+        function iso(fecha) {
+            const mes = String(fecha.getMonth() + 1).padStart(2, "0");
+            const dia = String(fecha.getDate()).padStart(2, "0");
+            return fecha.getFullYear() + "-" + mes + "-" + dia;
+        }
+
+        function texto(valor) {
+            const partes = valor.split("-");
+            return partes[2] + "/" + partes[1] + "/" + partes[0];
+        }
+
+        function mesDe(valor) {
+            const partes = (valor || hoy()).split("-");
+            return new Date(Number(partes[0]), Number(partes[1]) - 1, 1);
+        }
+
+        let cursor = mesDe(primero);
+
+        function resumen() {
+            if (primero && ultimo) {
+                abre.textContent = texto(primero) + " – " + texto(ultimo);
+            } else if (primero) {
+                abre.textContent = texto(primero) + " – elige el último día";
+            } else {
+                abre.textContent = "Elige el primer y el último día";
+            }
+            desde.value = primero;
+            hasta.value = primero && ultimo ? ultimo : "";
+            if (aviso && primero && ultimo) {
+                aviso.hidden = true;
+            }
+        }
+
+        function pintar() {
+            titulo.textContent = nombres[cursor.getMonth()] + " " + cursor.getFullYear();
+            dias.replaceChildren();
+            ["L", "M", "X", "J", "V", "S", "D"].forEach(function (letra) {
+                const cabecera = document.createElement("span");
+                cabecera.className = "rango-letra";
+                cabecera.textContent = letra;
+                dias.appendChild(cabecera);
+            });
+            const inicio = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
+            const huecos = (inicio.getDay() + 6) % 7;
+            const total = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0).getDate();
+            const limite = hoy();
+            for (let i = 0; i < huecos; i++) {
+                const vacio = document.createElement("span");
+                dias.appendChild(vacio);
+            }
+            for (let numero = 1; numero <= total; numero++) {
+                const fecha = new Date(cursor.getFullYear(), cursor.getMonth(), numero);
+                const valor = iso(fecha);
+                const boton = document.createElement("button");
+                boton.type = "button";
+                boton.textContent = String(numero);
+                boton.disabled = valor < limite;
+                if (valor === primero || valor === ultimo) {
+                    boton.className = "rango-elegido";
+                } else if (primero && ultimo && valor > primero && valor < ultimo) {
+                    boton.className = "rango-medio";
+                }
+                boton.addEventListener("click", function () {
+                    if (!primero || ultimo) {
+                        primero = valor;
+                        ultimo = "";
+                    } else if (valor < primero) {
+                        ultimo = primero;
+                        primero = valor;
+                    } else {
+                        ultimo = valor;
+                    }
+                    resumen();
+                    pintar();
+                    if (primero && ultimo) {
+                        panel.hidden = true;
+                        abre.setAttribute("aria-expanded", "false");
+                    }
+                });
+                dias.appendChild(boton);
+            }
+        }
+
+        abre.addEventListener("click", function () {
+            const abierto = abre.getAttribute("aria-expanded") === "true";
+            panel.hidden = abierto;
+            abre.setAttribute("aria-expanded", abierto ? "false" : "true");
+            if (!abierto) {
+                pintar();
+            }
+        });
+
+        caja.querySelector("[data-rango-prev]").addEventListener("click", function () {
+            cursor = new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1);
+            pintar();
+        });
+        caja.querySelector("[data-rango-next]").addEventListener("click", function () {
+            cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
+            pintar();
+        });
+
+        resumen();
     });
 })();

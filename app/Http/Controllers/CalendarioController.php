@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Ausencia;
 use App\Models\FalloComun;
 use App\Models\Jornada;
+use App\Models\SolicitudVacaciones;
 use App\Services\JornadaService;
 use App\Services\NagerFestivos;
 use App\Support\DiaFestivo;
@@ -49,7 +50,58 @@ class CalendarioController extends Controller
             'faltas' => $faltas,
             'fallos' => FalloComun::query()->orderByDesc('falla_date')->limit(12)->get(),
             'esJefa' => $request->user()->esJefa(),
+            'solicitudes' => $usuario->esJefa()
+                ? collect()
+                : $usuario->solicitudesVacaciones()->latest('id')->get(),
         ]);
+    }
+
+    public function solicitar(Request $request): RedirectResponse
+    {
+        abort_if($request->user()->esJefa(), 403);
+
+        $datos = $request->validate([
+            'desde' => ['required', 'date', 'after_or_equal:today'],
+            'hasta' => ['required', 'date', 'after_or_equal:desde'],
+            'nota' => ['nullable', 'string', 'max:500'],
+        ], [
+            'desde.required' => 'Elige el primer día.',
+            'desde.date' => 'Elige el primer día.',
+            'desde.after_or_equal' => 'El primer día no puede ser anterior a hoy.',
+            'hasta.required' => 'Elige el último día.',
+            'hasta.date' => 'Elige el último día.',
+            'hasta.after_or_equal' => 'El último día tiene que ser el primero o uno posterior.',
+            'nota.max' => 'La nota puede tener hasta 500 caracteres.',
+        ]);
+
+        $desde = Carbon::parse($datos['desde'])->startOfDay();
+        $hasta = Carbon::parse($datos['hasta'])->startOfDay();
+
+        if ($desde->diffInDays($hasta) > 39) {
+            return back()->with('aviso', 'Pide como máximo 40 días.')->withInput();
+        }
+
+        $solapa = $request->user()->solicitudesVacaciones()
+            ->whereIn('estado', [SolicitudVacaciones::PENDIENTE, SolicitudVacaciones::APROBADA])
+            ->whereDate('starts_on', '<=', $hasta->toDateString())
+            ->whereDate('ends_on', '>=', $desde->toDateString())
+            ->exists();
+
+        if ($solapa) {
+            return back()->with('aviso', 'Esas fechas ya están pedidas.')->withInput();
+        }
+
+        $nota = trim((string) ($datos['nota'] ?? ''));
+
+        SolicitudVacaciones::create([
+            'user_id' => $request->user()->id,
+            'starts_on' => $desde->toDateString(),
+            'ends_on' => $hasta->toDateString(),
+            'nota' => $nota === '' ? null : $nota,
+            'estado' => SolicitudVacaciones::PENDIENTE,
+        ]);
+
+        return back()->with('ok', 'Enviada. La jefa la verá en Consultas.');
     }
 
     public function store(Request $request): RedirectResponse

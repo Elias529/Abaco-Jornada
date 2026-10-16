@@ -40,6 +40,10 @@ class IncidenciaController extends Controller
 
     public function show(Incidencia $incidencia): View
     {
+        if ($incidencia->vista_at === null) {
+            $incidencia->update(['vista_at' => now()]);
+        }
+
         return view('incidencias.show', [
             'incidencia' => $incidencia->load('autor'),
         ]);

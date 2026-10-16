@@ -3,49 +3,19 @@
 @section('contenido')
     <h1>{{ $consulta ? 'Registro de '.$persona->name : 'Mi registro' }}</h1>
     <p class="secundario">{{ $consulta ? 'Ves los registros de '.$persona->name.' y puedes sacar una copia.' : 'Ves los tuyos y puedes sacar una copia.' }} Se conservan cuatro años, el plazo del artículo 34.9 del Estatuto de los Trabajadores. Ábaco lo confirma. Una copia ya sacada no se reescribe sola.</p>
-    <form method="get" class="bandeja-incidencias" action="{{ $consulta ? route('equipo.registro', $persona) : route('registro') }}">
-        <div class="filtros-incidencia">
-            <div class="campo-incidencia">
-                <label for="desde">Desde</label>
-                <input id="desde" name="desde" type="date" value="{{ $desde }}">
-            </div>
-            <div class="campo-incidencia">
-                <label for="hasta">Hasta</label>
-                <input id="hasta" name="hasta" type="date" value="{{ $hasta }}">
-            </div>
-            <div class="campo-incidencia campo-ancho">
-                <label for="estado">Estado</label>
-                <select id="estado" name="estado">
-                    <option value="">Todos</option>
-                    <option value="cerrada" @selected($estado === 'cerrada')>Cerrada</option>
-                    <option value="pendiente" @selected($estado === 'pendiente')>Pendiente de cerrar</option>
-                    <option value="tardia" @selected($estado === 'tardia')>Cerrada al día siguiente</option>
-                </select>
-            </div>
-            <div class="campo-incidencia">
-                <label for="incidencia">Incidencia</label>
-                <select id="incidencia" name="incidencia">
-                    <option value="">Todas</option>
-                    <option value="si" @selected($incidencia === 'si')>Sí</option>
-                    <option value="no" @selected($incidencia === 'no')>No</option>
-                </select>
-            </div>
-            <button class="boton boton-secundario" type="submit">Ver</button>
-        </div>
-        <button class="boton-hoy" type="submit" formaction="{{ $consulta ? route('equipo.csv', $persona) : route('registro.csv') }}">Descargar Excel</button>
-    </form>
-    <p class="secundario">Elige el rango, el estado o la incidencia y pulsa Ver. La descarga lleva las mismas columnas y esos días.</p>
 
-    @if ($buscado && $jornadas->isEmpty())
-        <p class="incidencia-vacia">No hay jornadas con ese filtro.</p>
-    @elseif ($buscado)
+    @if ($jornadas->isEmpty())
+        <p class="incidencia-vacia">{{ $buscado ? 'No hay jornadas con ese filtro.' : 'No hay jornadas.' }}</p>
+    @else
     <div class="tabla-envoltorio">
         <table class="tabla-registro">
             <thead>
                 <tr>
-                    @foreach (\App\Services\RegistroCsv::COLUMNAS as $columna)
-                        <th>{{ $columna }}</th>
-                    @endforeach
+                    <th>Fecha</th>
+                    <th>Inicio</th>
+                    <th>Fin</th>
+                    <th>Total</th>
+                    <th>Estado</th>
                 </tr>
             </thead>
             <tbody>
@@ -65,20 +35,13 @@
                                 <span class="pastilla">{{ $fila['Estado'] }}</span>
                             @endif
                         </td>
-                        <td data-etiqueta="Incidencia">
-                            @if ($fila['Incidencia'] === 'Sí')
-                                <span class="pastilla">Sí</span>
-                            @else
-                                <span class="pastilla pastilla-no">No</span>
-                            @endif
-                        </td>
                     </tr>
                 @endforeach
             </tbody>
         </table>
     </div>
     @endif
-    @if ($buscado && $jornadas->hasPages())
+    @if ($jornadas->hasPages())
         <p class="paginas">
             @if ($jornadas->previousPageUrl())
                 <a href="{{ $jornadas->previousPageUrl() }}">Días más recientes</a>
@@ -89,6 +52,31 @@
             @endif
         </p>
     @endif
+
+    <form method="get" class="bandeja-incidencias" action="{{ $consulta ? route('equipo.registro', $persona) : route('registro') }}">
+        <div class="filtros-incidencia">
+            <div class="campo-incidencia">
+                <label for="desde">Desde</label>
+                <input id="desde" name="desde" type="date" value="{{ $desde }}">
+            </div>
+            <div class="campo-incidencia">
+                <label for="hasta">Hasta</label>
+                <input id="hasta" name="hasta" type="date" value="{{ $hasta }}">
+            </div>
+            <div class="campo-incidencia campo-ancho">
+                <label for="estado">Estado</label>
+                <select id="estado" name="estado">
+                    <option value="">Todos</option>
+                    <option value="cerrada" @selected($estado === 'cerrada')>Cerrada</option>
+                    <option value="pendiente" @selected($estado === 'pendiente')>Pendiente de cerrar</option>
+                    <option value="tardia" @selected($estado === 'tardia')>Cerrada al día siguiente</option>
+                </select>
+            </div>
+            <button class="boton boton-secundario" type="submit">Ver</button>
+        </div>
+        <button class="boton-hoy" type="submit" formaction="{{ $consulta ? route('equipo.csv', $persona) : route('registro.csv') }}">Descargar Excel</button>
+    </form>
+    <p class="secundario">Acota por rango o estado y pulsa Ver. Si no eliges nada, la lista y la descarga incluyen todos los días.</p>
 
     @if ($explicaciones->isNotEmpty())
         <h2>Explicaciones</h2>

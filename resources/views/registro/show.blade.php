@@ -38,15 +38,16 @@
             @if ($puedeCorregir)
                 <form method="post" action="{{ route('tramos.corregir', $tramo) }}" class="formulario">
                     @csrf
-                    <label for="campo-{{ $tramo->id }}">Qué hora cambias</label>
-                    <select id="campo-{{ $tramo->id }}" name="campo" required>
-                        <option value="started_at">Inicio</option>
-                        @if ($tramo->ended_at)
-                            <option value="ended_at">Fin</option>
-                        @endif
-                    </select>
-                    <label for="hora-{{ $tramo->id }}">Hora nueva</label>
-                    <x-hora id="hora-{{ $tramo->id }}" name="hora" />
+                    <div class="horas-par">
+                        <div>
+                            <label for="inicio-{{ $tramo->id }}">Hora de inicio</label>
+                            <x-hora id="inicio-{{ $tramo->id }}" name="inicio" :valor="\App\Support\Tiempo::hora($tramo->started_at)" :required="false" />
+                        </div>
+                        <div>
+                            <label for="fin-{{ $tramo->id }}">Hora de fin</label>
+                            <x-hora id="fin-{{ $tramo->id }}" name="fin" :valor="$tramo->ended_at ? \App\Support\Tiempo::hora($tramo->ended_at) : ''" :required="false" />
+                        </div>
+                    </div>
                     <label for="motivo-{{ $tramo->id }}">Motivo</label>
                     <select id="motivo-{{ $tramo->id }}" name="motivo" required>
                         @foreach ($motivos as $clave => $texto)
@@ -55,8 +56,8 @@
                     </select>
                     <label for="nota-{{ $tramo->id }}">Nota, si hace falta</label>
                     <textarea id="nota-{{ $tramo->id }}" name="nota" maxlength="500"></textarea>
-                    <p class="secundario">No pongas datos de salud ni de clientes.</p>
-                    <button class="boton boton-secundario" type="submit">Guardar corrección</button>
+                    <p class="secundario">Puedes guardar solo el inicio, solo el fin, o las dos. No pongas datos de salud ni de clientes.</p>
+                    <button class="boton boton-secundario" type="submit">Guardar</button>
                 </form>
             @else
                 <p class="secundario">Para cambiar este día, habla con tu jefa.</p>

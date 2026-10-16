@@ -43,6 +43,7 @@ Route::middleware(['auth', 'activo'])->group(function () {
 
     // El calendario lo ve toda la plantilla. Los festivos salen de Nager.Date, filtrados por el centro de quien mira.
     Route::get('/calendario', [CalendarioController::class, 'index'])->name('calendario');
+    Route::post('/calendario/vacaciones', [CalendarioController::class, 'solicitar'])->name('calendario.vacaciones');
 
     // Tickets: cualquier persona cuenta un problema; solo ella y el técnico lo ven.
     Route::get('/tickets', [TicketController::class, 'index'])->name('tickets.index');
@@ -73,6 +74,7 @@ Route::middleware(['auth', 'activo'])->group(function () {
         Route::prefix('jefe')->name('jefe.')->group(function () {
             Route::get('/', [JefeController::class, 'index'])->name('index');
             Route::get('/consultas', [JefeController::class, 'consultas'])->name('consultas');
+            Route::post('/vacaciones/{solicitud}', [JefeController::class, 'decidirVacaciones'])->name('vacaciones.decidir');
             Route::get('/personas/{user}', [JefeController::class, 'persona'])->name('persona');
             Route::get('/personas/{user}/registro', [JefeController::class, 'registro'])->name('registro');
             Route::post('/personas/{user}/registro', [JefeController::class, 'motivo'])->name('motivo');

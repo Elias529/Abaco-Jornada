@@ -72,6 +72,7 @@ class JornadaController extends Controller
         return in_array($email, [
             'ana.lopez@abaco.test',
             'marta.ruiz@abaco.test',
+            'carmen.ortega@abaco.test',
         ], true);
     }
 
@@ -217,7 +218,7 @@ class JornadaController extends Controller
             return redirect()->route('jornada')->with('ok', 'Enviada. La jefa ya tiene tu incidencia.');
         }
 
-        return redirect()->route('jornada')->with('ok', 'Enviada. La jefa ya tiene tu incidencia. El técnico la ha recibido.');
+        return redirect()->route('jornada')->with('ok', 'Enviada. La jefa ya tiene tu incidencia.');
     }
 
     public function festivo(Request $request): RedirectResponse
