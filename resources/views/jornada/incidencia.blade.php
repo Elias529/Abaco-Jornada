@@ -16,8 +16,7 @@
             <form method="post" action="{{ route('jornada.incidencia') }}" class="formulario comunicar-formulario">
                 @csrf
                 <label for="incidencia-motivo">Qué pasó</label>
-                <textarea id="incidencia-motivo" name="motivo" maxlength="500" required placeholder="Qué pasó">{{ old('motivo') }}</textarea>
-                <p class="ventana-incidencia-limite">Hasta 500 caracteres.</p>
+                <textarea id="incidencia-motivo" name="motivo" required placeholder="0 a 500 caracteres" data-max="500" data-vacio="Escribe el motivo de la incidencia." data-largo="El motivo puede tener hasta 500 caracteres.">{{ old('motivo') }}</textarea>
                 <button class="boton boton-principal" type="submit">Enviar Incidencia</button>
             </form>
         </section>
@@ -42,7 +41,14 @@
                     @foreach ($incidencias as $incidencia)
                         <li>
                             <a class="estado-{{ $incidencia->estado }}" href="{{ route('jornada.incidencia.crear', ['incidencia' => $incidencia->id]) }}">
-                                <span class="incidencia-texto">{{ $incidencia->cuerpo }}</span>
+                                <span class="incidencia-texto">
+                                    @if ($incidencia->user_id !== auth()->id())
+                                        De {{ $incidencia->autor->name }}:
+                                    @elseif ($incidencia->destinatario)
+                                        Para {{ $incidencia->destinatario->name }}:
+                                    @endif
+                                    {{ $incidencia->cuerpo }}
+                                </span>
                             </a>
                         </li>
                     @endforeach

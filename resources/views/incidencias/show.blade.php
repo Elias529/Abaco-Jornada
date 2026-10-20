@@ -13,6 +13,9 @@
                     <span class="incidencia-inicial" aria-hidden="true">{{ mb_substr($incidencia->autor->name, 0, 1) }}</span>
                     <div>
                         <p class="comunicar-autor">{{ $incidencia->autor->name }}</p>
+                        @if ($incidencia->destinatario)
+                            <p class="secundario">Para {{ $incidencia->destinatario->name }}</p>
+                        @endif
                         <p class="secundario">
                             {{ \App\Support\Tiempo::fecha($incidencia->created_at) }} a las {{ $incidencia->created_at->format('H:i') }}
                             · {{ $incidencia->estadoTexto() }}

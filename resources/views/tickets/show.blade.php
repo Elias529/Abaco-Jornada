@@ -6,7 +6,7 @@
     </a>
     <h1>{{ $ticket->asunto }}</h1>
     <p class="secundario">
-        <span class="pastilla pastilla-{{ $ticket->estado }}">{{ $ticket->etiquetaDeEstado() }}</span>
+        <x-chip :tipo="$ticket->estado">{{ $ticket->etiquetaDeEstado() }}</x-chip>
         · Abierto por {{ $ticket->autor->name }}
         el {{ \App\Support\Tiempo::fecha($ticket->created_at) }} a las {{ $ticket->created_at->format('H:i') }}
         @if ($ticket->pagina)

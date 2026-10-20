@@ -1,4 +1,4 @@
-@extends('layouts.app', ['ancha' => true, 'titulo' => 'Registro'])
+@extends('layouts.app', ['ancha' => true, 'titulo' => 'Mi registro'])
 
 @section('contenido')
     @php
@@ -6,14 +6,14 @@
         $copia = $consulta ? route('equipo.csv', array_merge(['user' => $persona], request()->query())) : route('registro.csv', request()->query());
     @endphp
 
-    <div class="registro">
+    <div class="registro" data-registro>
         <header class="registro-cabeza">
             <div>
                 <p class="espacio-sobre">Mi jornada</p>
                 <h1>{{ $consulta ? 'Registro de '.$persona->name : 'Mi registro' }}</h1>
                 <p class="secundario">{{ $consulta ? 'Revisa los días de '.$persona->name.' y abre uno para consultar sus tramos.' : 'Revisa los días y abre uno para consultar sus tramos.' }}</p>
             </div>
-            <a class="registro-csv" href="{{ $copia }}">
+            <a class="registro-csv" data-registro-csv href="{{ $copia }}">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v10M8 10l4 4 4-4M5 19h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 Descargar CSV
             </a>
@@ -25,7 +25,7 @@
                     <a href="{{ $lista }}?periodo={{ $clave }}" @if ($periodo === $clave) aria-current="page" @endif>{{ $etiqueta }}</a>
                 @endforeach
             </div>
-            <p class="registro-rango">{{ $rango }}</p>
+            <p class="registro-rango" data-registro-rango>{{ $rango }}</p>
         </div>
 
         <details class="registro-filtrar" @if ($buscado && $periodo !== 'semana' && $periodo !== 'mes' && $periodo !== 'anterior') open @endif>
@@ -73,6 +73,7 @@
             </section>
         @endif
 
+        <div class="registro-lista" data-registro-lista>
         <section class="registro-card">
             @if ($jornadas->isEmpty())
                 <p class="registro-vacio">No hay jornadas en este periodo.</p>
@@ -98,12 +99,9 @@
                             </span>
                             <span role="cell" class="registro-total">{{ $fila['total'] }}</span>
                             <span role="cell" class="registro-estados">
-                                <span class="registro-pill registro-pill-{{ $fila['clase'] }}">{{ $fila['estado'] }}</span>
+                                <x-chip :tipo="$fila['clase']">{{ $fila['estado'] }}</x-chip>
                                 @if ($fila['incidencia'])
-                                    <span class="registro-pill registro-pill-incidencia">
-                                        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="4" width="12" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M9 9h6M9 13h6M9 17h3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-                                        Incidencia
-                                    </span>
+                                    <x-chip tipo="incidencia">Incidencia</x-chip>
                                 @endif
                             </span>
                             <span role="cell" class="registro-flecha" aria-hidden="true">›</span>
@@ -128,6 +126,7 @@
                 @endif
             </p>
         @endif
+        </div>
 
         @if ($explicaciones->isNotEmpty())
             <h2>Explicaciones</h2>
@@ -153,4 +152,107 @@
             </ul>
         @endif
     </div>
+    <script>
+        (function () {
+            var raiz = document.querySelector('[data-registro]');
+            if (!raiz) {
+                return;
+            }
+
+            function aplicar(doc) {
+                var origen = doc.querySelector('[data-registro]');
+                var lista = raiz.querySelector('[data-registro-lista]');
+                var listaNueva = origen && origen.querySelector('[data-registro-lista]');
+                if (!origen || !lista || !listaNueva) {
+                    return false;
+                }
+                lista.replaceWith(listaNueva);
+                var rango = raiz.querySelector('[data-registro-rango]');
+                var rangoNuevo = origen.querySelector('[data-registro-rango]');
+                if (rango && rangoNuevo) {
+                    rango.textContent = rangoNuevo.textContent;
+                }
+                var csv = raiz.querySelector('[data-registro-csv]');
+                var csvNuevo = origen.querySelector('[data-registro-csv]');
+                if (csv && csvNuevo) {
+                    csv.setAttribute('href', csvNuevo.getAttribute('href'));
+                }
+                var actuales = raiz.querySelectorAll('.registro-tabs a');
+                var nuevas = origen.querySelectorAll('.registro-tabs a');
+                actuales.forEach(function (tab, i) {
+                    if (!nuevas[i]) {
+                        return;
+                    }
+                    if (nuevas[i].hasAttribute('aria-current')) {
+                        tab.setAttribute('aria-current', 'page');
+                    } else {
+                        tab.removeAttribute('aria-current');
+                    }
+                });
+                return true;
+            }
+
+            var peticion = 0;
+
+            function cargar(url, historial) {
+                var id = ++peticion;
+                var lista = raiz.querySelector('[data-registro-lista]');
+                if (lista) {
+                    lista.setAttribute('aria-busy', 'true');
+                }
+                return fetch(url, { headers: { 'Accept': 'text/html' } })
+                    .then(function (respuesta) {
+                        if (!respuesta.ok) {
+                            throw new Error();
+                        }
+                        return respuesta.text();
+                    })
+                    .then(function (html) {
+                        if (id !== peticion) {
+                            return;
+                        }
+                        var doc = new DOMParser().parseFromString(html, 'text/html');
+                        if (!aplicar(doc)) {
+                            throw new Error();
+                        }
+                        if (historial) {
+                            history.pushState({ registro: true }, '', url);
+                        }
+                    })
+                    .catch(function () {
+                        if (id === peticion) {
+                            window.location.href = url;
+                        }
+                    })
+                    .finally(function () {
+                        if (id !== peticion) {
+                            return;
+                        }
+                        var actual = raiz.querySelector('[data-registro-lista]');
+                        if (actual) {
+                            actual.removeAttribute('aria-busy');
+                        }
+                    });
+            }
+
+            raiz.addEventListener('click', function (evento) {
+                var tab = evento.target.closest('.registro-tabs a');
+                if (!tab || evento.button !== 0 || evento.metaKey || evento.ctrlKey || evento.shiftKey || evento.altKey) {
+                    return;
+                }
+                evento.preventDefault();
+                if (tab.getAttribute('aria-current') === 'page') {
+                    return;
+                }
+                cargar(tab.href, true);
+            });
+
+            window.addEventListener('popstate', function () {
+                if (!document.querySelector('[data-registro]')) {
+                    return;
+                }
+                cargar(window.location.href, false);
+            });
+        })();
+    </script>
 @endsection

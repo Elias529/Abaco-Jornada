@@ -114,14 +114,13 @@ class JornadaService
             'notaDia' => implode(' ', $notas),
             'banner' => $banner,
             'pendiente' => $banner !== null,
-            'puedeEntrar' => $puedeAbrir && $puedePorFestivo && ! $pasada && (! $hoy || $this->soloFuera($hoy)),
+            'puedeEntrar' => $puedeAbrir && $puedePorFestivo && ! $pasada && (! $hoy || $this->soloFuera($hoy)) && ! $this->faltaExplicarAyer($user, $ahora),
             'puedeSalir' => $abierto !== null && ! $pasada && ! $cierrePendiente,
             'puedePausar' => $abierto?->tipo === Tramo::TRABAJO && ! $cierrePendiente,
             'puedeVolver' => $abierto?->tipo === Tramo::PAUSA && ! $cierrePendiente,
             'puedeYaEstaba' => $puedeAbrir && $puedePorFestivo && ! $pasada && (! $hoy || $this->soloFuera($hoy)),
-            'puedeFuera' => $puedeAbrir && ! $pasada && (! $festivo || $respuestaFestivo === 'si'),
             'hoyTexto' => Tiempo::corto($minutosHoy),
-            'hoyLargo' => Tiempo::corto($minutosHoy).' min',
+            'hoyLargo' => Tiempo::corto($minutosHoy),
             'semanaTexto' => Tiempo::corto($minutosSemana),
             'semanaCerrados' => max(0, $minutosSemana - $vivo),
             'semanaRango' => $this->rangoSemana($lunes, $domingo),
@@ -131,11 +130,8 @@ class JornadaService
             'pastilla' => $this->pastilla($estado),
             'centroNombre' => $user->municipality !== '' ? $user->municipality : (string) $user->centro,
             'tipoLargo' => $tipo?->etiqueta(),
-            'tipoCorto' => $tipo ? ucfirst($tipo->value) : null,
             'desdeTexto' => $primero ? 'Desde las '.Tiempo::hora($primero->started_at) : null,
             'previstoTexto' => $horario ? str_replace(' y ', ' · ', $horario->texto()) : null,
-            'mananaTexto' => $horario ? $horario->corta($horario->morning_start).' – '.$horario->corta($horario->morning_end) : null,
-            'tardeTexto' => $horario && ! $horario->sinTarde() ? $horario->corta($horario->afternoon_start).' – '.$horario->corta($horario->afternoon_end) : null,
             'tramosHoy' => $hoy ? $this->tramosDeHoy($hoy) : [],
             'tramosAbiertos' => $hoy ? $hoy->tramos->whereNull('ended_at')->count() : 0,
             'barra' => $this->barra($horario, $hoy, $hasta),
@@ -341,39 +337,53 @@ class JornadaService
         return 'Guardado. Sigues. La salida será la hora a la que termines.';
     }
 
-    public function fuera(User $user, string $inicioHora, string $finHora): string
+    public function registrarHoras(User $user, string $fecha, string $inicioHora, string $finHora): Jornada
     {
         $ahora = now();
-        $inicio = $this->momento($ahora, $inicioHora);
-        $fin = $this->momento($ahora, $finHora);
+        $dia = Carbon::parse($fecha, config('app.timezone'))->startOfDay();
+        if ($dia->toDateString() > $ahora->toDateString()) {
+            throw new ReglaJornada('Ese día todavía no ha llegado.');
+        }
+        if (! $user->esJefa() && $dia->lt($ahora->copy()->subDays(7)->startOfDay())) {
+            throw new ReglaJornada('Para cambiar este día, habla con tu jefa.');
+        }
 
+        $inicio = $this->momento($dia, $inicioHora);
+        $fin = $this->momento($dia, $finHora);
         if ($fin->lessThanOrEqualTo($inicio)) {
             throw new ReglaJornada('La salida tiene que ser después de la entrada.');
         }
-        if ($fin->greaterThan($ahora) || $inicio->greaterThan($ahora)) {
+        if ($inicio->greaterThan($ahora) || $fin->greaterThan($ahora)) {
             throw new ReglaJornada('Esa hora todavía no ha llegado.');
         }
 
-        DB::transaction(function () use ($user, $ahora, $inicio, $fin) {
+        return DB::transaction(function () use ($user, $ahora, $dia, $inicio, $fin) {
             $this->bloquear($user);
-            $this->asegurarFechaDeAlta($user, $ahora);
-            if ($this->jornadaAbiertaAnterior($user, $ahora)) {
-                throw new ReglaJornada($this->textoOlvido($this->jornadaAbiertaAnterior($user, $ahora)));
+            $this->asegurarFechaDeAlta($user, $dia);
+            $jornada = $this->jornadaDe($user, $dia);
+            if ($jornada && $jornada->tramos->contains(fn (Tramo $tramo) => $tramo->tipo === Tramo::TRABAJO)) {
+                throw new ReglaJornada('Ese día ya tiene horas registradas.');
             }
-            $hoy = $this->jornadaDe($user, $ahora);
-            if ($hoy && $this->solapa($hoy, $inicio, $fin)) {
-                throw new ReglaJornada('Esa hora se cruza con un tramo que ya está guardado.');
-            }
-            if (! $hoy) {
-                $hoy = Jornada::create([
+            if (! $jornada) {
+                $jornada = Jornada::create([
                     'user_id' => $user->id,
-                    'work_date' => $ahora->toDateString(),
+                    'work_date' => $dia->toDateString(),
                 ]);
             }
-            $this->abrirTramo($hoy, Tramo::TRABAJO, $inicio, $ahora, true, 'fuera', $fin);
-        });
+            Tramo::create([
+                'jornada_id' => $jornada->id,
+                'tipo' => Tramo::TRABAJO,
+                'started_at' => $inicio,
+                'ended_at' => $fin,
+                'anotado_at' => $ahora,
+                'fuera_del_equipo' => false,
+                'cerrado_por' => $user->id,
+                'cerrado_at' => $ahora,
+            ]);
+            $this->marcarExplicados($user, $dia->toDateString());
 
-        return 'Guardado. Trabajo fuera del equipo de las '.Tiempo::hora($inicio).' a las '.Tiempo::hora($fin).'.';
+            return $jornada;
+        });
     }
 
     public function declararIncidencia(User $user, string $inicioHora, string $finHora, string $motivo): string
@@ -940,6 +950,20 @@ class JornadaService
             ];
         }
 
+        if ((! $hoy || $this->soloFuera($hoy)) && $this->faltaExplicarAyer($user, $ahora)) {
+            $ayer = $ahora->copy()->subDay();
+
+            return [
+                'texto' => 'El '.Tiempo::fecha($ayer).' no quedó registrada la entrada. Puedes explicarlo aquí.',
+                'accion' => 'registro',
+                'fecha' => $ayer->toDateString(),
+                'jornada' => Jornada::query()
+                    ->where('user_id', $user->id)
+                    ->whereDate('work_date', $ayer->toDateString())
+                    ->value('id'),
+            ];
+        }
+
         $puedePreguntarInicio = $esperada || $respuestaFestivo === 'si';
         if ((! $hoy || $this->soloFuera($hoy)) && $puedePreguntarInicio && $horario && $ahora->greaterThan($this->momento($ahora, $horario->corta($horario->morning_start)))) {
             $this->registrarAviso($user, 'inicio', $ahora);
@@ -984,6 +1008,9 @@ class JornadaService
         if ($pasada) {
             throw new ReglaJornada($this->textoOlvido($pasada));
         }
+        if ($this->faltaExplicarAyer($user, $ahora)) {
+            throw new ReglaJornada('Ayer no quedó registrada la entrada. Explícalo antes de empezar hoy.');
+        }
         $hoy = $this->jornadaDe($user, $ahora);
         if ($hoy && ! $this->soloFuera($hoy)) {
             if ($hoy->estaCerrada()) {
@@ -991,6 +1018,34 @@ class JornadaService
             }
             throw new ReglaJornada('Hoy ya has empezado la jornada.');
         }
+    }
+
+    public function avisarSiFaltaEntrada(User $user, string $fecha): void
+    {
+        $dia = Carbon::parse($fecha, config('app.timezone'))->startOfDay();
+        if ($dia->toDateString() >= now()->toDateString() || ! $this->esDiaEsperado($user, $dia)) {
+            return;
+        }
+
+        $jornada = $this->jornadaDe($user, $dia);
+        if ($jornada && $jornada->tramos->contains(fn (Tramo $tramo) => $tramo->tipo === Tramo::TRABAJO)) {
+            return;
+        }
+
+        $this->registrarAviso($user, 'inicio', $dia);
+    }
+
+    private function faltaExplicarAyer(User $user, Carbon $ahora): bool
+    {
+        $ayer = $ahora->copy()->subDay()->toDateString();
+
+        return Aviso::query()
+            ->where('user_id', $user->id)
+            ->where('tipo', 'inicio')
+            ->where('cuenta', true)
+            ->whereNull('responded_at')
+            ->whereDate('work_date', $ayer)
+            ->exists();
     }
 
     private function jornadaParaAbrir(User $user, Carbon $ahora): Jornada

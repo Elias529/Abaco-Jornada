@@ -3,15 +3,20 @@
         <header class="comunicar-panel-cabeza">
             <h2>Chat</h2>
             @if ($incidencia->estaResuelta())
-                <strong class="incidencia-marca pastilla-resuelta">Resuelta</strong>
+                <x-chip tipo="resuelta">Resuelta</x-chip>
             @else
-                <strong class="incidencia-marca pastilla-abierta">Abierta</strong>
+                <x-chip tipo="abierta">Abierta</x-chip>
             @endif
         </header>
     @endunless
 
     <div class="chat-hilo">
         @if ($sinCabecera ?? false)
+            @if ($incidencia->user_id !== auth()->id())
+                <p class="chat-origen">De {{ $incidencia->autor->name }}</p>
+            @elseif ($incidencia->destinatario)
+                <p class="chat-origen">Para {{ $incidencia->destinatario->name }}</p>
+            @endif
             <p class="chat-origen">{{ $incidencia->cuerpo }}</p>
         @endif
         @forelse ($incidencia->mensajes as $mensaje)

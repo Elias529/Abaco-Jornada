@@ -2,7 +2,30 @@
 
 @section('contenido')
     <h1>Incidencias</h1>
-    <p class="secundario">Lo que el equipo envía desde Hoy. Pulsa una para ver el detalle.</p>
+    <p class="secundario">Las que envía el equipo y las que envías tú a una persona. Pulsa una para ver el detalle.</p>
+    <p><button class="boton boton-principal" type="button" data-dialogo-abre="comunicar">Comunicar incidencia</button></p>
+
+    <dialog class="historial-ventana dialogo-comunicar" data-dialogo="comunicar" @if ($errors->has('destinatario') || $errors->has('motivo')) data-abierto @endif>
+        <div class="historial-ventana-caja">
+            <header class="comunicar-panel-cabeza">
+                <h2>Comunicar incidencia</h2>
+                <button class="historial-cerrar" type="button" data-dialogo-cerrar aria-label="Cerrar">✕</button>
+            </header>
+            <form method="post" action="{{ route('jornada.incidencia') }}" class="formulario comunicar-formulario">
+                @csrf
+                <label for="incidencia-destinatario">Para</label>
+                <select id="incidencia-destinatario" name="destinatario" required>
+                    <option value="">Elige una persona</option>
+                    @foreach ($equipo as $persona)
+                        <option value="{{ $persona->id }}" @selected((string) old('destinatario') === (string) $persona->id)>{{ $persona->name }}</option>
+                    @endforeach
+                </select>
+                <label for="incidencia-motivo">Qué pasó</label>
+                <textarea id="incidencia-motivo" name="motivo" required placeholder="0 a 500 caracteres" data-max="500" data-vacio="Escribe el motivo de la incidencia." data-largo="El motivo puede tener hasta 500 caracteres.">{{ old('motivo') }}</textarea>
+                <button class="boton boton-principal" type="submit">Enviar incidencia</button>
+            </form>
+        </div>
+    </dialog>
 
     <section class="bandeja-incidencias">
         <form method="get" class="filtros-incidencia" action="{{ route('incidencias.index') }}">
@@ -38,9 +61,14 @@
                         <span class="incidencia-cabeza">
                             <span class="incidencia-quien">
                                 <span class="incidencia-inicial" aria-hidden="true">{{ mb_substr($incidencia->autor->name, 0, 1) }}</span>
-                                <span>{{ $incidencia->autor->name }}</span>
+                                <span>
+                                    {{ $incidencia->autor->name }}
+                                    @if ($incidencia->destinatario)
+                                        · Para {{ $incidencia->destinatario->name }}
+                                    @endif
+                                </span>
                             </span>
-                            <strong class="incidencia-marca pastilla-{{ $incidencia->estado }}">{{ $incidencia->estadoTexto() }}</strong>
+                            <x-chip :tipo="$incidencia->estado">{{ $incidencia->estadoTexto() }}</x-chip>
                         </span>
                         <span class="incidencia-texto">{{ \Illuminate\Support\Str::limit($incidencia->cuerpo, 110) }}</span>
                         <span class="secundario">{{ \App\Support\Tiempo::fecha($incidencia->created_at) }} {{ $incidencia->created_at->format('H:i') }}</span>

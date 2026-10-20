@@ -26,7 +26,7 @@
             <article class="detalle-dato">
                 <p class="detalle-dato-etiqueta">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M10 9l6 3-6 3z" fill="currentColor"/></svg>
-                    Primer inicio
+                    Inicio
                 </p>
                 <p class="detalle-dato-valor">{{ $detalle['inicio'] }}</p>
                 <p class="secundario">Hora de entrada</p>
@@ -34,7 +34,7 @@
             <article class="detalle-dato">
                 <p class="detalle-dato-etiqueta">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
-                    Última salida
+                    Salida
                 </p>
                 <p class="detalle-dato-valor">{{ $detalle['salida'] }}</p>
                 <p class="secundario">{{ $detalle['salidaTexto'] }}</p>
@@ -48,7 +48,7 @@
             <section class="detalle-panel">
                 <div class="detalle-panel-cabeza">
                     <h2>Tramos del día</h2>
-                    <span class="registro-pill registro-pill-{{ $detalle['estadoClase'] }}">{{ $detalle['estado'] }}</span>
+                    <x-chip :tipo="$detalle['estadoClase']">{{ $detalle['estado'] }}</x-chip>
                 </div>
                 <div class="detalle-previsto">
                     <span>Registrado / previsto</span>
@@ -97,15 +97,10 @@
                     <p class="secundario">{{ $explicar ? 'Este día no tiene fichaje.' : 'Este día no tiene tramos.' }}</p>
                 @endforelse
 
-                @if ($explicar)
-                    <form class="detalle-explicar" method="post" action="{{ route('registro.explicar') }}">
-                        @csrf
-                        <input type="hidden" name="work_date" value="{{ $explicar['fecha'] }}">
-                        <p>El {{ $explicar['dia'] }} {{ $explicar['texto'] }}.</p>
-                        <label for="explicacion-dia">Qué pasó</label>
-                        <textarea id="explicacion-dia" name="body" rows="2" maxlength="500" required>{{ old('work_date') === $explicar['fecha'] ? old('body') : '' }}</textarea>
-                        <button class="boton boton-secundario" type="submit">Explicar</button>
-                    </form>
+                @if ($puedeRegistrar)
+                    <div class="detalle-registrar">
+                        <button class="detalle-registrar-boton" type="button" data-dialogo-abre="registrar-horas">Registrar las horas</button>
+                    </div>
                 @endif
 
                 @if (! $puedeCorregir && $detalle['filas'] !== [])
@@ -172,5 +167,31 @@
                 </form>
             </dialog>
         @endforeach
+    @endif
+
+    @if ($puedeRegistrar)
+        <dialog class="dialogo-hoy" data-dialogo="registrar-horas" aria-labelledby="titulo-registrar-horas">
+            <div class="dialogo-cabecera">
+                <h2 id="titulo-registrar-horas">Registrar las horas</h2>
+                <form method="dialog">
+                    <button class="dialogo-cerrar" type="submit">Cerrar</button>
+                </form>
+            </div>
+            <form method="post" action="{{ route('registro.dia.horas', $detalle['fecha']) }}" class="formulario">
+                @csrf
+                <p class="secundario">Elige la hora de entrada y de salida de este día.</p>
+                <div class="horas-par">
+                    <div>
+                        <label for="registrar-inicio">Hora de inicio</label>
+                        <x-hora id="registrar-inicio" name="inicio" />
+                    </div>
+                    <div>
+                        <label for="registrar-fin">Hora de fin</label>
+                        <x-hora id="registrar-fin" name="fin" />
+                    </div>
+                </div>
+                <button class="boton boton-principal" type="submit">Registrar las horas</button>
+            </form>
+        </dialog>
     @endif
 @endsection

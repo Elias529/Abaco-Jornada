@@ -8,6 +8,7 @@ use App\Models\Horario;
 use App\Models\Incidencia;
 use App\Models\Jornada;
 use App\Models\SolicitudVacaciones;
+use App\Models\Ticket;
 use App\Models\Tramo;
 use App\Models\User;
 use App\Services\NagerFestivos;
@@ -213,7 +214,7 @@ class JornadaTest extends TestCase
             ->get(route('jornada'))
             ->assertSee('Inicio de jornada', false)
             ->assertSee('Empezar jornada', false)
-            ->assertSee('Trabajé sin el portátil', false)
+            ->assertDontSee('Trabajé sin el portátil', false)
             ->assertSee('Ya estaba trabajando', false)
             ->assertDontSee('Estaba en una reunión desde las 09:00', false)
             ->assertDontSee('Empecé a otra hora', false)
@@ -276,12 +277,18 @@ class JornadaTest extends TestCase
             ->assertForbidden();
 
         $this->actingAs($lucia)
+            ->post(route('jornada.borrar-ayer'))
+            ->assertForbidden();
+
+        $this->actingAs($lucia)
             ->get(route('jornada'))
-            ->assertDontSee('Borrar fichaje de hoy', false);
+            ->assertDontSee('Borrar fichaje de hoy', false)
+            ->assertDontSee('Borrar fichaje de ayer', false);
 
         $this->actingAs($marta)
             ->get(route('jornada'))
-            ->assertSee('Borrar fichaje de hoy', false);
+            ->assertSee('Borrar fichaje de hoy', false)
+            ->assertSee('Borrar fichaje de ayer', false);
 
         $this->actingAs($carmen)
             ->get(route('jornada'))
@@ -382,22 +389,6 @@ class JornadaTest extends TestCase
         $this->actingAs($ana)->get(route('jornada'))->assertSee('Empezar jornada', false);
     }
 
-    public function test_el_trabajo_fuera_del_equipo_usa_las_horas_indicadas(): void
-    {
-        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
-        $this->horario($ana);
-        Carbon::setTestNow(Carbon::parse('2026-10-07 21:00:00', 'Europe/Madrid'));
-
-        $this->actingAs($ana)
-            ->post(route('jornada.fuera'), ['inicio' => '19:00', 'fin' => '20:00'])
-            ->assertSessionHas('ok');
-
-        $tramo = Tramo::query()->first();
-        $this->assertTrue($tramo->fuera_del_equipo);
-        $this->assertSame('19:00', $tramo->started_at->timezone('Europe/Madrid')->format('H:i'));
-        $this->assertSame('20:00', $tramo->ended_at->timezone('Europe/Madrid')->format('H:i'));
-    }
-
     public function test_un_solo_cierre_sin_completar_ya_se_avisa_y_no_cambia_el_registro(): void
     {
         $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
@@ -472,7 +463,9 @@ class JornadaTest extends TestCase
             ->assertOk()
             ->assertSee('Lunes, 19 de octubre', false)
             ->assertSee('Sin fichaje', false)
-            ->assertSee('no quedó registrada la entrada', false);
+            ->assertSee('Este día no tiene fichaje.', false)
+            ->assertDontSee('Qué pasó', false)
+            ->assertSee('Registrar las horas', false);
 
         $this->actingAs($ana)
             ->get(route('registro'))
@@ -492,6 +485,30 @@ class JornadaTest extends TestCase
             ->get(route('registro'))
             ->assertDontSee('Pendiente de explicar', false)
             ->assertSee('Ese lunes no fui a la oficina.', false);
+
+        $this->actingAs($ana)->get(route('jornada'))->assertDontSee('lunes 19 de octubre', false);
+    }
+
+    public function test_registrar_las_horas_de_un_dia_sin_fichaje(): void
+    {
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
+        $this->horario($ana);
+        Carbon::setTestNow(Carbon::parse('2026-10-20 13:00:00', 'Europe/Madrid'));
+        Aviso::create(['user_id' => $ana->id, 'tipo' => 'inicio', 'work_date' => '2026-10-19', 'cuenta' => true]);
+
+        $this->actingAs($ana)
+            ->post(route('registro.dia.horas', '2026-10-19'), ['inicio' => '09:00', 'fin' => '14:00'])
+            ->assertRedirect();
+
+        $creada = Jornada::query()->where('user_id', $ana->id)->whereDate('work_date', '2026-10-19')->first();
+        $this->assertNotNull($creada);
+        $this->assertSame('09:00', $creada->tramos->first()->started_at->timezone('Europe/Madrid')->format('H:i'));
+        $this->assertSame('14:00', $creada->tramos->first()->ended_at->timezone('Europe/Madrid')->format('H:i'));
+
+        $this->actingAs($ana)
+            ->get(route('registro.show', $creada))
+            ->assertSee('09:00–14:00', false)
+            ->assertDontSee('Registrar las horas', false);
 
         $this->actingAs($ana)->get(route('jornada'))->assertDontSee('lunes 19 de octubre', false);
     }
@@ -775,19 +792,93 @@ class JornadaTest extends TestCase
 
         $this->actingAs($ana)
             ->get(route('jornada'))
-            ->assertDontSee('Borrar fichaje de hoy', false);
+            ->assertDontSee('Borrar fichaje de hoy', false)
+            ->assertDontSee('Borrar fichaje de ayer', false);
 
         $this->actingAs($ana)
             ->post(route('jornada.borrar-prueba'))
             ->assertForbidden();
 
+        $this->actingAs($ana)
+            ->post(route('jornada.borrar-ayer'))
+            ->assertForbidden();
+
         $this->assertSame(1, Jornada::query()->count());
+    }
+
+    public function test_borrar_el_fichaje_de_ayer_deja_el_de_hoy(): void
+    {
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
+        $ayer = Jornada::create(['user_id' => $ana->id, 'work_date' => '2026-10-06']);
+        Tramo::create([
+            'jornada_id' => $ayer->id,
+            'tipo' => Tramo::TRABAJO,
+            'started_at' => '2026-10-06 09:00:00',
+            'ended_at' => '2026-10-06 18:00:00',
+        ]);
+        Aviso::create(['user_id' => $ana->id, 'tipo' => 'cierre', 'work_date' => '2026-10-06', 'cuenta' => true]);
+        $hoy = Jornada::create(['user_id' => $ana->id, 'work_date' => '2026-10-07']);
+
+        $this->actingAs($ana)
+            ->post(route('jornada.borrar-ayer'))
+            ->assertRedirect();
+
+        $this->assertDatabaseMissing('jornadas', ['id' => $ayer->id]);
+        $this->assertDatabaseMissing('tramos', ['jornada_id' => $ayer->id]);
+        $this->assertTrue(
+            Aviso::query()
+                ->where('user_id', $ana->id)
+                ->where('tipo', 'inicio')
+                ->whereDate('work_date', '2026-10-06')
+                ->whereNull('responded_at')
+                ->exists()
+        );
+        $this->assertDatabaseHas('jornadas', ['id' => $hoy->id]);
+    }
+
+    public function test_sin_el_fichaje_de_ayer_hay_que_explicarlo_antes_de_empezar_hoy(): void
+    {
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
+        $this->horario($ana);
+        $ayer = Jornada::create(['user_id' => $ana->id, 'work_date' => '2026-10-06']);
+        Tramo::create([
+            'jornada_id' => $ayer->id,
+            'tipo' => Tramo::TRABAJO,
+            'started_at' => '2026-10-06 09:00:00',
+            'ended_at' => '2026-10-06 18:00:00',
+        ]);
+
+        $this->actingAs($ana)->post(route('jornada.borrar-ayer'))->assertRedirect();
+
+        $this->actingAs($ana)
+            ->get(route('jornada'))
+            ->assertSee('El martes 6 de octubre no quedó registrada la entrada', false)
+            ->assertSee('Revisar', false)
+            ->assertDontSee('Empezar jornada', false)
+            ->assertDontSee('Ya estaba trabajando', false);
+
+        $this->actingAs($ana)
+            ->post(route('jornada.entrada'))
+            ->assertSessionHas('aviso', 'Ayer no quedó registrada la entrada. Explícalo antes de empezar hoy.');
+        $this->assertDatabaseCount('jornadas', 0);
     }
 
     public function test_la_incidencia_de_conexion_declara_horas_sin_fichar_en_directo(): void
     {
         $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
         $this->horario($ana);
+
+        $this->actingAs($ana)->get(route('jornada.incidencia.crear'))
+            ->assertOk()
+            ->assertSee('0 a 500 caracteres', false)
+            ->assertDontSee('0/500 caracteres', false);
+
+        $this->actingAs($ana)
+            ->post(route('jornada.incidencia'), [
+                'motivo' => str_repeat('a', 501),
+            ])
+            ->assertSessionHasErrors('motivo');
+        $this->assertDatabaseCount('incidencias', 0);
 
         $this->actingAs($ana)
             ->post(route('jornada.incidencia'), [
@@ -804,7 +895,7 @@ class JornadaTest extends TestCase
         $this->actingAs($ana)
             ->get(route('jornada'))
             ->assertSee('Empezar jornada', false)
-            ->assertSee('Comunicar incidencia', false);
+            ->assertSee('Incidencia', false);
     }
 
     public function test_el_chat_de_una_incidencia_se_cierra_al_resolverla(): void
@@ -871,6 +962,85 @@ class JornadaTest extends TestCase
         $this->actingAs($ana)->get(route('jornada.incidencia.crear'))
             ->assertSee('estado-resuelta', false)
             ->assertDontSee('estado-abierta', false);
+    }
+
+    public function test_la_jefa_envia_una_incidencia_a_una_persona_y_ella_puede_contestar(): void
+    {
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
+        $marta = $this->persona('Marta Ruiz', 'marta.ruiz@abaco.test', 'Madrid', 'jefa');
+        $lucia = $this->persona('Lucía Vega', 'lucia.vega@abaco.test', 'Madrid');
+        $otraJefa = $this->persona('Elena Soto', 'elena.soto@abaco.test', 'Madrid', 'jefa');
+
+        $this->actingAs($marta)->get(route('jornada'))
+            ->assertDontSee(route('jornada.incidencia.crear'), false)
+            ->assertSee(route('incidencias.index'), false);
+
+        $this->actingAs($marta)->get(route('jornada.incidencia.crear'))
+            ->assertRedirect(route('incidencias.index'));
+
+        $this->actingAs($marta)->get(route('incidencias.index'))
+            ->assertOk()
+            ->assertSee('Comunicar incidencia', false)
+            ->assertSee('name="destinatario"', false)
+            ->assertSee('Ana López', false)
+            ->assertSee('Lucía Vega', false)
+            ->assertSee('0 a 500 caracteres', false);
+
+        $this->actingAs($marta)->post(route('jornada.incidencia'), [
+            'motivo' => 'Revisa el fichaje del lunes',
+        ])->assertSessionHasErrors('destinatario');
+
+        $this->actingAs($marta)->post(route('jornada.incidencia'), [
+            'motivo' => 'Revisa el fichaje del lunes',
+            'destinatario' => $otraJefa->id,
+        ])->assertSessionHasErrors('destinatario');
+
+        $this->actingAs($marta)->post(route('jornada.incidencia'), [
+            'motivo' => 'Revisa el fichaje del lunes',
+            'destinatario' => $ana->id,
+        ])->assertRedirect(route('incidencias.index'))
+            ->assertSessionHas('ok', 'Enviada. Ana López ya tiene tu incidencia.');
+
+        $this->assertSame(0, Ticket::query()->count());
+
+        $incidencia = Incidencia::query()->where('destinatario_id', $ana->id)->firstOrFail();
+        $this->assertSame($marta->id, $incidencia->user_id);
+        $this->assertNull($incidencia->vista_at);
+
+        $this->actingAs($marta)->get(route('jornada'))
+            ->assertDontSee('aviso-ticket', false);
+
+        $this->actingAs($ana)->get(route('jornada'))
+            ->assertSee('aviso-ticket', false)
+            ->assertSee('Incidencia, 1 nueva', false);
+
+        $this->actingAs($lucia)->post(route('incidencias.mensaje', $incidencia), [
+            'cuerpo' => 'No es mía',
+        ])->assertForbidden();
+
+        $this->actingAs($ana)
+            ->get(route('jornada.incidencia.crear', ['incidencia' => $incidencia->id]))
+            ->assertSee('De Marta Ruiz', false)
+            ->assertSee('Revisa el fichaje del lunes', false);
+
+        $this->assertNotNull($incidencia->fresh()->vista_at);
+
+        $this->actingAs($ana)->get(route('jornada'))
+            ->assertDontSee('aviso-ticket', false);
+
+        $this->actingAs($ana)->post(route('incidencias.mensaje', $incidencia), [
+            'cuerpo' => 'Ya lo reviso',
+        ])->assertSessionHas('ok');
+
+        $this->actingAs($marta)->get(route('incidencias.index'))
+            ->assertSee('Para Ana López', false)
+            ->assertSee('Revisa el fichaje del lunes', false);
+
+        $this->actingAs($marta)->get(route('incidencias.show', $incidencia))
+            ->assertSee('Ya lo reviso', false)
+            ->assertSee('Para Ana López', false);
+
+        $this->assertNotNull($incidencia->fresh()->vista_at);
     }
 
     public function test_la_jefa_filtra_incidencias_por_un_rango_de_fechas(): void

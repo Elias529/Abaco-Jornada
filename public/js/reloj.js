@@ -492,10 +492,46 @@
     });
 
     document.querySelectorAll("dialog[data-dialogo]").forEach(function (dialogo) {
+        var cerrar = dialogo.querySelector("[data-dialogo-cerrar]");
+        if (cerrar) {
+            cerrar.addEventListener("click", function () {
+                dialogo.close();
+            });
+        }
         dialogo.addEventListener("click", function (evento) {
             if (evento.target === dialogo) {
                 dialogo.close();
             }
+        });
+        if (dialogo.hasAttribute("data-abierto")) {
+            dialogo.showModal();
+        }
+    });
+})();
+
+(function () {
+    document.querySelectorAll("textarea[data-max]").forEach(function (campo) {
+        var maximo = Number(campo.getAttribute("data-max")) || 500;
+        if (!campo.form) {
+            return;
+        }
+
+        campo.addEventListener("input", function () {
+            campo.setCustomValidity("");
+        });
+
+        campo.form.addEventListener("submit", function (evento) {
+            var texto = campo.value.trim();
+            if (texto.length < 1) {
+                campo.setCustomValidity(campo.getAttribute("data-vacio") || "Escribe un texto.");
+            } else if (campo.value.length > maximo) {
+                campo.setCustomValidity(campo.getAttribute("data-largo") || "El texto puede tener hasta " + maximo + " caracteres.");
+            } else {
+                campo.setCustomValidity("");
+                return;
+            }
+            evento.preventDefault();
+            campo.reportValidity();
         });
     });
 })();

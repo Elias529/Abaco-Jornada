@@ -69,16 +69,18 @@ class RegistroController extends Controller
         }
 
         $persona = $jornada->user;
+        $detalle = $this->detalle($jornada, $persona);
 
         return view('registro.show', [
             'jornada' => $jornada,
             'persona' => $persona,
-            'detalle' => $this->detalle($jornada, $persona),
+            'detalle' => $detalle,
             'puedeCorregir' => $request->user()->esJefa()
                 || ($request->user()->id === $jornada->user_id && $jornada->work_date->gte(now()->subDays(7)->startOfDay())),
             'motivos' => Correccion::MOTIVOS,
             'esJefa' => $request->user()->esJefa(),
             'explicar' => $this->explicarDe($persona, $jornada->work_date->toDateString()),
+            'puedeRegistrar' => $detalle['filas'] === [] && ($request->user()->esJefa() || $jornada->work_date->gte(now()->subDays(7)->startOfDay())),
         ]);
     }
 
@@ -107,7 +109,39 @@ class RegistroController extends Controller
             'motivos' => Correccion::MOTIVOS,
             'esJefa' => $persona->esJefa(),
             'explicar' => $explicar,
+            'puedeRegistrar' => $dia->gte(now()->subDays(7)->startOfDay()) || $persona->esJefa(),
         ]);
+    }
+
+    public function registrarHoras(Request $request, string $fecha): RedirectResponse
+    {
+        $dia = Carbon::createFromFormat('Y-m-d', $fecha);
+        abort_unless($dia && $dia->format('Y-m-d') === $fecha, 404);
+
+        foreach (['inicio', 'fin'] as $campo) {
+            $valor = $request->input($campo);
+            if (is_string($valor) && strlen($valor) >= 5) {
+                $request->merge([$campo => substr($valor, 0, 5)]);
+            }
+        }
+
+        $datos = $request->validate([
+            'inicio' => ['required', 'date_format:H:i'],
+            'fin' => ['required', 'date_format:H:i'],
+        ], [
+            'inicio.required' => 'Elige la hora de inicio.',
+            'fin.required' => 'Elige la hora de fin.',
+            'inicio.date_format' => 'Elige una hora.',
+            'fin.date_format' => 'Elige una hora.',
+        ]);
+
+        try {
+            $jornada = $this->jornada->registrarHoras($request->user(), $fecha, $datos['inicio'], $datos['fin']);
+        } catch (ReglaJornada $e) {
+            return back()->with('aviso', $e->getMessage());
+        }
+
+        return redirect()->route('registro.show', $jornada)->with('ok', 'Guardado. Horas registradas de las '.$datos['inicio'].' a las '.$datos['fin'].'.');
     }
 
     /**
@@ -308,6 +342,7 @@ class RegistroController extends Controller
             'estado' => $abierta ? 'Abierta' : ($jornada->closed_late ? 'Cierre al día siguiente' : 'Cerrada'),
             'estadoClase' => $abierta ? 'abierta' : 'cerrada',
             'previsto' => $horario ? str_replace(' y ', ' · ', $horario->texto()) : null,
+            'fecha' => $jornada->work_date->toDateString(),
             'filas' => $filas,
             'barras' => $barras,
             'cambios' => $cambios,
@@ -333,6 +368,7 @@ class RegistroController extends Controller
             'estado' => 'Sin fichaje',
             'estadoClase' => 'tardia',
             'previsto' => $horario ? str_replace(' y ', ' · ', $horario->texto()) : null,
+            'fecha' => $dia->toDateString(),
             'filas' => [],
             'barras' => [],
             'cambios' => [],

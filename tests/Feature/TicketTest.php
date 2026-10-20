@@ -72,9 +72,14 @@ class TicketTest extends TestCase
     {
         $ana = User::factory()->create();
 
+        $this->actingAs($ana)->get(route('tickets.create'))
+            ->assertOk()
+            ->assertSee('0 a 500 caracteres', false)
+            ->assertDontSee('0/500 caracteres', false);
+
         $this->actingAs($ana)->post(route('tickets.store'), [
             'asunto' => '',
-            'descripcion' => 'corto',
+            'descripcion' => str_repeat('a', 501),
         ])->assertSessionHasErrors(['asunto', 'descripcion']);
 
         $this->actingAs($ana)->post(route('tickets.store'), [

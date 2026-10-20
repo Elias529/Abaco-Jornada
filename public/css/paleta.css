@@ -26,4 +26,34 @@
   --estado-guardado: #B7F34A;
   /* tipografía */
   --fuente: "Poppins", "Segoe UI", sans-serif;
+  /* tokens de interfaz */
+  --fondo: #F5F8F8;
+  --superficie: #FFFFFF;
+  --superficie-2: #E8EFF0;
+  --texto: #07111A;
+  --texto-2: #5B6B70;
+  --enlace: #066A75;
+  --cifra: #066A75;
+  --foco: #066A75;
+  --tinta: #07111A;
+  --borde-campo: #5B6B70;
+  --linea: #E8EFF0;
+  --seleccion: #B0D9D9;
+  --placa-icono: transparent;
+}
+
+html[data-tema="oscuro"] {
+  --fondo: #061B20;
+  --superficie: #082D33;
+  --superficie-2: #083F46;
+  --texto: #F5F8F8;
+  --texto-2: #B0D9D9;
+  --enlace: #18B7B0;
+  --cifra: #18B7B0;
+  --foco: #18B7B0;
+  --tinta: #07111A;
+  --borde-campo: #7ABFBF;
+  --linea: #083F46;
+  --seleccion: #083F46;
+  --placa-icono: #FFFFFF;
 }
