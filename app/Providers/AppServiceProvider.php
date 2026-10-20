@@ -3,7 +3,6 @@
 namespace App\Providers;
 
 use App\Models\Incidencia;
-use App\Models\SolicitudVacaciones;
 use App\Models\Ticket;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -40,9 +39,6 @@ class AppServiceProvider extends ServiceProvider
                     : 0,
                 'incidenciasNuevas' => $usuario && $usuario->esJefa()
                     ? Incidencia::query()->whereNull('vista_at')->count()
-                    : 0,
-                'solicitudesNuevas' => $usuario && $usuario->esJefa()
-                    ? SolicitudVacaciones::query()->where('estado', SolicitudVacaciones::PENDIENTE)->count()
                     : 0,
             ]);
         });

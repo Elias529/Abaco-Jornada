@@ -31,6 +31,7 @@ Route::middleware(['auth', 'activo'])->group(function () {
     Route::post('/jornada/fuera', [JornadaController::class, 'fuera'])->name('jornada.fuera');
     Route::get('/jornada/incidencia', [JornadaController::class, 'crearIncidencia'])->name('jornada.incidencia.crear');
     Route::post('/jornada/incidencia', [JornadaController::class, 'incidencia'])->name('jornada.incidencia');
+    Route::post('/incidencias/{incidencia}/mensajes', [IncidenciaController::class, 'mensaje'])->middleware('throttle:20,1')->name('incidencias.mensaje');
     Route::post('/jornada/festivo', [JornadaController::class, 'festivo'])->name('jornada.festivo');
     Route::post('/jornada/completar', [JornadaController::class, 'completar'])->name('jornada.completar');
     Route::post('/jornada/borrar-prueba', [JornadaController::class, 'borrarPrueba'])->name('jornada.borrar-prueba');
@@ -38,6 +39,7 @@ Route::middleware(['auth', 'activo'])->group(function () {
     Route::get('/registro', [RegistroController::class, 'index'])->name('registro');
     Route::get('/registro/copia.csv', [RegistroController::class, 'csv'])->name('registro.csv');
     Route::post('/registro/explicacion', [RegistroController::class, 'explicar'])->name('registro.explicar');
+    Route::get('/registro/dia/{fecha}', [RegistroController::class, 'dia'])->where('fecha', '\d{4}-\d{2}-\d{2}')->name('registro.dia');
     Route::get('/registro/{jornada}', [RegistroController::class, 'show'])->name('registro.show');
     Route::post('/tramos/{tramo}/corregir', [RegistroController::class, 'corregir'])->name('tramos.corregir');
 
@@ -68,6 +70,7 @@ Route::middleware(['auth', 'activo'])->group(function () {
 
         Route::get('/incidencias', [IncidenciaController::class, 'index'])->name('incidencias.index');
         Route::get('/incidencias/{incidencia}', [IncidenciaController::class, 'show'])->name('incidencias.show');
+        Route::post('/incidencias/{incidencia}/resolver', [IncidenciaController::class, 'resolver'])->name('incidencias.resolver');
 
         // Funciones de dirección: estado del equipo y registros en solo lectura.
         // Lo único que se escribe es el motivo de cada consulta, que queda anotado.

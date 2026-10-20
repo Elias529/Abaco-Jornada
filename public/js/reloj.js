@@ -88,10 +88,27 @@
             const total = cerrados + extra;
             if (llevas.dataset.corto === "1") {
                 const minutos = total % 60;
-                llevas.textContent = Math.floor(total / 60) + " h " + (minutos < 10 ? "0" : "") + minutos;
+                const corto = Math.floor(total / 60) + " h " + (minutos < 10 ? "0" : "") + minutos;
+                llevas.textContent = llevas.dataset.min === "1" ? corto + " min" : corto;
             } else {
                 llevas.textContent = textoMinutos(total);
             }
+            const semana = document.querySelector("[data-semana]");
+            if (semana) {
+                const base = Number(semana.dataset.cerrados || 0) + extra;
+                const minutosSemana = base % 60;
+                semana.textContent = Math.floor(base / 60) + " h " + (minutosSemana < 10 ? "0" : "") + minutosSemana;
+            }
+            document.querySelectorAll("[data-eje-vivo]").forEach(function (barra) {
+                const partes = {};
+                formatoHora.formatToParts(new Date(ahora)).forEach(function (parte) {
+                    partes[parte.type] = parte.value;
+                });
+                const minuto = Number(partes.hour) * 60 + Number(partes.minute);
+                const fin = (Math.max(7 * 60, Math.min(21 * 60, minuto)) - 7 * 60) / (14 * 60) * 100;
+                const left = Number(barra.dataset.ejeLeft);
+                barra.style.width = Math.max(0, fin - left) + "%";
+            });
         }
     }
 
@@ -284,5 +301,201 @@
         });
 
         resumen();
+    });
+})();
+
+(function () {
+    const caja = document.querySelector("[data-calendario]");
+    if (!caja) {
+        return;
+    }
+
+    const pedir = document.querySelector("[data-vacaciones-pedir]");
+    const texto = document.querySelector("[data-vacaciones-texto]");
+    const acciones = document.querySelector("[data-vacaciones-acciones]");
+    const formulario = document.querySelector("[data-vacaciones-form]");
+    let pedido = 0;
+    let eligiendo = false;
+    let desde = "";
+    let hasta = "";
+
+    function cargar(url, guardar) {
+        const id = ++pedido;
+        const destino = new URL(url, window.location.origin);
+        destino.searchParams.set("fragmento", "1");
+
+        return fetch(destino.toString(), { headers: { Accept: "text/html" } })
+            .then(function (respuesta) {
+                if (!respuesta.ok) {
+                    throw new Error("calendario");
+                }
+                return respuesta.text();
+            })
+            .then(function (html) {
+                if (id !== pedido) {
+                    return;
+                }
+                caja.innerHTML = html;
+                if (guardar) {
+                    const visible = new URL(url, window.location.origin);
+                    visible.searchParams.delete("fragmento");
+                    history.pushState({}, "", visible.pathname + visible.search);
+                }
+                pintarRango();
+            });
+    }
+
+    function pintarRango() {
+        caja.querySelectorAll("[data-fecha]").forEach(function (dia) {
+            const fecha = dia.dataset.fecha;
+            const dentro = desde && fecha >= desde && (!hasta || fecha <= hasta);
+            dia.classList.toggle("casilla-rango", Boolean(dentro));
+        });
+    }
+
+    function abrirEleccion() {
+        eligiendo = true;
+        desde = "";
+        hasta = "";
+        caja.dataset.vacacionesEligiendo = "1";
+        if (pedir) {
+            pedir.hidden = true;
+        }
+        if (texto) {
+            texto.hidden = false;
+            texto.textContent = "Elige un rango de fechas";
+        }
+        if (acciones) {
+            acciones.hidden = false;
+        }
+        pintarRango();
+    }
+
+    function cerrarEleccion() {
+        eligiendo = false;
+        desde = "";
+        hasta = "";
+        delete caja.dataset.vacacionesEligiendo;
+        if (pedir) {
+            pedir.hidden = false;
+        }
+        if (texto) {
+            texto.hidden = true;
+        }
+        if (acciones) {
+            acciones.hidden = true;
+        }
+        pintarRango();
+    }
+
+    function marcar(fecha) {
+        if (!desde || hasta) {
+            desde = fecha;
+            hasta = "";
+        } else if (fecha < desde) {
+            hasta = desde;
+            desde = fecha;
+        } else {
+            hasta = fecha;
+        }
+        if (texto) {
+            texto.textContent = hasta ? "Elige un rango de fechas" : "Elige un rango de fechas";
+        }
+        pintarRango();
+    }
+
+    if (pedir) {
+        pedir.addEventListener("click", abrirEleccion);
+    }
+    const cancelar = document.querySelector("[data-vacaciones-cancelar]");
+    if (cancelar) {
+        cancelar.addEventListener("click", cerrarEleccion);
+    }
+    const aceptar = document.querySelector("[data-vacaciones-aceptar]");
+    if (aceptar && formulario) {
+        aceptar.addEventListener("click", function () {
+            if (!desde || !hasta) {
+                if (texto) {
+                    texto.hidden = false;
+                    texto.textContent = "Elige un rango de fechas";
+                }
+                return;
+            }
+            formulario.querySelector("[data-vacaciones-desde]").value = desde;
+            formulario.querySelector("[data-vacaciones-hasta]").value = hasta;
+            formulario.submit();
+        });
+    }
+
+    caja.addEventListener("click", function (evento) {
+        if (eligiendo) {
+            const dia = evento.target.closest("[data-fecha]");
+            if (dia) {
+                evento.preventDefault();
+                marcar(dia.dataset.fecha);
+                return;
+            }
+        }
+
+        const enlace = evento.target.closest("[data-calendario-ir]");
+        if (!enlace || evento.metaKey || evento.ctrlKey || evento.shiftKey || evento.altKey) {
+            return;
+        }
+        evento.preventDefault();
+        cargar(enlace.href, true).catch(function () {
+            window.location.href = enlace.href;
+        });
+    });
+
+    window.addEventListener("popstate", function () {
+        cargar(window.location.href, false).catch(function () {
+            window.location.reload();
+        });
+    });
+})();
+
+(function () {
+    const dialogo = document.querySelector("[data-historial]");
+    const abre = document.querySelector("[data-historial-abre]");
+    if (!dialogo) {
+        return;
+    }
+    const cerrar = dialogo.querySelector("[data-historial-cerrar]");
+    if (abre) {
+        abre.addEventListener("click", function () {
+            dialogo.showModal();
+        });
+    }
+    if (cerrar) {
+        cerrar.addEventListener("click", function () {
+            dialogo.close();
+        });
+    }
+    dialogo.addEventListener("click", function (evento) {
+        if (evento.target === dialogo) {
+            dialogo.close();
+        }
+    });
+    if (dialogo.hasAttribute("data-abierto")) {
+        dialogo.showModal();
+    }
+})();
+
+(function () {
+    document.querySelectorAll("[data-dialogo-abre]").forEach(function (boton) {
+        boton.addEventListener("click", function () {
+            const dialogo = document.querySelector('[data-dialogo="' + boton.getAttribute("data-dialogo-abre") + '"]');
+            if (dialogo && typeof dialogo.showModal === "function") {
+                dialogo.showModal();
+            }
+        });
+    });
+
+    document.querySelectorAll("dialog[data-dialogo]").forEach(function (dialogo) {
+        dialogo.addEventListener("click", function (evento) {
+            if (evento.target === dialogo) {
+                dialogo.close();
+            }
+        });
     });
 })();

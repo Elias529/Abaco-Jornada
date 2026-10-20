@@ -14,6 +14,7 @@ use App\Services\RegistroCsv;
 use App\Support\Tiempo;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -67,16 +68,60 @@ class RegistroController extends Controller
             return $motivo;
         }
 
+        $persona = $jornada->user;
+
         return view('registro.show', [
             'jornada' => $jornada,
-            'persona' => $jornada->user,
-            'total' => Tiempo::texto($this->jornada->minutosRegistrados($jornada->user, $jornada)),
-            'porEncima' => $this->jornada->porEncimaRegistrado($jornada->user, $jornada),
+            'persona' => $persona,
+            'detalle' => $this->detalle($jornada, $persona),
             'puedeCorregir' => $request->user()->esJefa()
                 || ($request->user()->id === $jornada->user_id && $jornada->work_date->gte(now()->subDays(7)->startOfDay())),
             'motivos' => Correccion::MOTIVOS,
             'esJefa' => $request->user()->esJefa(),
+            'explicar' => $this->explicarDe($persona, $jornada->work_date->toDateString()),
         ]);
+    }
+
+    public function dia(Request $request, string $fecha): View|RedirectResponse
+    {
+        $dia = Carbon::createFromFormat('Y-m-d', $fecha);
+        abort_unless($dia && $dia->format('Y-m-d') === $fecha, 404);
+
+        $persona = $request->user();
+        $explicar = $this->explicarDe($persona, $fecha);
+        abort_unless($explicar, 404);
+
+        $jornada = Jornada::query()
+            ->where('user_id', $persona->id)
+            ->whereDate('work_date', $fecha)
+            ->first();
+        if ($jornada) {
+            return redirect()->route('registro.show', $jornada);
+        }
+
+        return view('registro.show', [
+            'jornada' => null,
+            'persona' => $persona,
+            'detalle' => $this->detalleSinFichaje($persona, $dia, $explicar['texto']),
+            'puedeCorregir' => false,
+            'motivos' => Correccion::MOTIVOS,
+            'esJefa' => $persona->esJefa(),
+            'explicar' => $explicar,
+        ]);
+    }
+
+    /**
+     * @return array{fecha: string, dia: string, texto: string}|null
+     */
+    private function explicarDe(User $persona, string $fecha): ?array
+    {
+        foreach ($this->jornada->pendientesDeExplicar($persona, now()) as $pendiente) {
+            if ($pendiente['fecha'] === $fecha) {
+                return $pendiente;
+            }
+        }
+
+        return null;
     }
 
     public function corregir(Request $request, Tramo $tramo): RedirectResponse
@@ -191,13 +236,205 @@ class RegistroController extends Controller
         return $this->descargar($request, $request->user(), $user);
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    private function detalle(Jornada $jornada, User $persona): array
+    {
+        $horario = $persona->horarioEn($jornada->work_date);
+        $fecha = $jornada->work_date->copy()->locale('es');
+        $trabajos = $jornada->tramos->where('tipo', Tramo::TRABAJO)->values();
+        $abierta = $jornada->tramoAbierto() !== null;
+        $primero = $trabajos->first();
+        $ultimo = $trabajos->filter(fn (Tramo $tramo) => $tramo->ended_at !== null)->last();
+        $filas = [];
+        $barras = [];
+
+        foreach ($jornada->tramos as $tramo) {
+            $fin = $this->finVisible($tramo, $jornada, $horario);
+            $minutos = (int) round($tramo->started_at->diffInMinutes($fin));
+            $filas[] = [
+                'tramo' => $tramo,
+                'titulo' => $this->tituloTramo($tramo, $horario),
+                'horas' => Tiempo::hora($tramo->started_at).'–'.($tramo->ended_at ? Tiempo::hora($tramo->ended_at) : 'ahora'),
+                'duracion' => Tiempo::corto($minutos).' min',
+                'nota' => $this->notaTramo($tramo),
+            ];
+            if ($tramo->tipo === Tramo::TRABAJO) {
+                $barra = $this->ejeDetalle($tramo->started_at, $fin);
+                if ($barra) {
+                    $barras[] = $barra;
+                }
+            }
+        }
+
+        $cambios = [];
+        foreach ($jornada->tramos as $tramo) {
+            foreach ($tramo->correcciones as $correccion) {
+                $campo = $correccion->field === 'ended_at' ? 'Salida' : 'Inicio';
+                $cambios[] = [
+                    'cuando' => $correccion->created_at,
+                    'titulo' => $campo.': '.Tiempo::hora($correccion->previous_value).' → '.Tiempo::hora($correccion->new_value),
+                    'texto' => 'Antes '.Tiempo::hora($correccion->previous_value).', ahora '.Tiempo::hora($correccion->new_value).'. '.$correccion->motivoTexto().'.',
+                    'quien' => ($correccion->autor->name ?? 'Alguien').' · '.$this->cuandoCorto($correccion->created_at),
+                ];
+            }
+            if ($tramo->cerrado_at && $tramo->cerradoPor) {
+                $cambios[] = [
+                    'cuando' => $tramo->cerrado_at,
+                    'titulo' => 'Salida declarada por '.$tramo->cerradoPor->name.' a las '.Tiempo::hora($tramo->cerrado_at).'.',
+                    'texto' => '',
+                    'quien' => $tramo->cerradoPor->name.' · '.$this->cuandoCorto($tramo->cerrado_at),
+                ];
+            }
+        }
+        usort($cambios, fn (array $a, array $b) => $a['cuando'] <=> $b['cuando']);
+
+        $cantidad = $trabajos->count();
+
+        return [
+            'titulo' => ucfirst($fecha->isoFormat('dddd')).', '.$fecha->isoFormat('D [de] MMMM'),
+            'total' => Tiempo::corto($this->jornada->minutosRegistrados($persona, $jornada)),
+            'porEncima' => $this->jornada->porEncimaRegistrado($persona, $jornada),
+            'tramosTexto' => match ($cantidad) {
+                0 => 'Sin tramos de trabajo',
+                1 => 'Un tramo de trabajo',
+                2 => 'Dos tramos de trabajo',
+                default => $cantidad.' tramos de trabajo',
+            },
+            'inicio' => $primero ? Tiempo::hora($primero->started_at) : '—',
+            'salida' => $ultimo ? Tiempo::hora($ultimo->ended_at) : '—',
+            'salidaTexto' => $abierta ? 'Jornada abierta' : ($jornada->closed_late ? 'Cerrada al día siguiente' : 'Jornada cerrada'),
+            'estado' => $abierta ? 'Abierta' : ($jornada->closed_late ? 'Cierre al día siguiente' : 'Cerrada'),
+            'estadoClase' => $abierta ? 'abierta' : 'cerrada',
+            'previsto' => $horario ? str_replace(' y ', ' · ', $horario->texto()) : null,
+            'filas' => $filas,
+            'barras' => $barras,
+            'cambios' => $cambios,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function detalleSinFichaje(User $persona, Carbon $dia, string $aviso): array
+    {
+        $horario = $persona->horarioEn($dia);
+        $fecha = $dia->copy()->locale('es');
+
+        return [
+            'titulo' => ucfirst($fecha->isoFormat('dddd')).', '.$fecha->isoFormat('D [de] MMMM'),
+            'total' => '0 h 00',
+            'porEncima' => null,
+            'tramosTexto' => 'Sin tramos de trabajo',
+            'inicio' => '—',
+            'salida' => '—',
+            'salidaTexto' => 'Sin fichaje',
+            'estado' => 'Sin fichaje',
+            'estadoClase' => 'tardia',
+            'previsto' => $horario ? str_replace(' y ', ' · ', $horario->texto()) : null,
+            'filas' => [],
+            'barras' => [],
+            'cambios' => [],
+            'aviso' => $aviso,
+        ];
+    }
+
+    private function tituloTramo(Tramo $tramo, ?\App\Models\Horario $horario): string
+    {
+        if ($tramo->tipo === Tramo::PAUSA) {
+            return 'Pausa';
+        }
+        if ($tramo->fuera_del_equipo) {
+            return 'Sin el portátil';
+        }
+        if ($tramo->situacion === 'incidencia') {
+            return 'Incidencia de conexión';
+        }
+        if (! $horario || $horario->sinTarde()) {
+            return 'Trabajo';
+        }
+
+        return Tiempo::hora($tramo->started_at) >= $horario->corta($horario->afternoon_start)
+            ? 'Trabajo de tarde'
+            : 'Trabajo de mañana';
+    }
+
+    private function notaTramo(Tramo $tramo): string
+    {
+        $partes = [];
+        if ($tramo->situacion === 'incidencia') {
+            $partes[] = 'Declarada a las '.Tiempo::hora($tramo->anotado_at);
+            if ($tramo->nota) {
+                $partes[] = $tramo->nota;
+            }
+        } elseif ($tramo->anotado_at && $tramo->anotado_at->format('H:i') !== $tramo->started_at->format('H:i')) {
+            $partes[] = 'Anotado a las '.Tiempo::hora($tramo->anotado_at);
+        }
+
+        return implode('. ', $partes);
+    }
+
+    private function finVisible(Tramo $tramo, Jornada $jornada, ?\App\Models\Horario $horario): Carbon
+    {
+        if ($tramo->ended_at) {
+            return $tramo->ended_at;
+        }
+
+        $ahora = now();
+        if (! $horario || $jornada->sigue || $tramo->tipo !== Tramo::TRABAJO) {
+            return $ahora;
+        }
+
+        $tope = Carbon::parse($jornada->work_date->toDateString().' '.$horario->corta($horario->afternoon_end), config('app.timezone'));
+        if ($tramo->started_at->lt($tope) && $ahora->gt($tope)) {
+            return $tope;
+        }
+
+        return $ahora;
+    }
+
+    /**
+     * @return array{left: float, width: float}|null
+     */
+    private function ejeDetalle(Carbon $inicio, Carbon $fin): ?array
+    {
+        $desde = 7 * 60;
+        $hasta = 21 * 60;
+        $a = max($desde, min($hasta, $this->minutoDetalle($inicio)));
+        $b = max($desde, min($hasta, $this->minutoDetalle($fin)));
+        if ($b <= $a) {
+            return null;
+        }
+
+        return [
+            'left' => round(($a - $desde) / ($hasta - $desde) * 100, 2),
+            'width' => round(($b - $a) / ($hasta - $desde) * 100, 2),
+        ];
+    }
+
+    private function minutoDetalle(Carbon $momento): int
+    {
+        $local = $momento->timezone(config('app.timezone'));
+
+        return ((int) $local->format('H')) * 60 + (int) $local->format('i');
+    }
+
+    private function cuandoCorto(Carbon $momento): string
+    {
+        $local = $momento->timezone(config('app.timezone'))->locale('es');
+
+        return $local->day.' '.rtrim($local->isoFormat('MMM'), '.').', '.$local->format('H:i');
+    }
+
     private function mostrar(Request $request, User $visor, User $persona, bool $consulta): View
     {
         $this->autorizar($visor, $persona);
 
         $filtros = $this->filtros($request);
+        $periodo = $this->periodo($request, $filtros);
         $buscado = $filtros['desde'] !== '' || $filtros['hasta'] !== '' || $filtros['estado'] !== '' || $filtros['incidencia'] !== '';
-        $jornadas = $this->csv->consulta($persona, $filtros['desde'], $filtros['hasta'], $filtros['estado'], $filtros['incidencia'])
+        $jornadas = $this->csv->consulta($persona, $periodo['desde'], $periodo['hasta'], $filtros['estado'], $filtros['incidencia'])
             ->paginate(60)
             ->withQueryString();
 
@@ -206,11 +443,14 @@ class RegistroController extends Controller
             'consulta' => $consulta,
             'jornadas' => $jornadas,
             'buscado' => $buscado,
-            'desde' => $filtros['desde'],
-            'hasta' => $filtros['hasta'],
+            'periodo' => $periodo['clave'],
+            'desde' => $periodo['desde'],
+            'hasta' => $periodo['hasta'],
+            'rango' => $this->rango($periodo['desde'], $periodo['hasta']),
             'estado' => $filtros['estado'],
             'incidencia' => $filtros['incidencia'],
             'tabla' => $this->csv,
+            'pendientes' => $visor->id === $persona->id ? $this->jornada->pendientesDeExplicar($persona, now()) : [],
             'explicaciones' => $persona->explicaciones()->latest()->limit(10)->get(),
             'consultas' => $consulta
                 ? Consulta::query()->with('viewer')->where('subject_id', $persona->id)->latest()->limit(10)->get()
@@ -225,8 +465,9 @@ class RegistroController extends Controller
         $this->autorizar($visor, $persona);
 
         $filtros = $this->filtros($request);
+        $periodo = $this->periodo($request, $filtros);
 
-        return $this->csv->descargar($persona, $filtros['desde'], $filtros['hasta'], $filtros['estado'], $filtros['incidencia']);
+        return $this->csv->descargar($persona, $periodo['desde'], $periodo['hasta'], $filtros['estado'], $filtros['incidencia']);
     }
 
     /**
@@ -245,6 +486,54 @@ class RegistroController extends Controller
             'estado' => in_array($estado, ['cerrada', 'pendiente', 'tardia'], true) ? $estado : '',
             'incidencia' => in_array($incidencia, ['si', 'no'], true) ? $incidencia : '',
         ];
+    }
+
+    /**
+     * @param  array{desde: string, hasta: string, estado: string, incidencia: string}  $filtros
+     * @return array{clave: string, desde: string, hasta: string}
+     */
+    private function periodo(Request $request, array $filtros): array
+    {
+        $pedido = $request->query('periodo');
+        $pedido = is_string($pedido) ? $pedido : '';
+        $hayFiltro = $filtros['desde'] !== '' || $filtros['hasta'] !== '' || $filtros['estado'] !== '' || $filtros['incidencia'] !== '';
+        if (! in_array($pedido, ['semana', 'mes', 'anterior', 'todo'], true)) {
+            $pedido = $hayFiltro ? '' : 'semana';
+        }
+
+        $desde = $filtros['desde'];
+        $hasta = $filtros['hasta'];
+        if ($pedido === 'semana') {
+            $desde = now()->copy()->startOfWeek(Carbon::MONDAY)->toDateString();
+            $hasta = now()->copy()->endOfWeek(Carbon::SUNDAY)->toDateString();
+        } elseif ($pedido === 'mes') {
+            $desde = now()->copy()->startOfMonth()->toDateString();
+            $hasta = now()->copy()->endOfMonth()->toDateString();
+        } elseif ($pedido === 'anterior') {
+            $mes = now()->copy()->subMonthNoOverflow();
+            $desde = $mes->copy()->startOfMonth()->toDateString();
+            $hasta = $mes->copy()->endOfMonth()->toDateString();
+        }
+
+        return ['clave' => $pedido, 'desde' => $desde, 'hasta' => $hasta];
+    }
+
+    private function rango(string $desde, string $hasta): string
+    {
+        if ($desde === '' || $hasta === '') {
+            return 'Todos los días';
+        }
+
+        $inicio = Carbon::parse($desde)->locale('es');
+        $fin = Carbon::parse($hasta)->locale('es');
+        if ($inicio->isSameDay($fin)) {
+            return $inicio->day.' de '.$inicio->isoFormat('MMMM');
+        }
+        if ($inicio->month === $fin->month && $inicio->year === $fin->year) {
+            return $inicio->day.'–'.$fin->day.' de '.$fin->isoFormat('MMMM');
+        }
+
+        return $inicio->day.' de '.$inicio->isoFormat('MMMM').' – '.$fin->day.' de '.$fin->isoFormat('MMMM');
     }
 
     private function pedirMotivo(Request $request, User $persona): ?View

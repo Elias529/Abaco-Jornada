@@ -1,17 +1,36 @@
 @extends('layouts.app', ['titulo' => 'Incidencia'])
 
 @section('contenido')
-    <p>
-        <a class="enlace" href="{{ route('incidencias.index') }}">Volver a incidencias</a>
-    </p>
-    <h1>Incidencia</h1>
-    <p class="secundario">
-        Enviada por {{ $incidencia->autor->name }}
-        el {{ \App\Support\Tiempo::fecha($incidencia->created_at) }} a las {{ $incidencia->created_at->format('H:i') }}
-    </p>
+    <div class="comunicar">
+        <header class="comunicar-cabecera">
+            <a class="volver" href="{{ route('incidencias.index') }}">Volver a incidencias</a>
+            <h1>Incidencia</h1>
+        </header>
 
-    <article class="tarjeta tarjeta-incidencia">
-        <p class="incidencia-marca">Incidencia</p>
-        <p>{!! nl2br(e($incidencia->cuerpo)) !!}</p>
-    </article>
+        <div class="comunicar-rejilla">
+            <section class="comunicar-panel comunicar-ficha">
+                <header class="ventana-incidencia-cabeza">
+                    <span class="incidencia-inicial" aria-hidden="true">{{ mb_substr($incidencia->autor->name, 0, 1) }}</span>
+                    <div>
+                        <p class="comunicar-autor">{{ $incidencia->autor->name }}</p>
+                        <p class="secundario">
+                            {{ \App\Support\Tiempo::fecha($incidencia->created_at) }} a las {{ $incidencia->created_at->format('H:i') }}
+                            · {{ $incidencia->estadoTexto() }}
+                        </p>
+                    </div>
+                </header>
+                <div class="ventana-incidencia-cuerpo comunicar-cuerpo">
+                    <p>{!! nl2br(e($incidencia->cuerpo)) !!}</p>
+                </div>
+                @unless ($incidencia->estaResuelta())
+                    <form method="post" action="{{ route('incidencias.resolver', $incidencia) }}" class="comunicar-resolver">
+                        @csrf
+                        <button class="boton boton-principal" type="submit">Resolver</button>
+                    </form>
+                @endunless
+            </section>
+
+            @include('incidencias.chat')
+        </div>
+    </div>
 @endsection

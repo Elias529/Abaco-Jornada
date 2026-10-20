@@ -1,81 +1,176 @@
 @extends('layouts.app', ['ancha' => true, 'titulo' => 'Día'])
 
 @section('contenido')
-    <a class="volver" href="{{ $esJefa && auth()->id() !== $persona->id ? route('equipo.registro', $persona) : route('registro') }}">Volver al registro</a>
-    <h1>{{ \App\Support\Tiempo::fecha($jornada->work_date) }}</h1>
-    <p>{{ $persona->name }}</p>
-    <p>Total {{ $total }}@if ($jornada->closed_late). Cerrada al día siguiente.@endif</p>
-    @if ($porEncima)
-        <p class="secundario">Tiempo por encima del horario: {{ \App\Support\Tiempo::texto($porEncima) }}. No es una hora extra y no hace falta autorización.</p>
-    @endif
-    <p class="secundario">Si una hora cambia, se añade la nueva. La anterior se conserva, con quién la cambió y cuándo.</p>
+    <div class="detalle">
+        <header class="detalle-cabeza">
+            <div>
+                <p class="espacio-sobre">Registro / detalle</p>
+                <h1>{{ $detalle['titulo'] }}</h1>
+                <p class="secundario">{{ $persona->name }} · Detalle del registro</p>
+            </div>
+            <a class="detalle-volver" href="{{ $esJefa && auth()->id() !== $persona->id ? route('equipo.registro', $persona) : route('registro') }}">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                Volver al registro
+            </a>
+        </header>
 
-    @foreach ($jornada->tramos as $tramo)
-        <article class="tarjeta">
-            <h2>{{ $tramo->tipo === 'pausa' ? 'Pausa' : 'Trabajo' }}</h2>
-            <p>Desde las {{ \App\Support\Tiempo::hora($tramo->started_at) }}
-                @if ($tramo->ended_at)
-                    hasta las {{ \App\Support\Tiempo::hora($tramo->ended_at) }}
-                @else
-                    · todavía abierto
-                @endif
-                @if ($tramo->fuera_del_equipo)
-                    · fuera del equipo
-                @endif
-                @if ($tramo->situacion === 'incidencia')
-                    · incidencia de conexión, declarada por {{ $persona->name }} y recibida a las {{ \App\Support\Tiempo::hora($tramo->anotado_at) }}
-                    @if ($tramo->nota)
-                        · {{ $tramo->nota }}
+        <div class="detalle-resumen">
+            <article class="detalle-dato">
+                <p class="detalle-dato-etiqueta">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 8v5l3 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                    Trabajo registrado
+                </p>
+                <p class="detalle-dato-valor">{{ $detalle['total'] }}</p>
+                <p class="secundario">{{ $detalle['tramosTexto'] }}</p>
+            </article>
+            <article class="detalle-dato">
+                <p class="detalle-dato-etiqueta">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M10 9l6 3-6 3z" fill="currentColor"/></svg>
+                    Primer inicio
+                </p>
+                <p class="detalle-dato-valor">{{ $detalle['inicio'] }}</p>
+                <p class="secundario">Hora de entrada</p>
+            </article>
+            <article class="detalle-dato">
+                <p class="detalle-dato-etiqueta">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+                    Última salida
+                </p>
+                <p class="detalle-dato-valor">{{ $detalle['salida'] }}</p>
+                <p class="secundario">{{ $detalle['salidaTexto'] }}</p>
+            </article>
+        </div>
+        @if ($detalle['porEncima'])
+            <p class="secundario detalle-extra">Tiempo por encima del horario: {{ \App\Support\Tiempo::texto($detalle['porEncima']) }}. No es una hora extra y no hace falta autorización.</p>
+        @endif
+
+        <div class="detalle-cuerpo">
+            <section class="detalle-panel">
+                <div class="detalle-panel-cabeza">
+                    <h2>Tramos del día</h2>
+                    <span class="registro-pill registro-pill-{{ $detalle['estadoClase'] }}">{{ $detalle['estado'] }}</span>
+                </div>
+                <div class="detalle-previsto">
+                    <span>Registrado / previsto</span>
+                    @if ($detalle['previsto'])
+                        <span>{{ $detalle['previsto'] }}</span>
                     @endif
-                @elseif ($tramo->anotado_at && $tramo->anotado_at->format('H:i') !== $tramo->started_at->format('H:i'))
-                    · anotado a las {{ \App\Support\Tiempo::hora($tramo->anotado_at) }}
-                @endif
-            </p>
-            @if ($tramo->cerrado_at)
-                <p class="secundario">Salida declarada por {{ $tramo->cerradoPor?->name }} el {{ \App\Support\Tiempo::fecha($tramo->cerrado_at) }} a las {{ \App\Support\Tiempo::hora($tramo->cerrado_at) }}.</p>
-            @endif
+                </div>
+                <div class="detalle-eje" aria-hidden="true">
+                    <div class="detalle-eje-pista">
+                        @foreach ($detalle['barras'] as $barra)
+                            <i style="left: {{ $barra['left'] }}%; width: {{ $barra['width'] }}%;"></i>
+                        @endforeach
+                    </div>
+                    <div class="detalle-eje-horas">
+                        @foreach ([7, 9, 11, 13, 15, 17, 19, 21] as $hora)
+                            <span>{{ sprintf('%02d:00', $hora) }}</span>
+                        @endforeach
+                    </div>
+                </div>
 
-            @if ($puedeCorregir)
-                <form method="post" action="{{ route('tramos.corregir', $tramo) }}" class="formulario">
+                @forelse ($detalle['filas'] as $fila)
+                    <article class="detalle-tramo">
+                        <span class="detalle-tramo-icono" aria-hidden="true">
+                            @if ($fila['tramo']->tipo === 'pausa')
+                                <svg viewBox="0 0 24 24"><path d="M9 7v10M15 7v10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                            @else
+                                <svg viewBox="0 0 24 24"><path d="M9 7l8 5-8 5z" fill="currentColor"/></svg>
+                            @endif
+                        </span>
+                        <div>
+                            <p class="detalle-tramo-titulo">{{ $fila['titulo'] }}</p>
+                            <p class="secundario">{{ $fila['duracion'] }}</p>
+                            @if ($fila['nota'] !== '')
+                                <p class="secundario">{{ $fila['nota'] }}</p>
+                            @endif
+                        </div>
+                        <p class="detalle-tramo-horas">{{ $fila['horas'] }}</p>
+                        @if ($puedeCorregir)
+                            <button class="detalle-corregir" type="button" data-dialogo-abre="corregir-{{ $fila['tramo']->id }}">
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 8v4l2.5 1.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                                Corregir
+                            </button>
+                        @endif
+                    </article>
+                @empty
+                    <p class="secundario">{{ $explicar ? 'Este día no tiene fichaje.' : 'Este día no tiene tramos.' }}</p>
+                @endforelse
+
+                @if ($explicar)
+                    <form class="detalle-explicar" method="post" action="{{ route('registro.explicar') }}">
+                        @csrf
+                        <input type="hidden" name="work_date" value="{{ $explicar['fecha'] }}">
+                        <p>El {{ $explicar['dia'] }} {{ $explicar['texto'] }}.</p>
+                        <label for="explicacion-dia">Qué pasó</label>
+                        <textarea id="explicacion-dia" name="body" rows="2" maxlength="500" required>{{ old('work_date') === $explicar['fecha'] ? old('body') : '' }}</textarea>
+                        <button class="boton boton-secundario" type="submit">Explicar</button>
+                    </form>
+                @endif
+
+                @if (! $puedeCorregir && $detalle['filas'] !== [])
+                    <p class="secundario">Para cambiar este día, habla con tu jefa.</p>
+                @endif
+                <p class="detalle-nota">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 11v5M12 8h.01" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                    Si una hora cambia, se conserva la anterior, con quién la cambió y cuándo.
+                </p>
+            </section>
+
+            <aside class="detalle-panel">
+                <h2>Historial de cambios</h2>
+                @if ($detalle['cambios'] === [])
+                    <p class="secundario">Todavía no hay cambios.</p>
+                @else
+                    <ul class="detalle-cambios">
+                        @foreach ($detalle['cambios'] as $cambio)
+                            <li>
+                                <p class="detalle-cambio-titulo">{{ $cambio['titulo'] }}</p>
+                                @if ($cambio['texto'] !== '')
+                                    <p>{{ $cambio['texto'] }}</p>
+                                @endif
+                                <p class="secundario">{{ $cambio['quien'] }}</p>
+                            </li>
+                        @endforeach
+                    </ul>
+                @endif
+            </aside>
+        </div>
+    </div>
+
+    @if ($puedeCorregir)
+        @foreach ($detalle['filas'] as $fila)
+            <dialog class="dialogo-hoy" data-dialogo="corregir-{{ $fila['tramo']->id }}" aria-labelledby="titulo-corregir-{{ $fila['tramo']->id }}">
+                <div class="dialogo-cabecera">
+                    <h2 id="titulo-corregir-{{ $fila['tramo']->id }}">Corregir {{ strtolower($fila['titulo']) }}</h2>
+                    <form method="dialog">
+                        <button class="dialogo-cerrar" type="submit">Cerrar</button>
+                    </form>
+                </div>
+                <form method="post" action="{{ route('tramos.corregir', $fila['tramo']) }}" class="formulario">
                     @csrf
                     <div class="horas-par">
                         <div>
-                            <label for="inicio-{{ $tramo->id }}">Hora de inicio</label>
-                            <x-hora id="inicio-{{ $tramo->id }}" name="inicio" :valor="\App\Support\Tiempo::hora($tramo->started_at)" :required="false" />
+                            <label for="inicio-{{ $fila['tramo']->id }}">Hora de inicio</label>
+                            <x-hora id="inicio-{{ $fila['tramo']->id }}" name="inicio" :valor="\App\Support\Tiempo::hora($fila['tramo']->started_at)" :required="false" />
                         </div>
                         <div>
-                            <label for="fin-{{ $tramo->id }}">Hora de fin</label>
-                            <x-hora id="fin-{{ $tramo->id }}" name="fin" :valor="$tramo->ended_at ? \App\Support\Tiempo::hora($tramo->ended_at) : ''" :required="false" />
+                            <label for="fin-{{ $fila['tramo']->id }}">Hora de fin</label>
+                            <x-hora id="fin-{{ $fila['tramo']->id }}" name="fin" :valor="$fila['tramo']->ended_at ? \App\Support\Tiempo::hora($fila['tramo']->ended_at) : ''" :required="false" />
                         </div>
                     </div>
-                    <label for="motivo-{{ $tramo->id }}">Motivo</label>
-                    <select id="motivo-{{ $tramo->id }}" name="motivo" required>
+                    <label for="motivo-{{ $fila['tramo']->id }}">Motivo</label>
+                    <select id="motivo-{{ $fila['tramo']->id }}" name="motivo" required>
                         @foreach ($motivos as $clave => $texto)
                             <option value="{{ $clave }}">{{ $texto }}</option>
                         @endforeach
                     </select>
-                    <label for="nota-{{ $tramo->id }}">Nota, si hace falta</label>
-                    <textarea id="nota-{{ $tramo->id }}" name="nota" maxlength="500"></textarea>
+                    <label for="nota-{{ $fila['tramo']->id }}">Nota, si hace falta</label>
+                    <textarea id="nota-{{ $fila['tramo']->id }}" name="nota" maxlength="500"></textarea>
                     <p class="secundario">Puedes guardar solo el inicio, solo el fin, o las dos. No pongas datos de salud ni de clientes.</p>
                     <button class="boton boton-secundario" type="submit">Guardar</button>
                 </form>
-            @else
-                <p class="secundario">Para cambiar este día, habla con tu jefa.</p>
-            @endif
-
-            @foreach ($tramo->correcciones as $correccion)
-                <p class="secundario">
-                    Antes {{ \App\Support\Tiempo::hora($correccion->previous_value) }},
-                    ahora {{ \App\Support\Tiempo::hora($correccion->new_value) }}.
-                    {{ $correccion->motivoTexto() }}.
-                    {{ $correccion->autor->name }},
-                    {{ \App\Support\Tiempo::fecha($correccion->created_at) }}
-                    {{ $correccion->created_at->format('H:i') }}.
-                    @if ($correccion->note)
-                        {{ $correccion->note }}
-                    @endif
-                </p>
-            @endforeach
-        </article>
-    @endforeach
+            </dialog>
+        @endforeach
+    @endif
 @endsection

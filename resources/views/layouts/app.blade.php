@@ -30,16 +30,16 @@
             <nav class="menu" aria-label="Secciones">
                 <a href="{{ route('jornada') }}" @if (request()->routeIs('jornada')) aria-current="page" @endif>Hoy</a>
                 <a href="{{ route('registro') }}" @if (request()->routeIs('registro', 'registro.show')) aria-current="page" @endif>Mi registro</a>
-                <a href="{{ route('calendario') }}" @if (request()->routeIs('calendario')) aria-current="page" @endif>Calendario</a>
+                <a href="{{ route('calendario') }}" aria-label="Calendario" @if (request()->routeIs('calendario')) aria-current="page" @endif>
+                    <svg class="icono-calendario" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <rect x="3.2" y="4.8" width="17.6" height="15.4" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                        <path d="M3.2 9.4h17.6M8 3.2v3.4M16 3.2v3.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    </svg>
+                </a>
                 @if (auth()->user()->esJefa())
                     <a href="{{ route('equipo.index') }}" @if (request()->routeIs('equipo.*')) aria-current="page" @endif>Equipo</a>
                     <a href="{{ route('jefe.index') }}" @if (request()->routeIs('jefe.index', 'jefe.persona', 'jefe.registro', 'jefe.dia')) aria-current="page" @endif>Estado</a>
-                    <a href="{{ route('jefe.consultas', ($solicitudesNuevas ?? 0) > 0 ? ['vista' => 'vacaciones'] : []) }}" @if (request()->routeIs('jefe.consultas')) aria-current="page" @endif @if (($solicitudesNuevas ?? 0) > 0) aria-label="Consultas, {{ $solicitudesNuevas === 1 ? '1 nueva' : $solicitudesNuevas.' nuevas' }}" @endif>
-                        Consultas
-                        @if (($solicitudesNuevas ?? 0) > 0)
-                            <span class="aviso-ticket" aria-hidden="true">{{ $solicitudesNuevas }}</span>
-                        @endif
-                    </a>
+                    <a href="{{ route('jefe.consultas') }}" @if (request()->routeIs('jefe.consultas')) aria-current="page" @endif>Consultas</a>
                     <a href="{{ route('incidencias.index') }}" @if (request()->routeIs('incidencias.*')) aria-current="page" @endif @if (($incidenciasNuevas ?? 0) > 0) aria-label="Incidencias, {{ $incidenciasNuevas === 1 ? '1 nueva' : $incidenciasNuevas.' nuevas' }}" @endif>
                         Incidencias
                         @if (($incidenciasNuevas ?? 0) > 0)
@@ -68,7 +68,15 @@
                     <span class="solo-lectura">Solo lectura</span>
                 @endif
                 <span class="persona">{{ auth()->user()->name }}</span>
-                <button type="button" class="tema" data-tema-toggle>Modo oscuro</button>
+                <button type="button" class="tema" data-tema-toggle aria-label="Modo oscuro">
+                    <svg class="tema-luna" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <path fill="currentColor" d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>
+                    </svg>
+                    <svg class="tema-sol" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                        <path d="M12 2.6v2.2M12 19.2v2.2M2.6 12h2.2M19.2 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2 5.2 18.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    </svg>
+                </button>
                 <form method="post" action="{{ route('logout') }}">
                     @csrf
                     <button type="submit">Salir</button>
@@ -110,7 +118,7 @@
             }
             function pintar() {
                 var oscuro = raiz.getAttribute('data-tema') === 'oscuro';
-                boton.textContent = oscuro ? 'Modo claro' : 'Modo oscuro';
+                boton.setAttribute('aria-label', oscuro ? 'Modo claro' : 'Modo oscuro');
                 boton.setAttribute('aria-pressed', oscuro ? 'true' : 'false');
             }
             pintar();

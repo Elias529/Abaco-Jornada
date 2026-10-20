@@ -114,19 +114,46 @@ class JornadaTest extends TestCase
             ->get(route('calendario'))
             ->assertOk()
             ->assertSee('Calendario', false)
-            ->assertSee('enero', false)
-            ->assertSee('diciembre', false)
-            ->assertSee('ES-MD', false)
+            ->assertSee('octubre 2026', false)
+            ->assertSee('Mes anterior', false)
+            ->assertSee('Mes siguiente', false)
+            ->assertSee('mes=9', false)
+            ->assertSee('mes=11', false)
+            ->assertDontSee('enero', false)
+            ->assertDontSee('Año Nuevo', false)
+            ->assertDontSee('Festivos públicos del centro', false)
+            ->assertDontSee('Si cae en domingo, pasa al lunes.', false)
             ->assertSee('Festivo Nacional', false)
             ->assertSee('Festivo Autonómico', false)
-            ->assertSee('Año Nuevo', false)
-            ->assertSee('Jueves Santo', false)
+            ->assertDontSee('Jueves Santo', false)
             ->assertDontSee('Festivo Local', false)
             ->assertDontSee('Día de Andalucía', false)
             ->assertDontSee('Solo observancia', false)
             ->assertDontSee('Quién falta', false)
             ->assertDontSee('Fallo común', false)
             ->assertDontSee('Guardar festivo', false);
+
+        $this->actingAs($ana)
+            ->get(route('calendario', ['mes' => 1]))
+            ->assertOk()
+            ->assertSee('enero 2026', false)
+            ->assertSee('casilla-estado', false)
+            ->assertDontSee('Año Nuevo', false)
+            ->assertDontSee('Jueves Santo', false)
+            ->assertDontSee('Permiso', false);
+
+        $this->actingAs($ana)
+            ->get(route('calendario', ['mes' => 4]))
+            ->assertOk()
+            ->assertSee('casilla-comunidad', false)
+            ->assertDontSee('Jueves Santo', false);
+
+        $this->actingAs($ana)
+            ->get(route('calendario', ['mes' => 11, 'fragmento' => 1]))
+            ->assertOk()
+            ->assertSee('noviembre 2026', false)
+            ->assertDontSee('Solicitar vacaciones', false)
+            ->assertDontSee('Mi registro', false);
 
         $this->actingAs($ana)
             ->post('/calendario', [
@@ -184,7 +211,14 @@ class JornadaTest extends TestCase
 
         $this->actingAs($ana)
             ->get(route('jornada'))
-            ->assertSee('Reunión, mantener las 09:00', false);
+            ->assertSee('Inicio de jornada', false)
+            ->assertSee('Empezar jornada', false)
+            ->assertSee('Trabajé sin el portátil', false)
+            ->assertSee('Ya estaba trabajando', false)
+            ->assertDontSee('Estaba en una reunión desde las 09:00', false)
+            ->assertDontSee('Empecé a otra hora', false)
+            ->assertDontSee('Trabajo fuera del equipo', false)
+            ->assertDontSee('Reunión, mantener las 09:00', false);
 
         $this->actingAs($ana)->post(route('jornada.reunion'))->assertSessionHas('ok');
 
@@ -380,10 +414,12 @@ class JornadaTest extends TestCase
         $this->actingAs($ana)->get(route('jornada'))->assertDontSee('cierres sin completar', false);
 
         Aviso::create(['user_id' => $ana->id, 'tipo' => 'cierre', 'work_date' => '2026-10-06', 'cuenta' => true]);
-        $this->actingAs($ana)->get(route('jornada'))->assertSee('Tienes 1 cierre sin completar', false);
+        $this->actingAs($ana)->get(route('jornada'))
+            ->assertSee('El martes 6 de octubre quedó el cierre sin completar', false)
+            ->assertSee(route('registro.show', $jornada), false);
 
         Aviso::create(['user_id' => $ana->id, 'tipo' => 'olvido', 'work_date' => '2026-10-05', 'cuenta' => true]);
-        $this->actingAs($ana)->get(route('jornada'))->assertSee('Tienes 2 cierres sin completar', false);
+        $this->actingAs($ana)->get(route('jornada'))->assertSee('Tienes 2 días sin explicar', false)->assertSee('lunes 5 de octubre', false);
 
         $this->assertSame('18:00', $tramo->fresh()->ended_at->timezone('Europe/Madrid')->format('H:i'));
     }
@@ -396,7 +432,7 @@ class JornadaTest extends TestCase
 
         Aviso::create(['user_id' => $ana->id, 'tipo' => 'cierre', 'work_date' => '2026-07-01', 'cuenta' => true]);
 
-        $this->actingAs($ana)->get(route('jornada'))->assertSee('Tienes 1 cierre sin completar', false);
+        $this->actingAs($ana)->get(route('jornada'))->assertSee('El miércoles 1 de julio quedó el cierre sin completar', false);
     }
 
     public function test_explicar_un_aviso_deja_de_contarlo(): void
@@ -415,6 +451,49 @@ class JornadaTest extends TestCase
 
         $this->actingAs($ana)->get(route('jornada'))->assertDontSee('cierres sin completar', false);
         $this->assertDatabaseCount('avisos', 1);
+    }
+
+    public function test_el_registro_muestra_el_dia_sin_fichaje_para_explicarlo(): void
+    {
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
+        $this->horario($ana);
+        Carbon::setTestNow(Carbon::parse('2026-10-20 13:00:00', 'Europe/Madrid'));
+        Aviso::create(['user_id' => $ana->id, 'tipo' => 'inicio', 'work_date' => '2026-10-19', 'cuenta' => true]);
+        Aviso::create(['user_id' => $ana->id, 'tipo' => 'inicio', 'work_date' => '2026-10-20', 'cuenta' => true]);
+        Jornada::create(['user_id' => $ana->id, 'work_date' => '2026-10-20']);
+
+        $this->actingAs($ana)
+            ->get(route('jornada'))
+            ->assertSee('El lunes 19 de octubre no quedó registrada la entrada', false)
+            ->assertSee(route('registro.dia', '2026-10-19'), false);
+
+        $this->actingAs($ana)
+            ->get(route('registro.dia', '2026-10-19'))
+            ->assertOk()
+            ->assertSee('Lunes, 19 de octubre', false)
+            ->assertSee('Sin fichaje', false)
+            ->assertSee('no quedó registrada la entrada', false);
+
+        $this->actingAs($ana)
+            ->get(route('registro'))
+            ->assertSee('Pendiente de explicar', false)
+            ->assertSee('El lunes 19 de octubre no quedó registrada la entrada', false)
+            ->assertDontSee('martes 20 de octubre', false)
+            ->assertSee('Explicar', false);
+
+        $this->actingAs($ana)
+            ->post(route('registro.explicar'), [
+                'work_date' => '2026-10-19',
+                'body' => 'Ese lunes no fui a la oficina.',
+            ])
+            ->assertSessionHas('ok');
+
+        $this->actingAs($ana)
+            ->get(route('registro'))
+            ->assertDontSee('Pendiente de explicar', false)
+            ->assertSee('Ese lunes no fui a la oficina.', false);
+
+        $this->actingAs($ana)->get(route('jornada'))->assertDontSee('lunes 19 de octubre', false);
     }
 
     public function test_el_fallo_comun_y_el_horario_no_cuentan(): void
@@ -469,7 +548,7 @@ class JornadaTest extends TestCase
         $this->actingAs($marta)
             ->get(route('equipo.registro', $ana))
             ->assertSee('hace falta un motivo', false)
-            ->assertDontSee('Descargar Excel', false);
+            ->assertDontSee('Descargar CSV', false);
 
         $this->actingAs($marta)
             ->post(route('equipo.motivo', $ana), ['reason' => 'Revisión del artículo 34.9'])
@@ -477,7 +556,7 @@ class JornadaTest extends TestCase
 
         $this->actingAs($marta)
             ->get(route('equipo.registro', $ana))
-            ->assertSee('Descargar Excel', false);
+            ->assertSee('Descargar CSV', false);
 
         $this->assertDatabaseHas('consultas', [
             'viewer_id' => $marta->id,
@@ -653,17 +732,17 @@ class JornadaTest extends TestCase
 
         $this->actingAs($ana)
             ->get(route('registro'))
-            ->assertSee('9 h 0 min', false)
+            ->assertSee('9 h 00', false)
             ->assertDontSee('12 h', false);
 
         $this->actingAs($ana)
             ->get(route('registro', ['desde' => '2026-10-07', 'hasta' => '2026-10-07']))
-            ->assertSee('9 h 0 min', false)
+            ->assertSee('9 h 00', false)
             ->assertDontSee('12 h', false);
 
         $this->actingAs($ana)
             ->get(route('registro.show', $jornada))
-            ->assertSee('9 h 0 min', false)
+            ->assertSee('9 h 00', false)
             ->assertDontSee('12 h', false);
 
         $copia = $this->actingAs($ana)->get(route('registro.csv', ['desde' => '2026-10-07', 'hasta' => '2026-10-07']))->assertOk()->streamedContent();
@@ -726,6 +805,72 @@ class JornadaTest extends TestCase
             ->get(route('jornada'))
             ->assertSee('Empezar jornada', false)
             ->assertSee('Comunicar incidencia', false);
+    }
+
+    public function test_el_chat_de_una_incidencia_se_cierra_al_resolverla(): void
+    {
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
+        $marta = $this->persona('Marta Ruiz', 'marta.ruiz@abaco.test', 'Madrid', 'jefa');
+        $lucia = $this->persona('Lucía Vega', 'lucia.vega@abaco.test', 'Madrid');
+
+        $this->actingAs($ana)->get(route('jornada.incidencia.crear'))
+            ->assertOk()
+            ->assertSee('Historial de incidencias', false)
+            ->assertSee('Abrir incidencia', false)
+            ->assertSee('Qué pasó', false);
+
+        $this->actingAs($ana)->post(route('jornada.incidencia'), [
+            'motivo' => 'Se cayó la red',
+        ])->assertRedirect(route('jornada.incidencia.crear'));
+
+        $incidencia = Incidencia::query()->where('user_id', $ana->id)->firstOrFail();
+        $this->assertSame(Incidencia::ABIERTA, $incidencia->estado);
+
+        $this->actingAs($ana)
+            ->get(route('jornada.incidencia.crear', ['incidencia' => $incidencia->id]))
+            ->assertSee('Chat', false)
+            ->assertSee('Escribe un mensaje', false)
+            ->assertSee('Se cayó la red', false);
+
+        $this->actingAs($lucia)->post(route('incidencias.mensaje', $incidencia), [
+            'cuerpo' => 'No es mía',
+        ])->assertForbidden();
+
+        $this->actingAs($ana)->post(route('incidencias.mensaje', $incidencia), [
+            'cuerpo' => 'Sigue sin red',
+        ])->assertSessionHas('ok');
+
+        $this->actingAs($marta)->get(route('incidencias.show', $incidencia))
+            ->assertSee('Sigue sin red', false)
+            ->assertSee('Resolver', false);
+
+        $this->actingAs($marta)->post(route('incidencias.mensaje', $incidencia), [
+            'cuerpo' => 'Ya lo miro',
+        ])->assertSessionHas('ok');
+
+        $this->actingAs($ana)
+            ->get(route('jornada.incidencia.crear', ['incidencia' => $incidencia->id]))
+            ->assertSee('Ya lo miro', false);
+
+        $this->actingAs($ana)->post(route('incidencias.resolver', $incidencia))
+            ->assertRedirect(route('jornada'));
+
+        $this->actingAs($marta)->post(route('incidencias.resolver', $incidencia))
+            ->assertSessionHas('ok', 'Resuelta. El chat queda cerrado.');
+
+        $this->assertSame(Incidencia::RESUELTA, $incidencia->fresh()->estado);
+
+        $this->actingAs($ana)->post(route('incidencias.mensaje', $incidencia), [
+            'cuerpo' => 'Otra vez',
+        ])->assertSessionHas('aviso', 'Esta incidencia está resuelta. El chat está cerrado.');
+
+        $this->actingAs($marta)->get(route('incidencias.show', $incidencia))
+            ->assertSee('El chat está cerrado.', false)
+            ->assertDontSee('>Resolver<', false);
+
+        $this->actingAs($ana)->get(route('jornada.incidencia.crear'))
+            ->assertSee('estado-resuelta', false)
+            ->assertDontSee('estado-abierta', false);
     }
 
     public function test_la_jefa_filtra_incidencias_por_un_rango_de_fechas(): void
@@ -822,25 +967,25 @@ class JornadaTest extends TestCase
         }
 
         $this->actingAs($ana)
-            ->get(route('registro'))
-            ->assertSee('lunes 2 de marzo', false)
-            ->assertDontSee('jueves 1 de enero', false)
+            ->get(route('registro', ['periodo' => 'todo']))
+            ->assertSee('Lunes, 2 mar', false)
+            ->assertDontSee('Jueves, 1 ene', false)
             ->assertSee('Días anteriores', false);
 
         $this->actingAs($ana)
             ->get(route('registro', ['desde' => '2026-01-01', 'hasta' => '2026-03-02']))
-            ->assertSee('lunes 2 de marzo', false)
-            ->assertDontSee('jueves 1 de enero', false)
+            ->assertSee('Lunes, 2 mar', false)
+            ->assertDontSee('Jueves, 1 ene', false)
             ->assertSee('Días anteriores', false);
 
         $this->actingAs($ana)
             ->get(route('registro', ['desde' => '2026-01-01', 'hasta' => '2026-03-02', 'page' => 2]))
-            ->assertSee('jueves 1 de enero', false);
+            ->assertSee('Jueves, 1 ene', false);
 
         $this->actingAs($ana)
             ->get(route('registro', ['desde' => '2026-01-01', 'hasta' => '2026-01-01']))
-            ->assertSee('jueves 1 de enero', false)
-            ->assertDontSee('viernes 2 de enero', false);
+            ->assertSee('Jueves, 1 ene', false)
+            ->assertDontSee('Viernes, 2 ene', false);
     }
 
     public function test_la_tabla_y_el_excel_usan_el_rango_y_marcan_la_incidencia(): void
@@ -866,10 +1011,10 @@ class JornadaTest extends TestCase
         $this->actingAs($ana)
             ->get(route('registro', ['desde' => '2026-10-07', 'hasta' => '2026-10-07']))
             ->assertOk()
-            ->assertDontSee('Incidencia', false)
+            ->assertSee('Incidencia', false)
             ->assertDontSee('>Sí<', false)
-            ->assertSee('miércoles 7 de octubre', false)
-            ->assertDontSee('martes 6 de octubre', false);
+            ->assertSee('Miércoles, 7 oct', false)
+            ->assertDontSee('Martes, 6 oct', false);
 
         $copia = $this->actingAs($ana)
             ->get(route('registro.csv', ['desde' => '2026-10-07', 'hasta' => '2026-10-07']))
@@ -905,12 +1050,12 @@ class JornadaTest extends TestCase
             ->assertDontSee('Nuria Vega', false)
             ->assertDontSee('casilla-permiso', false)
             ->assertDontSee('El calendario de 2027 no está cargado', false)
-            ->assertSee('Año siguiente', false);
+            ->assertSee('Mes siguiente', false);
 
         $this->actingAs($ana)
             ->get(route('calendario', ['anio' => 2027]))
             ->assertOk()
-            ->assertSee('Calendario 2027', false)
+            ->assertSee('enero 2027', false)
             ->assertSee('El calendario de 2027 no está cargado', false);
     }
 
@@ -930,7 +1075,8 @@ class JornadaTest extends TestCase
             ->assertSee('1 falta', false)
             ->assertDontSee('Quién falta', false)
             ->assertDontSee('Fallo común', false)
-            ->assertDontSee('Solicitar vacaciones', false);
+            ->assertSee('Solicitar vacaciones', false)
+            ->assertSee('vacaciones-total">22', false);
     }
 
     public function test_el_equipo_pide_vacaciones_y_la_jefa_las_decide_en_consultas(): void
@@ -939,13 +1085,12 @@ class JornadaTest extends TestCase
         $marta = $this->persona('Marta Ruiz', 'marta.ruiz@abaco.test', 'Madrid', 'jefa');
         $carmen = $this->persona('Carmen Ortega', 'carmen.ortega@abaco.test', 'Madrid', 'tecnico');
 
-        $this->actingAs($ana)->get(route('calendario'))->assertSee('Solicitar vacaciones', false);
+        $this->actingAs($ana)->get(route('calendario'))
+            ->assertSee('Solicitar vacaciones', false)
+            ->assertSee('Elige un rango de fechas', false)
+            ->assertSee('vacaciones-total">22', false);
         $this->actingAs($carmen)->get(route('calendario'))->assertSee('Solicitar vacaciones', false);
-
-        $this->actingAs($marta)->post(route('calendario.vacaciones'), [
-            'desde' => '2026-10-20',
-            'hasta' => '2026-10-22',
-        ])->assertForbidden();
+        $this->actingAs($marta)->get(route('calendario'))->assertSee('Solicitar vacaciones', false);
 
         $this->actingAs($ana)->post(route('calendario.vacaciones'), [
             'desde' => '2026-10-20',
@@ -953,11 +1098,13 @@ class JornadaTest extends TestCase
             'nota' => 'Viaje familiar',
         ])->assertRedirect()->assertSessionHas('ok');
 
-        $solicitud = SolicitudVacaciones::query()->firstOrFail();
+        $solicitud = SolicitudVacaciones::query()->where('user_id', $ana->id)->firstOrFail();
         $this->assertSame(SolicitudVacaciones::PENDIENTE, $solicitud->estado);
+        $this->actingAs($ana)->get(route('calendario'))->assertSee('casilla-pendiente', false);
 
         $this->actingAs($marta)->get(route('jornada'))
-            ->assertSee('Consultas, 1 nueva', false);
+            ->assertDontSee('Consultas, 1 nueva', false)
+            ->assertDontSee('Solicitud de vacaciones', false);
 
         $this->actingAs($ana)->post(route('jefe.vacaciones.decidir', $solicitud), [
             'decision' => 'aprobada',
@@ -965,11 +1112,11 @@ class JornadaTest extends TestCase
         $this->assertSame(SolicitudVacaciones::PENDIENTE, $solicitud->fresh()->estado);
 
         $this->actingAs($marta)->get(route('jefe.consultas', ['vista' => 'vacaciones']))
-            ->assertSee('Ana López', false)
-            ->assertSee('Viaje familiar', false)
-            ->assertSee('Aprobar', false)
-            ->assertSee('Rechazar', false)
-            ->assertSee('Solicitud de vacaciones, 1 nueva', false);
+            ->assertOk()
+            ->assertSee('Registros consultados', false)
+            ->assertDontSee('Solicitud de vacaciones', false)
+            ->assertDontSee('Aprobar', false)
+            ->assertDontSee('Viaje familiar', false);
 
         $this->actingAs($marta)->post(route('jefe.vacaciones.decidir', $solicitud), [
             'decision' => 'aprobada',
@@ -982,8 +1129,8 @@ class JornadaTest extends TestCase
         );
 
         $this->actingAs($ana)->get(route('calendario'))
-            ->assertSee('Aprobada', false)
-            ->assertSee('casilla-vacaciones', false);
+            ->assertSee('casilla-vacaciones', false)
+            ->assertSee('vacaciones-total">19', false);
 
         $this->actingAs($marta)->get(route('jornada'))
             ->assertDontSee('Consultas, 1 nueva', false);
@@ -1009,6 +1156,54 @@ class JornadaTest extends TestCase
             'desde' => '2026-10-21',
             'hasta' => '2026-10-21',
         ])->assertSessionHas('aviso', 'Esas fechas ya están pedidas.');
+
+        $this->actingAs($marta)->post(route('calendario.vacaciones'), [
+            'desde' => '2026-12-01',
+            'hasta' => '2026-12-02',
+        ])->assertRedirect()->assertSessionHas('ok');
+
+        $this->actingAs($ana)->post(route('calendario.vacaciones'), [
+            'desde' => '2026-12-08',
+            'hasta' => '2026-12-08',
+        ])->assertSessionHas('aviso', 'Tienes dos meses para cogerlas. A partir de ahí desaparecen.');
+    }
+
+    public function test_el_finde_y_el_festivo_no_gastan_vacaciones(): void
+    {
+        $this->festivosPublicos([
+            [
+                'date' => '2026-10-26',
+                'localName' => 'Puente',
+                'global' => true,
+                'counties' => null,
+                'types' => ['Public'],
+            ],
+        ]);
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
+        $marta = $this->persona('Marta Ruiz', 'marta.ruiz@abaco.test', 'Madrid', 'jefa');
+
+        $this->actingAs($ana)->post(route('calendario.vacaciones'), [
+            'desde' => '2026-10-24',
+            'hasta' => '2026-10-25',
+        ])->assertSessionHas('aviso', 'Esos días no cuentan: son fin de semana o festivo.');
+
+        $this->actingAs($ana)->post(route('calendario.vacaciones'), [
+            'desde' => '2026-10-23',
+            'hasta' => '2026-10-26',
+        ])->assertSessionHas('ok');
+
+        $this->actingAs($ana)->get(route('calendario'))
+            ->assertSee('data-fecha="2026-10-23" data-cuenta="1"', false)
+            ->assertSee('casilla-pendiente', false)
+            ->assertDontSee('casilla-finde casilla-pendiente', false);
+
+        $solicitud = SolicitudVacaciones::query()->where('user_id', $ana->id)->firstOrFail();
+        $this->actingAs($marta)->post(route('jefe.vacaciones.decidir', $solicitud), [
+            'decision' => 'aprobada',
+        ])->assertSessionHas('ok');
+
+        $this->assertSame(['2026-10-23'], Ausencia::query()->where('user_id', $ana->id)->pluck('absence_date')->map(fn ($fecha) => substr((string) $fecha, 0, 10))->all());
+        $this->actingAs($ana)->get(route('calendario'))->assertSee('vacaciones-total">21', false);
     }
 
     public function test_un_festivo_en_domingo_se_traslada_al_lunes(): void
@@ -1052,9 +1247,15 @@ class JornadaTest extends TestCase
 
         $this->actingAs($ana)
             ->get(route('calendario'))
-            ->assertSee('Día de todos los Santos', false)
-            ->assertSee('Día de la Constitución', false)
-            ->assertSee('Si cae en domingo, pasa al lunes.', false);
+            ->assertSee('casilla-estado', false)
+            ->assertDontSee('Día de todos los Santos', false)
+            ->assertDontSee('Día de la Constitución', false)
+            ->assertDontSee('Si cae en domingo, pasa al lunes.', false);
+
+        $this->actingAs($ana)
+            ->get(route('calendario', ['mes' => 12]))
+            ->assertSee('casilla-estado', false)
+            ->assertDontSee('Día de la Constitución', false);
     }
 
     public function test_ver_el_calendario_no_borra_la_jornada(): void
@@ -1064,9 +1265,10 @@ class JornadaTest extends TestCase
         Jornada::create(['user_id' => $ana->id, 'work_date' => '2026-04-02']);
 
         $this->actingAs($ana)
-            ->get(route('calendario'))
+            ->get(route('calendario', ['mes' => 4]))
             ->assertOk()
-            ->assertSee('Jueves Santo', false);
+            ->assertSee('casilla-comunidad', false)
+            ->assertDontSee('Jueves Santo', false);
 
         $this->assertNotNull(Jornada::query()->where('user_id', $ana->id)->whereDate('work_date', '2026-04-02')->first());
     }

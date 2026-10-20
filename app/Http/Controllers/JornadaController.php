@@ -184,7 +184,20 @@ class JornadaController extends Controller
             return redirect()->route('incidencias.index');
         }
 
-        return view('jornada.incidencia');
+        $incidencias = $request->user()->incidencias()
+            ->orderByRaw("case when estado = 'resuelta' then 1 else 0 end")
+            ->latest('id')
+            ->get();
+        $pedido = $request->query('incidencia');
+        $seleccion = is_string($pedido) && ctype_digit($pedido)
+            ? $incidencias->firstWhere('id', (int) $pedido)
+            : null;
+        $seleccion?->load('mensajes.autor');
+
+        return view('jornada.incidencia', [
+            'incidencias' => $incidencias,
+            'seleccion' => $seleccion,
+        ]);
     }
 
     public function incidencia(Request $request): RedirectResponse
@@ -215,10 +228,10 @@ class JornadaController extends Controller
         } catch (Throwable $error) {
             report($error);
 
-            return redirect()->route('jornada')->with('ok', 'Enviada. La jefa ya tiene tu incidencia.');
+            return redirect()->route('jornada.incidencia.crear')->with('ok', 'Enviada. La jefa ya tiene tu incidencia.');
         }
 
-        return redirect()->route('jornada')->with('ok', 'Enviada. La jefa ya tiene tu incidencia.');
+        return redirect()->route('jornada.incidencia.crear')->with('ok', 'Enviada. La jefa ya tiene tu incidencia.');
     }
 
     public function festivo(Request $request): RedirectResponse

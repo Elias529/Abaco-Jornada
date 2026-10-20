@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Incidencia;
 use App\Models\User;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -45,8 +46,46 @@ class IncidenciaController extends Controller
         }
 
         return view('incidencias.show', [
-            'incidencia' => $incidencia->load('autor'),
+            'incidencia' => $incidencia->load('autor', 'mensajes.autor'),
         ]);
+    }
+
+    public function mensaje(Request $request, Incidencia $incidencia): RedirectResponse
+    {
+        $usuario = $request->user();
+        abort_unless($usuario->esJefa() || $incidencia->user_id === $usuario->id, 403);
+
+        if ($incidencia->estaResuelta()) {
+            return back()->with('aviso', 'Esta incidencia está resuelta. El chat está cerrado.');
+        }
+
+        $datos = $request->validate([
+            'cuerpo' => ['required', 'string', 'max:1000'],
+        ], [
+            'cuerpo.required' => 'Escribe un mensaje.',
+            'cuerpo.max' => 'El mensaje puede tener hasta 1000 caracteres.',
+        ]);
+
+        $incidencia->mensajes()->create([
+            'user_id' => $usuario->id,
+            'cuerpo' => trim($datos['cuerpo']),
+        ]);
+
+        return back()->with('ok', 'Mensaje enviado.');
+    }
+
+    public function resolver(Request $request, Incidencia $incidencia): RedirectResponse
+    {
+        if ($incidencia->estaResuelta()) {
+            return back()->with('aviso', 'Esa incidencia ya está resuelta.');
+        }
+
+        $incidencia->update([
+            'estado' => Incidencia::RESUELTA,
+            'resuelta_at' => now(),
+        ]);
+
+        return back()->with('ok', 'Resuelta. El chat queda cerrado.');
     }
 
     private function fecha(mixed $valor): string

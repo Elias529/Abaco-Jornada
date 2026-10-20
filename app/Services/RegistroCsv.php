@@ -7,6 +7,7 @@ use App\Models\Tramo;
 use App\Models\User;
 use App\Support\Tiempo;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Carbon;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
@@ -45,6 +46,39 @@ class RegistroCsv
             'Total' => Tiempo::texto($this->jornada->minutosRegistrados($persona, $jornada)),
             'Estado' => $this->estado($jornada),
             'Incidencia' => $incidencia ? 'Sí' : 'No',
+        ];
+    }
+
+    /**
+     * Datos de una fila de la lista de Mi registro.
+     *
+     * @return array{fecha: string, tramos: string, barras: list<array{left: float, width: float}>, total: string, estado: string, clase: string, incidencia: bool}
+     */
+    public function presentacion(User $persona, Jornada $jornada): array
+    {
+        $jornada->loadMissing('tramos');
+        $fecha = $jornada->work_date->copy()->locale('es');
+        $trabajos = $jornada->tramos->where('tipo', Tramo::TRABAJO)->sortBy('started_at')->values();
+        $textos = [];
+        $barras = [];
+        foreach ($trabajos as $tramo) {
+            $fin = $tramo->ended_at ?? now();
+            $textos[] = Tiempo::hora($tramo->started_at).' – '.Tiempo::hora($fin);
+            $trozo = $this->eje($tramo->started_at, $fin);
+            if ($trozo) {
+                $barras[] = $trozo;
+            }
+        }
+        $abierta = $jornada->tramoAbierto() !== null;
+
+        return [
+            'fecha' => ucfirst($fecha->isoFormat('dddd')).', '.$fecha->day.' '.rtrim($fecha->isoFormat('MMM'), '.'),
+            'tramos' => $textos === [] ? '—' : implode(' · ', $textos),
+            'barras' => $barras,
+            'total' => Tiempo::corto($this->jornada->minutosRegistrados($persona, $jornada)),
+            'estado' => $abierta ? 'Abierta' : ($jornada->closed_late ? 'Cierre al día siguiente' : 'Cerrada'),
+            'clase' => $abierta ? 'abierta' : ($jornada->closed_late ? 'tardia' : 'cerrada'),
+            'incidencia' => $jornada->tramos->contains(fn (Tramo $tramo) => $tramo->situacion === 'incidencia'),
         ];
     }
 
@@ -112,5 +146,31 @@ class RegistroCsv
         }
 
         return 'Cerrada';
+    }
+
+    /**
+     * @return array{left: float, width: float}|null
+     */
+    private function eje(Carbon $inicio, Carbon $fin): ?array
+    {
+        $desde = 7 * 60;
+        $hasta = 21 * 60;
+        $a = max($desde, min($hasta, $this->minuto($inicio)));
+        $b = max($desde, min($hasta, $this->minuto($fin)));
+        if ($b <= $a) {
+            return null;
+        }
+
+        return [
+            'left' => round(($a - $desde) / ($hasta - $desde) * 100, 2),
+            'width' => round(($b - $a) / ($hasta - $desde) * 100, 2),
+        ];
+    }
+
+    private function minuto(Carbon $momento): int
+    {
+        $local = $momento->timezone(config('app.timezone'));
+
+        return ((int) $local->format('H')) * 60 + (int) $local->format('i');
     }
 }

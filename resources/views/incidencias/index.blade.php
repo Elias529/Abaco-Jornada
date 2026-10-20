@@ -31,15 +31,20 @@
     @if ($incidencias->isEmpty())
         <p class="incidencia-vacia">No hay incidencias.</p>
     @else
-        <ul class="lista lista-incidencias">
+        <ul class="lista incidencias-lista">
             @foreach ($incidencias as $incidencia)
-                <li class="incidencia-fila">
+                <li>
                     <a href="{{ route('incidencias.show', $incidencia) }}">
-                        <span>{{ $incidencia->autor->name }}</span>
-                        <strong class="incidencia-marca">Incidencia</strong>
+                        <span class="incidencia-cabeza">
+                            <span class="incidencia-quien">
+                                <span class="incidencia-inicial" aria-hidden="true">{{ mb_substr($incidencia->autor->name, 0, 1) }}</span>
+                                <span>{{ $incidencia->autor->name }}</span>
+                            </span>
+                            <strong class="incidencia-marca pastilla-{{ $incidencia->estado }}">{{ $incidencia->estadoTexto() }}</strong>
+                        </span>
+                        <span class="incidencia-texto">{{ \Illuminate\Support\Str::limit($incidencia->cuerpo, 110) }}</span>
+                        <span class="secundario">{{ \App\Support\Tiempo::fecha($incidencia->created_at) }} {{ $incidencia->created_at->format('H:i') }}</span>
                     </a>
-                    <p class="incidencia-texto">{{ \Illuminate\Support\Str::limit($incidencia->cuerpo, 110) }}</p>
-                    <span class="secundario">{{ \App\Support\Tiempo::fecha($incidencia->created_at) }} {{ $incidencia->created_at->format('H:i') }}</span>
                 </li>
             @endforeach
         </ul>
