@@ -100,6 +100,24 @@ class JefeTest extends TestCase
         $this->assertDatabaseCount('avisos', 6);
     }
 
+    public function test_la_jefa_no_cuenta_cierres_del_anio_anterior(): void
+    {
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test');
+        $jefa = $this->jefa();
+
+        Aviso::create(['user_id' => $ana->id, 'tipo' => 'cierre', 'work_date' => '2025-12-15', 'cuenta' => true]);
+        Aviso::create(['user_id' => $ana->id, 'tipo' => 'cierre', 'work_date' => '2026-09-20', 'cuenta' => true]);
+
+        $respuesta = $this->actingAs($jefa)
+            ->get(route('jefe.index'))
+            ->assertOk()
+            ->assertSee('1 persona tiene', false)
+            ->assertSee('1 cierre sin resolver', false);
+
+        $this->assertSame(1, $respuesta->viewData('personas')->firstWhere('persona.id', $ana->id)['antiguos']);
+        $this->assertDatabaseCount('avisos', 2);
+    }
+
     public function test_solo_la_jefa_entra_en_las_pantallas_de_direccion(): void
     {
         $ana = $this->persona('Ana López', 'ana.lopez@abaco.test');

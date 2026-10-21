@@ -157,7 +157,7 @@
                         @elseif ($puedeEntrar)
                             <div class="jornada-empezar">
                                 <p class="etiqueta-estado">Inicio de jornada</p>
-                                <form method="post" action="{{ route('jornada.entrada') }}">
+                                <form method="post" action="{{ route('jornada.entrada') }}" @if ($pideConfirmacionTemprana) data-confirma-temprano @endif>
                                     @csrf
                                     @if ($puedeEntrar && $inicioTarde)
                                         <button class="boton-hoy boton-hoy-principal" type="button" data-dialogo-abre="inicio-tarde">Empezar jornada</button>
@@ -165,6 +165,24 @@
                                         <button class="boton-hoy boton-hoy-principal" type="submit">Empezar jornada</button>
                                     @endif
                                 </form>
+                                @if ($pideConfirmacionTemprana && $horaInicioPrevista)
+                                    <dialog
+                                        class="dialogo"
+                                        id="confirma-temprano"
+                                        aria-labelledby="confirma-temprano-texto"
+                                        @if (session('confirma_temprano')) data-abrir @endif
+                                    >
+                                        <p id="confirma-temprano-texto">Tu jornada empieza a las {{ $horaInicioPrevista }}. ¿Empiezas ya?</p>
+                                        <div class="dialogo-acciones">
+                                            <form method="post" action="{{ route('jornada.entrada') }}">
+                                                @csrf
+                                                <input type="hidden" name="confirmar_temprano" value="1">
+                                                <button class="boton boton-principal" type="submit">Sí, empiezo</button>
+                                            </form>
+                                            <button class="boton boton-secundario" type="button" data-cierra-dialogo>Todavía no</button>
+                                        </div>
+                                    </dialog>
+                                @endif
                             </div>
                         @endif
                     </div>

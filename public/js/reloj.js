@@ -123,6 +123,28 @@
     }
     document.addEventListener("visibilitychange", tituloPendiente);
 
+    const dialogoTemprano = document.getElementById("confirma-temprano");
+    if (dialogoTemprano) {
+        document.querySelectorAll("form[data-confirma-temprano]").forEach(function (form) {
+            form.addEventListener("submit", function (event) {
+                if (typeof dialogoTemprano.showModal !== "function") {
+                    return;
+                }
+                event.preventDefault();
+                dialogoTemprano.showModal();
+            });
+        });
+        const cierraTemprano = dialogoTemprano.querySelector("[data-cierra-dialogo]");
+        if (cierraTemprano) {
+            cierraTemprano.addEventListener("click", function () {
+                dialogoTemprano.close();
+            });
+        }
+        if (dialogoTemprano.hasAttribute("data-abrir") && typeof dialogoTemprano.showModal === "function") {
+            dialogoTemprano.showModal();
+        }
+    }
+
     document.querySelectorAll("form").forEach(function (form) {
         form.addEventListener("submit", function (event) {
             form.querySelectorAll("[data-hora]").forEach(sincronizarHora);
@@ -154,6 +176,9 @@
                 return;
             }
             if ((form.getAttribute("method") || "get").toLowerCase() !== "post") {
+                return;
+            }
+            if (form.hasAttribute("data-confirma-temprano") && dialogoTemprano && typeof dialogoTemprano.showModal === "function") {
                 return;
             }
             if (form.dataset.enviando === "1") {

@@ -523,6 +523,17 @@ body:has(.comunicar) .cuerpo {
     padding: 32px;
 }
 
+.acceso-pie {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.acceso-pie .enlace-clave {
+    margin-top: 0;
+}
+
 h1 {
     margin: 0;
     font-size: 32px;
@@ -1022,6 +1033,37 @@ h2 {
 
 .boton:disabled { opacity: 0.45; cursor: not-allowed; }
 
+.dialogo {
+    width: min(400px, calc(100% - 32px));
+    padding: 24px;
+    border: 1px solid var(--linea);
+    border-radius: 12px;
+    background: var(--fondo-ventana);
+    color: var(--texto);
+    box-shadow: 0 16px 40px rgba(7, 17, 26, 0.28);
+}
+
+.dialogo::backdrop {
+    background: rgba(7, 17, 26, 0.55);
+}
+
+.dialogo p {
+    margin: 0 0 16px;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.dialogo-acciones {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.dialogo-acciones .boton,
+.dialogo-acciones form .boton {
+    width: 100%;
+}
+
 a.boton, .fila .boton { width: auto; }
 
 .formulario {
@@ -1030,6 +1072,21 @@ a.boton, .fila .boton { width: auto; }
     gap: 8px;
     margin-top: 16px;
     max-width: 640px;
+}
+
+.enlace-clave {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    color: var(--enlace);
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.enlace-clave:hover,
+.enlace-clave:focus-visible {
+    color: var(--marca-primario-oscuro);
+    text-decoration: underline;
 }
 
 .campo-clave { position: relative; }
@@ -1868,6 +1925,10 @@ html[data-tema="oscuro"] {
         background: transparent;
         color: var(--texto);
         border-color: var(--marca-turquesa);
+    }
+
+    .dialogo::backdrop {
+        background: rgba(0, 0, 0, 0.65);
     }
 
     .resumen div { background: var(--fondo-oscuro); }

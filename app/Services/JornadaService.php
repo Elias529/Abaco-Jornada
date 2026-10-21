@@ -22,6 +22,8 @@ class JornadaService
 {
     public const MINUTOS_HASTA_AVISO_DE_INICIO = 20;
 
+    public const MINUTOS_ANTES_PARA_CONFIRMAR = 10;
+
     public const DIAS_HASTA_AVISAR_A_LA_JEFA = 7;
 
     public const CENTRO = 'Madrid';
@@ -139,7 +141,26 @@ class JornadaService
             'tramosAbiertos' => $hoy ? $hoy->tramos->whereNull('ended_at')->count() : 0,
             'barra' => $this->barra($horario, $hoy, $hasta),
             'esJefa' => $user->esJefa(),
+            'horaInicioPrevista' => $horario ? $horario->corta($horario->morning_start) : null,
+            'pideConfirmacionTemprana' => $this->horaInicioSiEsTemprano($user, $ahora) !== null,
         ];
+    }
+
+    public function horaInicioSiEsTemprano(User $user, ?Carbon $ahora = null): ?string
+    {
+        $ahora ??= now();
+        $horario = $user->horarioEn($ahora);
+        if ($horario === null) {
+            return null;
+        }
+
+        $prevista = $horario->corta($horario->morning_start);
+        $inicio = $this->momento($ahora, $prevista);
+        if ($ahora->copy()->addMinutes(self::MINUTOS_ANTES_PARA_CONFIRMAR)->lte($inicio)) {
+            return $prevista;
+        }
+
+        return null;
     }
 
     public function entrar(User $user): string
@@ -775,9 +796,12 @@ class JornadaService
     }
 
     /**
-     * Avisos que cuentan y siguen sin explicar. La entrada de hoy no entra:
-     * el día sigue abierto y se puede fichar. Si el día ya está cerrado,
-     * el aviso de cierre o de salida pendiente deja de contar.
+     * Avisos que cuentan y siguen sin explicar. Solo los del año en curso,
+     * el más antiguo primero. La entrada de hoy no entra: el día sigue
+     * abierto y se puede fichar. Si el día ya está cerrado, el aviso de
+     * cierre o de salida pendiente deja de contar. Un aviso de este año
+     * deja de contar también cuando la persona lo explica. El histórico
+     * de otros años se conserva.
      */
     public function problemasSinExplicar(User $user, Carbon $ahora): int
     {
@@ -790,6 +814,7 @@ class JornadaService
             ->where('user_id', $user->id)
             ->where('cuenta', true)
             ->whereNull('responded_at')
+            ->whereDate('work_date', '>=', $ahora->copy()->startOfYear()->toDateString())
             ->whereDate('work_date', '<=', $ahora->toDateString())
             ->where(function ($consulta) use ($ahora) {
                 $consulta->whereDate('work_date', '<', $ahora->toDateString())
@@ -858,8 +883,8 @@ class JornadaService
     }
 
     /**
-     * Avisos sin explicar de hace más de siete días: lo que la jefa debe mirar.
-     * Solo consulta. Cuenta lo mismo que problemasSinExplicar, por antigüedad.
+     * Avisos sin explicar de este año y de hace más de siete días: lo que
+     * la jefa debe mirar. Solo consulta. El más antiguo primero.
      */
     public function cierresSinResolverAntiguos(User $user, Carbon $ahora): int
     {
@@ -869,6 +894,7 @@ class JornadaService
             ->where('user_id', $user->id)
             ->where('cuenta', true)
             ->whereNull('responded_at')
+            ->whereDate('work_date', '>=', $ahora->copy()->startOfYear()->toDateString())
             ->whereDate('work_date', '<', $limite)
             ->count();
     }
@@ -1295,7 +1321,7 @@ class JornadaService
             ->whereBetween('work_date', [$lunes, $domingo])
             ->get();
 
-        return $jornadas->sum(fn (Jornada $jornada) => $this->minutosDeJornada($jornada, $this->hastaVisible($user, $jornada, $ahora)));
+        return $jornadas->sum(fn (Jornada $jornada) => $this->minutosRegistrados($user, $jornada, $ahora));
     }
 
     private function horaFin(Jornada $jornada): string

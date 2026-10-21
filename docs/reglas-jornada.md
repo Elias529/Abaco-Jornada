@@ -2,13 +2,15 @@
 
 Zona horaria: `Europe/Madrid`. Las horas de fichar, pausar, volver y salir son las del servidor en el momento de la petición. La entrada usa la hora del servidor si no se envía otra.
 
-El centro de trabajo es Madrid (`JornadaService::CENTRO`). El festivo se busca solo en ese municipio. El municipio de la ficha de la persona no cambia el calendario.
+Cada persona tiene una sede municipal (`centro`, por ejemplo `ES-MD` o `ES-CT`). El festivo se busca en esa sede: los de todo el país y los de esa comunidad. Al dar de alta se elige la sede y el calendario del alta cambia con ella. Ya no se imponen siempre los autonómicos de Madrid.
 
 ## Horario
 
 Cada persona tiene un horario con vigencia (`effective_from`). Para un día se usa el de vigencia más reciente que no sea posterior a ese día.
 
 El horario de demostración es de 09:00 a 14:00 y de 15:00 a 18:00, desde el 7 de enero de 2026.
+
+Si se pulsa Empezar jornada 10 minutos o más antes de la hora de inicio, Hoy pregunta «¿Empiezas ya?». Sí guarda la hora real. Todavía no no ficha. No hay correo.
 
 Si se guardan dos horarios con la misma vigencia, la aplicación no tiene una regla explícita de desempate. Queda abierto en [plan.md](plan.md).
 
@@ -22,7 +24,7 @@ La comida de 14:00 a 15:00 es la referencia del horario. No se pausa sola. Si la
 
 ## Olvidos y cierre
 
-Si queda un tramo abierto de un día anterior, lo primero que se ve es ese día. Hay que indicar la hora de salida. Después se puede empezar el día nuevo.
+Si queda un tramo abierto de un día anterior, lo primero que se ve es ese día. Hay que indicar la hora de salida. No se puede empezar el día nuevo hasta cerrar el anterior. Un tramo sin salida de un día pasado no usa la hora actual: no se sabe cuándo terminó, así que no se inventa.
 
 Si el equipo sigue encendido pasada la hora de fin de tarde, y la persona no ha dicho que sigue, el tiempo visible se corta en esa hora. Terminar jornada no se ofrece hasta pulsar Sigo. Seguir después de las 18:00 guarda la salida real. No se convierte en hora extra ni pide autorización. El texto actual dice «No es una hora extra»; Pablo pide revisar esa frase porque mostrar un exceso no clasifica el tiempo.
 
@@ -30,7 +32,7 @@ La persona puede corregir una hora suya durante 7 días. Después lo hace la jef
 
 ## Festivos
 
-Si el día es festivo en Madrid, antes de empezar se pregunta si hay trabajo real. Si la respuesta es no, no se ficha. Si es sí, se puede empezar y el día sigue siendo festivo en el calendario.
+Si el día es festivo en la sede de la persona, antes de empezar se pregunta si hay trabajo real. Si la respuesta es no, no se ficha. Si es sí, se puede empezar y el día sigue siendo festivo en el calendario.
 
 Si no hay ningún festivo cargado para el año en curso, no se inventan. Quien mantiene el calendario ve el aviso. Los días ya trabajados se quedan como se registraron. Hoy «año completo» significa que existe al menos un festivo de ese año. Pablo pide revisar si esa definición basta.
 
@@ -38,7 +40,7 @@ Si no hay ningún festivo cargado para el año en curso, no se inventan. Quien m
 
 Se cuenta un aviso por persona, tipo y día. Varios mensajes del mismo cierre son un solo aviso.
 
-No hay umbral ni ventana de tiempo. Cada aviso con `cuenta` verdadera y sin respuesta se cuenta desde el primero y no caduca: deja de contar solo cuando la persona lo explica. En Hoy sale «Tienes N cierres sin completar…» con un enlace para revisarlos. El aviso no cambia el registro por sí solo. Un día sin cerrar nunca es un registro correcto, haya los avisos que haya. El histórico se conserva cuatro años, igual que el resto del registro.
+No hay umbral ni ventana de tiempo. Cada aviso con `cuenta` verdadera y sin respuesta se cuenta desde el primero. Dentro del año en curso no caduca: deja de contar solo cuando la persona lo explica. En Hoy y en el registro salen por antigüedad, el más antiguo primero, y solo los de este año. El aviso no cambia el registro por sí solo. Un día sin cerrar nunca es un registro correcto, haya los avisos que haya. El histórico se conserva cuatro años; un aviso de un año anterior no sale en esa lista, pero un tramo que siga abierto sigue impidiendo fichar.
 
 La jefa se entera por la antigüedad y no por el número: en Estado se marca a quien tiene avisos sin explicar de hace más de 7 días (`DIAS_HASTA_AVISAR_A_LA_JEFA`), con un resumen arriba y la misma señal en la ficha de la persona. Es solo consulta y no crea avisos. Los 7 días están pendientes de confirmar con el cliente y con Pablo.
 

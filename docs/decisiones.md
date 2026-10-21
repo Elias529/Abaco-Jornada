@@ -18,13 +18,21 @@ Cada fila enlaza la regla o la tarea que la aplica. El estado «vigente» es lo 
 - Estado: vigente. El texto es «No guardado: sin conexión». Al volver la red, «Comunicar incidencia» guarda las horas declaradas, el motivo, la persona y la hora de recepción. No abre un fichaje en directo ni un aviso de olvido.
 - Aplica en: [reglas-jornada.md](reglas-jornada.md). Prueba `test_la_incidencia_de_conexion_declara_horas_sin_fichar_en_directo`.
 
+## 2026-10-21 · Los festivos siguen la sede municipal
+
+- Decisión: cada persona tiene una sede municipal. Los festivos son los de esa sede (país + comunidad), no siempre los autonómicos de Madrid. Al dar de alta se elige la sede y el calendario del alta cambia con ella.
+- Motivo: la plantilla no está toda en Madrid. Imponer ES-MD ocultaba festivos reales de otra sede.
+- Alternativa descartada: un único calendario de Madrid para toda la plantilla, o el municipio de residencia sin código de comunidad.
+- Estado: vigente. Sustituye la decisión del 2026-10-07. `NagerFestivos` filtra por `User.centro`. El alta guarda `Sede`.
+- Aplica en: `test_el_festivo_sigue_el_centro_y_no_el_municipio`, `test_el_alta_guarda_la_sede_elegida`, `test_el_calendario_del_alta_sigue_la_sede_elegida`.
+
 ## 2026-10-07 · El calendario es el del centro de Madrid
 
 - Decisión: todas las personas, también quien teletrabaja desde otro municipio, siguen los festivos del centro de Madrid.
 - Motivo: el centro de trabajo está en el municipio de Madrid. No se aplica el calendario de la comunidad a cada centro, ni el del municipio de la ficha.
 - Alternativa descartada: un calendario por municipio de residencia.
-- Estado: vigente en `JornadaService::festivoDe`. Pablo dejó pendiente confirmar el centro y quién valida y actualiza el calendario. Ver [reuniones.md](reuniones.md).
-- Aplica en: prueba `test_quien_esta_en_otra_comunidad_sigue_el_calendario_de_madrid`.
+- Estado: sustituida por la decisión del 2026-10-21.
+- Aplica en: prueba `test_el_festivo_sigue_el_centro_y_no_el_municipio`.
 
 ## 2026-10-07 · No se borra una hora al corregirla
 
@@ -65,6 +73,14 @@ Cada fila enlaza la regla o la tarea que la aplica. El estado «vigente» es lo 
 - Alternativa descartada: sustituir el texto de la jefa por un ticket. La jefa dejaría de ver la lista de incidencias.
 - Estado: vigente.
 - Aplica en: `tests/Feature/TicketTest.php`.
+
+## 2026-10-21 · No se abre un día si el anterior sigue abierto
+
+- Decisión: no se puede empezar la jornada si hay un tramo abierto de un día anterior. El margen para entrar antes de la hora prevista es de 10 minutos, con aviso explícito. Un tramo sin salida de un día pasado no usa `now()` como fin. Los cierres pendientes se ordenan por antigüedad y solo se muestran los del año en curso.
+- Motivo: inventar la hora actual hincha el registro. Mostrar avisos de años anteriores mezcla el trabajo de este año con deuda vieja. Abrir un día nuevo sin cerrar el anterior deja dos jornadas abiertas.
+- Alternativa descartada: completar solos los olvidos, o dejar que el reloj siga sumando, o enseñar todos los avisos de los cuatro años de retención.
+- Estado: vigente.
+- Aplica en: [reglas-jornada.md](reglas-jornada.md). Pruebas `test_cierre_olvidado_permite_empezar_el_dia_nuevo`, `test_empezar_jornada_antes_de_tiempo_pide_confirmacion`, `test_una_entrada_sin_salida_de_ayer_no_inventa_la_hora` y `test_un_aviso_del_anio_anterior_no_sale_en_pendientes`.
 
 ## 2026-10-15 · Los avisos ya no tienen margen de 8 ni reinicio a los 28 días
 

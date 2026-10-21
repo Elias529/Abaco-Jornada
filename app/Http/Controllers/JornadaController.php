@@ -97,7 +97,12 @@ class JornadaController extends Controller
     public function entrar(Request $request): RedirectResponse
     {
         $this->normalizarHora($request);
-        $modo = $request->input('modo');
+        if (! $request->filled('hora') && ! $request->filled('modo')) {
+            if ($this->jornada->horaInicioSiEsTemprano($request->user()) && ! $request->boolean('confirmar_temprano')) {
+                return back()->with('confirma_temprano', true);
+            }
+        }
+
         $datos = $request->validate([
             'modo' => ['nullable', 'in:ahora,prevista,otra'],
             'hora' => ['nullable', 'required_if:modo,otra', 'date_format:H:i'],

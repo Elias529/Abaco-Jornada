@@ -14,6 +14,10 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'create'])->name('login');
     Route::post('/login', [AuthController::class, 'store'])->middleware('throttle:6,1');
+    Route::get('/clave', [AuthController::class, 'pedirClave'])->name('password.request');
+    Route::post('/clave', [AuthController::class, 'enviarClave'])->middleware('throttle:6,1')->name('password.email');
+    Route::get('/clave/{token}', [AuthController::class, 'editarClave'])->name('password.reset');
+    Route::post('/clave/nueva', [AuthController::class, 'guardarClave'])->middleware('throttle:6,1')->name('password.update');
 });
 
 Route::middleware(['auth', 'activo'])->group(function () {

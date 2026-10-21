@@ -41,6 +41,7 @@ class EquipoAltaTest extends TestCase
             ->assertSee('Jornada continua', false)
             ->assertSee('Jornada intensiva', false)
             ->assertSee('Tiempo en la empresa', false)
+            ->assertSee('Sede municipal', false)
             ->assertSee('Elige un tipo de jornada para continuar el alta.', false)
             ->assertDontSee('Guardar alta', false);
     }
@@ -167,6 +168,7 @@ class EquipoAltaTest extends TestCase
                 'password' => 'Jornada2026',
                 'starts_on' => '2026-10-13',
                 'duracion' => 'indefinido',
+                'centro' => 'ES-MD',
                 'tipo' => TipoJornada::Continua->value,
                 'morning_start' => '09:00',
                 'morning_end' => '14:00',
@@ -196,6 +198,7 @@ class EquipoAltaTest extends TestCase
                 'password' => 'Jornada2026',
                 'starts_on' => '2026-10-13',
                 'duracion' => 'tres_meses',
+                'centro' => 'ES-MD',
                 'tipo' => TipoJornada::Partida->value,
             ])
             ->assertSessionHas('ok');
@@ -216,9 +219,65 @@ class EquipoAltaTest extends TestCase
                 'password' => 'Jornada2026',
                 'starts_on' => '2026-10-13',
                 'duracion' => 'hasta_el_dia',
+                'centro' => 'ES-MD',
                 'tipo' => TipoJornada::Partida->value,
             ])
             ->assertSessionHasErrors('ends_on');
+    }
+
+    public function test_el_calendario_del_alta_sigue_la_sede_elegida(): void
+    {
+        $this->festivosPublicos([
+            [
+                'date' => '2026-04-02',
+                'localName' => 'Jueves Santo',
+                'global' => false,
+                'counties' => ['ES-MD'],
+                'types' => ['Public'],
+            ],
+            [
+                'date' => '2026-09-11',
+                'localName' => 'Diada Nacional de Catalunya',
+                'global' => false,
+                'counties' => ['ES-CT'],
+                'types' => ['Public'],
+            ],
+        ]);
+        $marta = $this->jefa();
+
+        $this->actingAs($marta)
+            ->get(route('equipo.create', [
+                'tipo' => TipoJornada::Partida->value,
+                'starts_on' => '2026-09-01',
+                'duracion' => 'indefinido',
+                'centro' => 'ES-CT',
+                'anio' => 2026,
+            ]))
+            ->assertOk()
+            ->assertSee('Festivos públicos de Barcelona', false)
+            ->assertSee('Diada Nacional de Catalunya', false)
+            ->assertDontSee('Jueves Santo', false);
+    }
+
+    public function test_el_alta_guarda_la_sede_elegida(): void
+    {
+        $marta = $this->jefa();
+
+        $this->actingAs($marta)
+            ->post(route('equipo.store'), [
+                'name' => 'Nuria Vega',
+                'email' => 'nuria.vega@abaco.test',
+                'password' => 'Jornada2026',
+                'starts_on' => '2026-10-13',
+                'duracion' => 'indefinido',
+                'centro' => 'ES-CT',
+                'tipo' => TipoJornada::Partida->value,
+            ])
+            ->assertSessionHas('ok');
+
+        $persona = User::query()->where('email', 'nuria.vega@abaco.test')->first();
+        $this->assertSame('ES-CT', $persona->centro);
+        $this->assertSame('Barcelona', $persona->municipality);
     }
 
     public function test_no_se_ficha_despues_del_ultimo_dia(): void

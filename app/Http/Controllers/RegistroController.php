@@ -6,6 +6,7 @@ use App\Exceptions\ReglaJornada;
 use App\Models\Consulta;
 use App\Models\Correccion;
 use App\Models\Explicacion;
+use App\Models\Horario;
 use App\Models\Jornada;
 use App\Models\Tramo;
 use App\Models\User;
@@ -293,7 +294,7 @@ class RegistroController extends Controller
             $filas[] = [
                 'tramo' => $tramo,
                 'titulo' => $this->tituloTramo($tramo, $horario),
-                'horas' => Tiempo::hora($tramo->started_at).'–'.($tramo->ended_at ? Tiempo::hora($tramo->ended_at) : 'ahora'),
+                'horas' => Tiempo::hora($tramo->started_at).'–'.$this->textoFin($tramo, $jornada),
                 'duracion' => Tiempo::corto($minutos).' min',
                 'nota' => $this->notaTramo($tramo),
             ];
@@ -343,8 +344,10 @@ class RegistroController extends Controller
                 default => $cantidad.' tramos de trabajo',
             },
             'inicio' => $primero ? Tiempo::hora($primero->started_at) : '—',
-            'salida' => $ultimo ? Tiempo::hora($ultimo->ended_at) : '—',
-            'salidaTexto' => $abierta ? 'Jornada abierta' : ($jornada->closed_late ? 'Cerrada al día siguiente' : $estadoRetraso),
+            'salida' => $ultimo ? Tiempo::hora($ultimo->ended_at) : ($abierta && ! $jornada->work_date->isSameDay(now()) ? 'sin salida' : '—'),
+            'salidaTexto' => $abierta
+                ? ($jornada->work_date->isSameDay(now()) ? 'Jornada abierta' : 'Sin salida')
+                : ($jornada->closed_late ? 'Cerrada al día siguiente' : $estadoRetraso),
             'estado' => $abierta ? 'Abierta' : ($jornada->closed_late ? 'Cierre al día siguiente' : $estadoRetraso),
             'estadoClase' => $abierta ? 'abierta' : (($jornada->closed_late || $retraso > 0) ? 'tardia' : 'cerrada'),
             'previsto' => $horario ? str_replace(' y ', ' · ', $horario->texto()) : null,
@@ -382,7 +385,7 @@ class RegistroController extends Controller
         ];
     }
 
-    private function tituloTramo(Tramo $tramo, ?\App\Models\Horario $horario): string
+    private function tituloTramo(Tramo $tramo, ?Horario $horario): string
     {
         if ($tramo->tipo === Tramo::PAUSA) {
             return 'Pausa';
@@ -417,13 +420,29 @@ class RegistroController extends Controller
         return implode('. ', $partes);
     }
 
-    private function finVisible(Tramo $tramo, Jornada $jornada, ?\App\Models\Horario $horario): Carbon
+    private function textoFin(Tramo $tramo, Jornada $jornada): string
+    {
+        if ($tramo->ended_at) {
+            return Tiempo::hora($tramo->ended_at);
+        }
+
+        if (! $jornada->work_date->isSameDay(now())) {
+            return 'sin salida';
+        }
+
+        return 'ahora';
+    }
+
+    private function finVisible(Tramo $tramo, Jornada $jornada, ?Horario $horario): Carbon
     {
         if ($tramo->ended_at) {
             return $tramo->ended_at;
         }
 
         $ahora = now();
+        if (! $jornada->work_date->isSameDay($ahora)) {
+            return $tramo->started_at;
+        }
         if (! $horario || $jornada->sigue || $tramo->tipo !== Tramo::TRABAJO) {
             return $ahora;
         }
@@ -479,6 +498,7 @@ class RegistroController extends Controller
         $jornadas = $this->csv->consulta($persona, $periodo['desde'], $periodo['hasta'], $filtros['estado'], $filtros['incidencia'])
             ->paginate(60)
             ->withQueryString();
+
         return view('registro.index', [
             'persona' => $persona,
             'consulta' => $consulta,
