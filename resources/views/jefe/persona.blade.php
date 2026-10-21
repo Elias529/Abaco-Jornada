@@ -16,8 +16,10 @@
 
     @if ($antiguos > 0)
         <p class="franja" role="status">
-            {{ $antiguos === 1 ? 'Tiene 1 cierre sin resolver' : 'Tiene '.$antiguos.' cierres sin resolver' }}
-            de hace más de {{ $diasHastaAvisar }} días.
+            <span class="franja-texto">
+                <strong>{{ $antiguos === 1 ? 'Tiene 1 cierre sin resolver' : 'Tiene '.$antiguos.' cierres sin resolver' }} de hace más de {{ $diasHastaAvisar }} días.</strong>
+                <span>Abre su registro indicando el motivo de consulta.</span>
+            </span>
         </p>
     @endif
 

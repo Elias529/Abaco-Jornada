@@ -3,7 +3,6 @@
 namespace App\Providers;
 
 use App\Models\Incidencia;
-use App\Models\SolicitudVacaciones;
 use App\Models\Ticket;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -38,12 +37,9 @@ class AppServiceProvider extends ServiceProvider
                 'ticketsNuevos' => $usuario && $usuario->esTecnico()
                     ? Ticket::query()->where('estado', Ticket::ABIERTO)->count()
                     : 0,
-                'incidenciasNuevas' => $usuario && $usuario->esJefa()
-                    ? Incidencia::query()->whereNull('vista_at')->count()
-                    : 0,
-                'solicitudesNuevas' => $usuario && $usuario->esJefa()
-                    ? SolicitudVacaciones::query()->where('estado', SolicitudVacaciones::PENDIENTE)->count()
-                    : 0,
+                'incidenciasNuevas' => ! $usuario ? 0 : ($usuario->esJefa()
+                    ? Incidencia::query()->whereNull('destinatario_id')->whereNull('vista_at')->count()
+                    : Incidencia::query()->where('destinatario_id', $usuario->id)->whereNull('vista_at')->count()),
             ]);
         });
     }

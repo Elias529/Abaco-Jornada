@@ -11,6 +11,7 @@ use App\Models\Jornada;
 use App\Models\Tramo;
 use App\Models\User;
 use App\Support\Tiempo;
+use App\TipoJornada;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -84,6 +85,15 @@ class JornadaService
 
         $puedeAbrir = $user->estaEnPlantillaEl($ahora);
         $puedePorFestivo = ! $festivo || $respuestaFestivo === 'si';
+        $primero = $hoy?->tramos->first(fn (Tramo $tramo) => $tramo->tipo === Tramo::TRABAJO);
+        $tipo = $horario?->tipoJornada();
+        if ($horario && $tipo === null) {
+            $tipo = $horario->sinTarde() ? TipoJornada::Continua : TipoJornada::Partida;
+        }
+        $lunes = $ahora->copy()->locale('es')->startOfWeek(Carbon::MONDAY);
+        $domingo = $ahora->copy()->locale('es')->endOfWeek(Carbon::SUNDAY);
+        $minutosSemana = $this->minutosSemana($user, $ahora);
+        $vivo = max(0, $minutosHoy - $minutosCerrados);
 
         return [
             'fecha' => Tiempo::fecha($ahora),
@@ -104,14 +114,27 @@ class JornadaService
             'notaDia' => implode(' ', $notas),
             'banner' => $banner,
             'pendiente' => $banner !== null,
-            'puedeEntrar' => $puedeAbrir && $puedePorFestivo && ! $pasada && (! $hoy || $this->soloFuera($hoy)),
+            'puedeEntrar' => $puedeAbrir && $puedePorFestivo && ! $pasada && (! $hoy || $this->soloFuera($hoy)) && ! $this->faltaExplicarAyer($user, $ahora),
             'puedeSalir' => $abierto !== null && ! $pasada && ! $cierrePendiente,
             'puedePausar' => $abierto?->tipo === Tramo::TRABAJO && ! $cierrePendiente,
             'puedeVolver' => $abierto?->tipo === Tramo::PAUSA && ! $cierrePendiente,
             'puedeYaEstaba' => $puedeAbrir && $puedePorFestivo && ! $pasada && (! $hoy || $this->soloFuera($hoy)),
-            'puedeFuera' => $puedeAbrir && ! $pasada && (! $festivo || $respuestaFestivo === 'si'),
             'hoyTexto' => Tiempo::corto($minutosHoy),
-            'semanaTexto' => Tiempo::corto($this->minutosSemana($user, $ahora)),
+            'hoyLargo' => Tiempo::corto($minutosHoy),
+            'semanaTexto' => Tiempo::corto($minutosSemana),
+            'semanaCerrados' => max(0, $minutosSemana - $vivo),
+            'semanaRango' => $this->rangoSemana($lunes, $domingo),
+            'saludo' => $ahora->hour < 14 ? 'Buenos días' : ($ahora->hour < 21 ? 'Buenas tardes' : 'Buenas noches'),
+            'nombre' => explode(' ', trim($user->name))[0] ?: $user->name,
+            'fechaLarga' => ucfirst($ahora->copy()->locale('es')->isoFormat('dddd, D [de] MMMM [de] YYYY')),
+            'pastilla' => $this->pastilla($estado),
+            'centroNombre' => $user->municipality !== '' ? $user->municipality : (string) $user->centro,
+            'tipoLargo' => $tipo?->etiqueta(),
+            'desdeTexto' => $primero ? 'Desde las '.Tiempo::hora($primero->started_at) : null,
+            'previstoTexto' => $horario ? str_replace(' y ', ' · ', $horario->texto()) : null,
+            'tramosHoy' => $hoy ? $this->tramosDeHoy($hoy) : [],
+            'tramosAbiertos' => $hoy ? $hoy->tramos->whereNull('ended_at')->count() : 0,
+            'barra' => $this->barra($horario, $hoy, $hasta),
             'esJefa' => $user->esJefa(),
         ];
     }
@@ -314,39 +337,53 @@ class JornadaService
         return 'Guardado. Sigues. La salida será la hora a la que termines.';
     }
 
-    public function fuera(User $user, string $inicioHora, string $finHora): string
+    public function registrarHoras(User $user, string $fecha, string $inicioHora, string $finHora): Jornada
     {
         $ahora = now();
-        $inicio = $this->momento($ahora, $inicioHora);
-        $fin = $this->momento($ahora, $finHora);
+        $dia = Carbon::parse($fecha, config('app.timezone'))->startOfDay();
+        if ($dia->toDateString() > $ahora->toDateString()) {
+            throw new ReglaJornada('Ese día todavía no ha llegado.');
+        }
+        if (! $user->esJefa() && $dia->lt($ahora->copy()->subDays(7)->startOfDay())) {
+            throw new ReglaJornada('Para cambiar este día, habla con tu jefa.');
+        }
 
+        $inicio = $this->momento($dia, $inicioHora);
+        $fin = $this->momento($dia, $finHora);
         if ($fin->lessThanOrEqualTo($inicio)) {
             throw new ReglaJornada('La salida tiene que ser después de la entrada.');
         }
-        if ($fin->greaterThan($ahora) || $inicio->greaterThan($ahora)) {
+        if ($inicio->greaterThan($ahora) || $fin->greaterThan($ahora)) {
             throw new ReglaJornada('Esa hora todavía no ha llegado.');
         }
 
-        DB::transaction(function () use ($user, $ahora, $inicio, $fin) {
+        return DB::transaction(function () use ($user, $ahora, $dia, $inicio, $fin) {
             $this->bloquear($user);
-            $this->asegurarFechaDeAlta($user, $ahora);
-            if ($this->jornadaAbiertaAnterior($user, $ahora)) {
-                throw new ReglaJornada($this->textoOlvido($this->jornadaAbiertaAnterior($user, $ahora)));
+            $this->asegurarFechaDeAlta($user, $dia);
+            $jornada = $this->jornadaDe($user, $dia);
+            if ($jornada && $jornada->tramos->contains(fn (Tramo $tramo) => $tramo->tipo === Tramo::TRABAJO)) {
+                throw new ReglaJornada('Ese día ya tiene horas registradas.');
             }
-            $hoy = $this->jornadaDe($user, $ahora);
-            if ($hoy && $this->solapa($hoy, $inicio, $fin)) {
-                throw new ReglaJornada('Esa hora se cruza con un tramo que ya está guardado.');
-            }
-            if (! $hoy) {
-                $hoy = Jornada::create([
+            if (! $jornada) {
+                $jornada = Jornada::create([
                     'user_id' => $user->id,
-                    'work_date' => $ahora->toDateString(),
+                    'work_date' => $dia->toDateString(),
                 ]);
             }
-            $this->abrirTramo($hoy, Tramo::TRABAJO, $inicio, $ahora, true, 'fuera', $fin);
-        });
+            Tramo::create([
+                'jornada_id' => $jornada->id,
+                'tipo' => Tramo::TRABAJO,
+                'started_at' => $inicio,
+                'ended_at' => $fin,
+                'anotado_at' => $ahora,
+                'fuera_del_equipo' => false,
+                'cerrado_por' => $user->id,
+                'cerrado_at' => $ahora,
+            ]);
+            $this->marcarExplicados($user, $dia->toDateString());
 
-        return 'Guardado. Trabajo fuera del equipo de las '.Tiempo::hora($inicio).' a las '.Tiempo::hora($fin).'.';
+            return $jornada;
+        });
     }
 
     public function declararIncidencia(User $user, string $inicioHora, string $finHora, string $motivo): string
@@ -660,17 +697,73 @@ class JornadaService
     }
 
     /**
-     * Avisos que cuentan y siguen sin explicar. No hay umbral ni ventana de
-     * tiempo: un aviso deja de contar solo cuando la persona lo explica.
+     * Avisos que cuentan y siguen sin explicar. La entrada de hoy no entra:
+     * el día sigue abierto y se puede fichar. Un aviso deja de contar solo
+     * cuando la persona lo explica.
      */
     public function problemasSinExplicar(User $user, Carbon $ahora): int
+    {
+        return $this->avisosSinExplicar($user, $ahora)->count();
+    }
+
+    public function avisosSinExplicar(User $user, Carbon $ahora): Collection
     {
         return Aviso::query()
             ->where('user_id', $user->id)
             ->where('cuenta', true)
             ->whereNull('responded_at')
             ->whereDate('work_date', '<=', $ahora->toDateString())
-            ->count();
+            ->where(function ($consulta) use ($ahora) {
+                $consulta->whereDate('work_date', '<', $ahora->toDateString())
+                    ->orWhere('tipo', '!=', 'inicio');
+            })
+            ->orderBy('work_date')
+            ->orderBy('id')
+            ->get();
+    }
+
+    /**
+     * @return list<array{fecha: string, dia: string, texto: string}>
+     */
+    public function pendientesDeExplicar(User $user, Carbon $ahora): array
+    {
+        return $this->avisosSinExplicar($user, $ahora)
+            ->groupBy(fn (Aviso $aviso) => $aviso->work_date->toDateString())
+            ->map(fn (Collection $delDia, string $fecha) => [
+                'fecha' => $fecha,
+                'dia' => Tiempo::fecha($delDia->first()->work_date),
+                'texto' => $this->queFalta($delDia),
+            ])
+            ->values()
+            ->all();
+    }
+
+    public function textoPendientes(Collection $avisos): string
+    {
+        $porDia = $avisos->groupBy(fn (Aviso $aviso) => $aviso->work_date->toDateString());
+        $primero = $porDia->first();
+        if ($porDia->count() === 1) {
+            return 'El '.Tiempo::fecha($primero->first()->work_date).' '.$this->queFalta($primero).'. Puedes explicarlo aquí.';
+        }
+
+        return 'Tienes '.$porDia->count().' días sin explicar. El más antiguo es el '.Tiempo::fecha($primero->first()->work_date).'.';
+    }
+
+    private function queFalta(Collection $delDia): string
+    {
+        $tipos = $delDia->pluck('tipo')->unique();
+        $partes = [];
+        if ($tipos->contains('olvido')) {
+            $partes[] = 'falta la hora de salida';
+        }
+        if ($tipos->contains('inicio')) {
+            $partes[] = 'no quedó registrada la entrada';
+        }
+        if ($tipos->contains('cierre')) {
+            $partes[] = 'quedó el cierre sin completar';
+        }
+
+        return implode(' y ', $partes);
     }
 
     /**
@@ -857,6 +950,20 @@ class JornadaService
             ];
         }
 
+        if ((! $hoy || $this->soloFuera($hoy)) && $this->faltaExplicarAyer($user, $ahora)) {
+            $ayer = $ahora->copy()->subDay();
+
+            return [
+                'texto' => 'El '.Tiempo::fecha($ayer).' no quedó registrada la entrada. Puedes explicarlo aquí.',
+                'accion' => 'registro',
+                'fecha' => $ayer->toDateString(),
+                'jornada' => Jornada::query()
+                    ->where('user_id', $user->id)
+                    ->whereDate('work_date', $ayer->toDateString())
+                    ->value('id'),
+            ];
+        }
+
         $puedePreguntarInicio = $esperada || $respuestaFestivo === 'si';
         if ((! $hoy || $this->soloFuera($hoy)) && $puedePreguntarInicio && $horario && $ahora->greaterThan($this->momento($ahora, $horario->corta($horario->morning_start)))) {
             $this->registrarAviso($user, 'inicio', $ahora);
@@ -869,13 +976,18 @@ class JornadaService
             ];
         }
 
-        $sinExplicar = $this->problemasSinExplicar($user, $ahora);
-        if ($sinExplicar >= 1) {
+        $pendientes = $this->avisosSinExplicar($user, $ahora);
+        if ($pendientes->isNotEmpty()) {
+            $fecha = $pendientes->first()->work_date->toDateString();
+
             return [
-                'texto' => $sinExplicar === 1
-                    ? 'Tienes 1 cierre sin completar. Puedes revisarlo o explicarlo aquí.'
-                    : 'Tienes '.$sinExplicar.' cierres sin completar. Puedes revisarlos o explicarlos aquí.',
+                'texto' => $this->textoPendientes($pendientes),
                 'accion' => 'registro',
+                'fecha' => $fecha,
+                'jornada' => Jornada::query()
+                    ->where('user_id', $user->id)
+                    ->whereDate('work_date', $fecha)
+                    ->value('id'),
             ];
         }
 
@@ -896,6 +1008,9 @@ class JornadaService
         if ($pasada) {
             throw new ReglaJornada($this->textoOlvido($pasada));
         }
+        if ($this->faltaExplicarAyer($user, $ahora)) {
+            throw new ReglaJornada('Ayer no quedó registrada la entrada. Explícalo antes de empezar hoy.');
+        }
         $hoy = $this->jornadaDe($user, $ahora);
         if ($hoy && ! $this->soloFuera($hoy)) {
             if ($hoy->estaCerrada()) {
@@ -903,6 +1018,34 @@ class JornadaService
             }
             throw new ReglaJornada('Hoy ya has empezado la jornada.');
         }
+    }
+
+    public function avisarSiFaltaEntrada(User $user, string $fecha): void
+    {
+        $dia = Carbon::parse($fecha, config('app.timezone'))->startOfDay();
+        if ($dia->toDateString() >= now()->toDateString() || ! $this->esDiaEsperado($user, $dia)) {
+            return;
+        }
+
+        $jornada = $this->jornadaDe($user, $dia);
+        if ($jornada && $jornada->tramos->contains(fn (Tramo $tramo) => $tramo->tipo === Tramo::TRABAJO)) {
+            return;
+        }
+
+        $this->registrarAviso($user, 'inicio', $dia);
+    }
+
+    private function faltaExplicarAyer(User $user, Carbon $ahora): bool
+    {
+        $ayer = $ahora->copy()->subDay()->toDateString();
+
+        return Aviso::query()
+            ->where('user_id', $user->id)
+            ->where('tipo', 'inicio')
+            ->where('cuenta', true)
+            ->whereNull('responded_at')
+            ->whereDate('work_date', $ayer)
+            ->exists();
     }
 
     private function jornadaParaAbrir(User $user, Carbon $ahora): Jornada
@@ -1081,6 +1224,116 @@ class JornadaService
         $ultimo = $jornada->tramos->filter(fn (Tramo $tramo) => $tramo->ended_at !== null)->sortBy('ended_at')->last();
 
         return $ultimo ? Tiempo::hora($ultimo->ended_at) : '';
+    }
+
+    /**
+     * @return array{texto: string, clase: string}
+     */
+    private function pastilla(string $estado): array
+    {
+        return match ($estado) {
+            'trabajando' => ['texto' => 'En curso', 'clase' => 'en-curso'],
+            'pausa' => ['texto' => 'En pausa', 'clase' => 'en-pausa'],
+            'pendiente' => ['texto' => 'Pendiente', 'clase' => 'pendiente'],
+            'cerrada' => ['texto' => 'Cerrada', 'clase' => 'cerrada'],
+            default => ['texto' => 'Fuera', 'clase' => 'fuera'],
+        };
+    }
+
+    private function rangoSemana(Carbon $lunes, Carbon $domingo): string
+    {
+        $mes = rtrim($domingo->isoFormat('MMM'), '.');
+        if ($lunes->month === $domingo->month) {
+            return $lunes->day.'-'.$domingo->day.' '.$mes;
+        }
+
+        return $lunes->day.' '.rtrim($lunes->isoFormat('MMM'), '.').'-'.$domingo->day.' '.$mes;
+    }
+
+    /**
+     * @return list<array{tipo: string, titulo: string, detalle: string, horas: string, abierto: bool}>
+     */
+    private function tramosDeHoy(Jornada $jornada): array
+    {
+        return $jornada->tramos->map(function (Tramo $tramo) {
+            $abierto = $tramo->ended_at === null;
+
+            return [
+                'tipo' => $tramo->tipo,
+                'titulo' => $tramo->fuera_del_equipo ? 'Sin el portátil' : ($tramo->tipo === Tramo::PAUSA ? 'Pausa' : 'Trabajo'),
+                'detalle' => $abierto ? 'Tramo en curso' : 'Cerrado',
+                'horas' => Tiempo::hora($tramo->started_at).'–'.($abierto ? 'ahora' : Tiempo::hora($tramo->ended_at)),
+                'abierto' => $abierto,
+            ];
+        })->all();
+    }
+
+    /**
+     * @return array{previsto: list<array{left: float, width: float}>, hecho: list<array{left: float, width: float, abierto: bool}>}
+     */
+    private function barra(?Horario $horario, ?Jornada $hoy, Carbon $hasta): array
+    {
+        $previsto = [];
+        if ($horario) {
+            $manana = $this->tramoEje($this->minutosDeHora($horario->morning_start), $this->minutosDeHora($horario->morning_end));
+            if ($manana) {
+                $previsto[] = $manana;
+            }
+            if (! $horario->sinTarde()) {
+                $tarde = $this->tramoEje($this->minutosDeHora($horario->afternoon_start), $this->minutosDeHora($horario->afternoon_end));
+                if ($tarde) {
+                    $previsto[] = $tarde;
+                }
+            }
+        }
+
+        $hecho = [];
+        foreach ($hoy?->tramos ?? [] as $tramo) {
+            if ($tramo->tipo !== Tramo::TRABAJO) {
+                continue;
+            }
+            $fin = $tramo->ended_at ?? $hasta;
+            $trozo = $this->tramoEje($this->minutosDelDia($tramo->started_at), $this->minutosDelDia($fin));
+            if ($trozo) {
+                $trozo['abierto'] = $tramo->ended_at === null;
+                $hecho[] = $trozo;
+            }
+        }
+
+        return ['previsto' => $previsto, 'hecho' => $hecho];
+    }
+
+    /**
+     * @return array{left: float, width: float}|null
+     */
+    private function tramoEje(int $inicio, int $fin): ?array
+    {
+        $desde = 7 * 60;
+        $hasta = 21 * 60;
+        $a = max($desde, min($hasta, $inicio));
+        $b = max($desde, min($hasta, $fin));
+        if ($b <= $a) {
+            return null;
+        }
+
+        return [
+            'left' => round(($a - $desde) / ($hasta - $desde) * 100, 2),
+            'width' => round(($b - $a) / ($hasta - $desde) * 100, 2),
+        ];
+    }
+
+    private function minutosDeHora(string $hora): int
+    {
+        [$horas, $minutos] = array_pad(explode(':', substr($hora, 0, 5)), 2, '0');
+
+        return ((int) $horas) * 60 + (int) $minutos;
+    }
+
+    private function minutosDelDia(Carbon $momento): int
+    {
+        $local = $momento->timezone(config('app.timezone'));
+
+        return ((int) $local->format('H')) * 60 + (int) $local->format('i');
     }
 
     private function festivoDe(User $user, Carbon $fecha): bool

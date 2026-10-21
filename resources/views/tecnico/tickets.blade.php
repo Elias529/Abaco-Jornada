@@ -27,7 +27,7 @@
                 <li>
                     <a href="{{ route('tickets.show', $ticket) }}">
                         <span>{{ $ticket->asunto }}</span>
-                        <strong class="pastilla pastilla-{{ $ticket->estado }}">{{ $ticket->etiquetaDeEstado() }}</strong>
+                        <x-chip :tipo="$ticket->estado">{{ $ticket->etiquetaDeEstado() }}</x-chip>
                     </a>
                     <p class="tickets-extracto">{{ \Illuminate\Support\Str::limit(preg_replace('/\s+/', ' ', $ticket->descripcion), 110) }}</p>
                     <span class="secundario">

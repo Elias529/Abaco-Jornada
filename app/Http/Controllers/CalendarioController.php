@@ -6,6 +6,7 @@ use App\Models\Ausencia;
 use App\Models\FalloComun;
 use App\Models\Jornada;
 use App\Models\SolicitudVacaciones;
+use App\Services\CupoVacaciones;
 use App\Services\JornadaService;
 use App\Services\NagerFestivos;
 use App\Support\DiaFestivo;
@@ -17,7 +18,11 @@ use Illuminate\View\View;
 
 class CalendarioController extends Controller
 {
-    public function __construct(private JornadaService $jornada, private NagerFestivos $festivos) {}
+    public function __construct(
+        private JornadaService $jornada,
+        private NagerFestivos $festivos,
+        private CupoVacaciones $cupo,
+    ) {}
 
     public function index(Request $request): View
     {
@@ -25,6 +30,23 @@ class CalendarioController extends Controller
         if ($anio < 2020 || $anio > now()->year + 1) {
             $anio = now()->year;
         }
+
+        $mes = $request->query('mes') === null
+            ? ($anio === now()->year ? now()->month : 1)
+            : (int) $request->query('mes');
+        if ($mes < 1 || $mes > 12) {
+            $mes = $anio === now()->year ? now()->month : 1;
+        }
+
+        $cursor = Carbon::create($anio, $mes, 1)->startOfMonth();
+        $anterior = $cursor->copy()->subMonth();
+        $siguiente = $cursor->copy()->addMonth();
+        $mesAnterior = $anterior->greaterThanOrEqualTo(Carbon::create(2020, 1, 1))
+            ? ['anio' => $anterior->year, 'mes' => $anterior->month]
+            : null;
+        $mesSiguiente = $siguiente->lessThanOrEqualTo(Carbon::create(now()->year + 1, 12, 1))
+            ? ['anio' => $siguiente->year, 'mes' => $siguiente->month]
+            : null;
 
         $usuario = $request->user();
         $festivos = $this->festivos->delAnio((string) $usuario->centro, $anio);
@@ -38,28 +60,34 @@ class CalendarioController extends Controller
         $faltas = $usuario->esJefa()
             ? Ausencia::query()->with('user')->whereYear('absence_date', $anio)->orderBy('absence_date')->get()
             : collect();
+        $pendientes = $usuario->solicitudesVacaciones()
+            ->where('estado', SolicitudVacaciones::PENDIENTE)
+            ->get()
+            ->flatMap(fn (SolicitudVacaciones $solicitud) => $this->cupo->queCuentan($usuario, $solicitud->starts_on, $solicitud->ends_on))
+            ->flip();
 
-        return view('calendario.index', [
+        $datos = [
             'festivos' => $festivos,
-            'centro' => $usuario->centro,
-            'meses' => $this->meses($anio, $festivos, $propias, $jornadas, $faltas->groupBy(fn (Ausencia $ausencia) => $ausencia->absence_date->toDateString())),
+            'mes' => $this->meses($anio, $festivos, $propias, $jornadas, $faltas->groupBy(fn (Ausencia $ausencia) => $ausencia->absence_date->toDateString()), $pendientes)[$mes - 1],
             'anio' => $anio,
-            'anioSiguiente' => $anio + 1,
-            'puedeAvanzar' => $anio < now()->year + 1,
+            'mesAnterior' => $mesAnterior,
+            'mesSiguiente' => $mesSiguiente,
             'sinCalendario' => $festivos->isEmpty(),
             'faltas' => $faltas,
             'fallos' => FalloComun::query()->orderByDesc('falla_date')->limit(12)->get(),
             'esJefa' => $request->user()->esJefa(),
-            'solicitudes' => $usuario->esJefa()
-                ? collect()
-                : $usuario->solicitudesVacaciones()->latest('id')->get(),
-        ]);
+            'diasVacaciones' => $this->cupo->restantes($usuario, now()->year),
+        ];
+
+        if ($request->query('fragmento') === '1') {
+            return view('calendario.mes', $datos);
+        }
+
+        return view('calendario.index', $datos);
     }
 
     public function solicitar(Request $request): RedirectResponse
     {
-        abort_if($request->user()->esJefa(), 403);
-
         $datos = $request->validate([
             'desde' => ['required', 'date', 'after_or_equal:today'],
             'hasta' => ['required', 'date', 'after_or_equal:desde'],
@@ -76,12 +104,22 @@ class CalendarioController extends Controller
 
         $desde = Carbon::parse($datos['desde'])->startOfDay();
         $hasta = Carbon::parse($datos['hasta'])->startOfDay();
+        $persona = $request->user();
 
-        if ($desde->diffInDays($hasta) > 39) {
-            return back()->with('aviso', 'Pide como máximo 40 días.')->withInput();
+        if (! $this->cupo->dentroDelPlazo($hasta)) {
+            return back()->with('aviso', 'Tienes dos meses para cogerlas. A partir de ahí desaparecen.');
         }
 
-        $solapa = $request->user()->solicitudesVacaciones()
+        $cuentan = $this->cupo->queCuentan($persona, $desde, $hasta);
+        if ($cuentan->isEmpty()) {
+            return back()->with('aviso', 'Esos días no cuentan: son fin de semana o festivo.');
+        }
+
+        if (! $this->cupo->cabe($persona, $desde, $hasta)) {
+            return back()->with('aviso', 'No te quedan tantos días. El máximo es 22 al año.');
+        }
+
+        $solapa = $persona->solicitudesVacaciones()
             ->whereIn('estado', [SolicitudVacaciones::PENDIENTE, SolicitudVacaciones::APROBADA])
             ->whereDate('starts_on', '<=', $hasta->toDateString())
             ->whereDate('ends_on', '>=', $desde->toDateString())
@@ -94,7 +132,7 @@ class CalendarioController extends Controller
         $nota = trim((string) ($datos['nota'] ?? ''));
 
         SolicitudVacaciones::create([
-            'user_id' => $request->user()->id,
+            'user_id' => $persona->id,
             'starts_on' => $desde->toDateString(),
             'ends_on' => $hasta->toDateString(),
             'nota' => $nota === '' ? null : $nota,
@@ -147,9 +185,10 @@ class CalendarioController extends Controller
      * @param  Collection<string, Ausencia>  $propias
      * @param  Collection<string, Jornada>  $jornadas
      * @param  Collection<string, Collection<int, Ausencia>>  $faltas
+     * @param  Collection<string, mixed>  $pendientes
      * @return list<array{nombre: string, dias: list<array<string, mixed>|null>}>
      */
-    private function meses(int $anio, Collection $festivos, Collection $propias, Collection $jornadas, Collection $faltas): array
+    private function meses(int $anio, Collection $festivos, Collection $propias, Collection $jornadas, Collection $faltas, Collection $pendientes): array
     {
         $porDia = $festivos->keyBy(fn (DiaFestivo $festivo) => $festivo->holiday_date->toDateString());
         $hoy = now()->toDateString();
@@ -166,12 +205,16 @@ class CalendarioController extends Controller
             for ($dia = 1; $dia <= $inicio->daysInMonth; $dia++) {
                 $fecha = Carbon::create($anio, $indice + 1, $dia)->toDateString();
                 $jornada = $jornadas->get($fecha);
+                $momento = Carbon::parse($fecha);
                 $dias[] = [
+                    'fecha' => $fecha,
                     'numero' => $dia,
                     'hoy' => $fecha === $hoy,
-                    'finde' => Carbon::parse($fecha)->isWeekend(),
+                    'finde' => $momento->isWeekend(),
+                    'cuenta' => ! $momento->isWeekend() && ! $porDia->has($fecha),
                     'festivo' => $porDia->get($fecha),
                     'ausencia' => $propias->get($fecha),
+                    'pendiente' => $pendientes->has($fecha),
                     'faltan' => $faltas->get($fecha, collect()),
                     'registro' => $jornada && $fecha < $hoy ? route('registro.show', $jornada) : null,
                 ];

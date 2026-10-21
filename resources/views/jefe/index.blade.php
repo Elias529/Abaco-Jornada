@@ -7,8 +7,10 @@
 
     @if ($conCierresAntiguos > 0)
         <p class="franja" role="status">
-            {{ $conCierresAntiguos === 1 ? '1 persona tiene' : $conCierresAntiguos.' personas tienen' }}
-            cierres sin resolver de hace más de {{ $diasHastaAvisar }} días. Aparecen marcadas en la lista.
+            <span class="franja-texto">
+                <strong>{{ $conCierresAntiguos === 1 ? '1 persona tiene' : $conCierresAntiguos.' personas tienen' }} cierres sin resolver de hace más de {{ $diasHastaAvisar }} días.</strong>
+                <span>Abre su registro indicando el motivo de consulta.</span>
+            </span>
         </p>
     @endif
 

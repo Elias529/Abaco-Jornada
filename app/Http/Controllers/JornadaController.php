@@ -8,6 +8,7 @@ use App\Models\Correccion;
 use App\Models\Incidencia;
 use App\Models\Jornada;
 use App\Models\Tramo;
+use App\Models\User;
 use App\Services\JornadaService;
 use App\Services\TicketService;
 use Illuminate\Http\RedirectResponse;
@@ -35,14 +36,24 @@ class JornadaController extends Controller
 
     public function borrarPrueba(Request $request): RedirectResponse
     {
+        return $this->borrarFichajeDePrueba($request, now()->toDateString());
+    }
+
+    public function borrarAyer(Request $request): RedirectResponse
+    {
+        return $this->borrarFichajeDePrueba($request, now()->subDay()->toDateString());
+    }
+
+    private function borrarFichajeDePrueba(Request $request, string $fecha): RedirectResponse
+    {
         if (! $this->puedeBorrarPrueba($request->user()->email)) {
             abort(403);
         }
 
-        DB::transaction(function () use ($request) {
+        DB::transaction(function () use ($request, $fecha) {
             $jornada = Jornada::query()
                 ->where('user_id', $request->user()->id)
-                ->whereDate('work_date', now()->toDateString())
+                ->whereDate('work_date', $fecha)
                 ->first();
 
             if ($jornada) {
@@ -54,11 +65,13 @@ class JornadaController extends Controller
 
             Aviso::query()
                 ->where('user_id', $request->user()->id)
-                ->whereDate('work_date', now()->toDateString())
+                ->whereDate('work_date', $fecha)
                 ->delete();
         });
 
-        $request->session()->forget('festivo.'.$request->user()->id.'.'.now()->toDateString());
+        $request->session()->forget('festivo.'.$request->user()->id.'.'.$fecha);
+
+        $this->jornada->avisarSiFaltaEntrada($request->user(), $fecha);
 
         return back();
     }
@@ -161,49 +174,72 @@ class JornadaController extends Controller
         return $this->hacer(fn () => $this->jornada->seguir($request->user()));
     }
 
-    public function fuera(Request $request): RedirectResponse
-    {
-        $this->normalizarHora($request, 'inicio');
-        $this->normalizarHora($request, 'fin');
-        $datos = $request->validate([
-            'inicio' => ['required', 'date_format:H:i'],
-            'fin' => ['required', 'date_format:H:i'],
-        ], [
-            'inicio.required' => 'Elige la hora de inicio.',
-            'fin.required' => 'Elige la hora de fin.',
-            'inicio.date_format' => 'Elige una hora.',
-            'fin.date_format' => 'Elige una hora.',
-        ]);
-
-        return $this->hacer(fn () => $this->jornada->fuera($request->user(), $datos['inicio'], $datos['fin']));
-    }
-
     public function crearIncidencia(Request $request): View|RedirectResponse
     {
-        if ($request->user()->esJefa()) {
+        $usuario = $request->user();
+
+        if ($usuario->esJefa()) {
             return redirect()->route('incidencias.index');
         }
 
-        return view('jornada.incidencia');
+        $incidencias = Incidencia::query()
+            ->with('autor', 'destinatario')
+            ->where(function ($consulta) use ($usuario) {
+                $consulta->where('user_id', $usuario->id)
+                    ->orWhere('destinatario_id', $usuario->id);
+            })
+            ->orderByRaw("case when estado = 'resuelta' then 1 else 0 end")
+            ->latest('id')
+            ->get();
+        $pedido = $request->query('incidencia');
+        $seleccion = is_string($pedido) && ctype_digit($pedido)
+            ? $incidencias->firstWhere('id', (int) $pedido)
+            : null;
+        $seleccion?->load('mensajes.autor');
+
+        if ($seleccion && $seleccion->destinatario_id === $usuario->id && $seleccion->vista_at === null) {
+            $seleccion->update(['vista_at' => now()]);
+        }
+
+        return view('jornada.incidencia', [
+            'incidencias' => $incidencias,
+            'seleccion' => $seleccion,
+        ]);
     }
 
     public function incidencia(Request $request): RedirectResponse
     {
-        if ($request->user()->esJefa()) {
-            return redirect()->route('incidencias.index');
-        }
-
         $datos = $request->validate([
             'motivo' => ['required', 'string', 'max:500'],
+            'destinatario' => [$request->user()->esJefa() ? 'required' : 'nullable', 'integer', 'exists:users,id'],
         ], [
             'motivo.required' => 'Escribe el motivo de la incidencia.',
             'motivo.max' => 'El motivo puede tener hasta 500 caracteres.',
+            'destinatario.required' => 'Elige a quién va dirigida.',
+            'destinatario.exists' => 'Elige a una persona del equipo.',
         ]);
+
+        $destinatarioId = null;
+
+        if ($request->user()->esJefa()) {
+            $destinatario = User::query()->whereKey($datos['destinatario'])->where('active', true)->first();
+
+            if (! $destinatario || $destinatario->esJefa()) {
+                return back()->withErrors(['destinatario' => 'Elige a una persona del equipo.'])->withInput();
+            }
+
+            $destinatarioId = $destinatario->id;
+        }
 
         Incidencia::create([
             'user_id' => $request->user()->id,
+            'destinatario_id' => $destinatarioId,
             'cuerpo' => trim($datos['motivo']),
         ]);
+
+        if ($destinatarioId !== null) {
+            return redirect()->route('incidencias.index')->with('ok', 'Enviada. '.$destinatario->name.' ya tiene tu incidencia.');
+        }
 
         try {
             $this->tickets->abrir(
@@ -215,10 +251,10 @@ class JornadaController extends Controller
         } catch (Throwable $error) {
             report($error);
 
-            return redirect()->route('jornada')->with('ok', 'Enviada. La jefa ya tiene tu incidencia.');
+            return redirect()->route('jornada.incidencia.crear')->with('ok', 'Enviada. La jefa ya tiene tu incidencia.');
         }
 
-        return redirect()->route('jornada')->with('ok', 'Enviada. La jefa ya tiene tu incidencia.');
+        return redirect()->route('jornada.incidencia.crear')->with('ok', 'Enviada. La jefa ya tiene tu incidencia.');
     }
 
     public function festivo(Request $request): RedirectResponse

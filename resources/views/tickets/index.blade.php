@@ -18,7 +18,7 @@
                 <li class="incidencia-fila">
                     <a href="{{ route('tickets.show', $ticket) }}">
                         <span>{{ $ticket->asunto }}</span>
-                        <strong class="pastilla pastilla-{{ $ticket->estado }}">{{ $ticket->etiquetaDeEstado() }}</strong>
+                        <x-chip :tipo="$ticket->estado">{{ $ticket->etiquetaDeEstado() }}</x-chip>
                     </a>
                     <p class="incidencia-texto">{{ \Illuminate\Support\Str::limit($ticket->descripcion, 110) }}</p>
                     <span class="secundario">{{ \App\Support\Tiempo::fecha($ticket->created_at) }} {{ $ticket->created_at->format('H:i') }}</span>

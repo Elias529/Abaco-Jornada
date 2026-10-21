@@ -35,15 +35,14 @@ class TicketController extends Controller
     {
         $datos = $request->validate([
             'asunto' => ['required', 'string', 'max:120', 'not_regex:/[\r\n]/'],
-            'descripcion' => ['required', 'string', 'min:10', 'max:2000'],
+            'descripcion' => ['required', 'string', 'max:500'],
             'desde' => ['nullable', 'string', 'max:200'],
         ], [
             'asunto.required' => 'Escribe un asunto corto.',
             'asunto.max' => 'El asunto es demasiado largo. Máximo 120 letras.',
             'asunto.not_regex' => 'El asunto va en una sola línea.',
             'descripcion.required' => 'Cuenta qué ha pasado.',
-            'descripcion.min' => 'Cuenta un poco más de lo que ha pasado.',
-            'descripcion.max' => 'La descripción es demasiado larga. Máximo 2000 letras.',
+            'descripcion.max' => 'La descripción puede tener hasta 500 caracteres.',
         ]);
 
         $ticket = $this->tickets->abrir(

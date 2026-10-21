@@ -7,6 +7,7 @@ use App\Models\Consulta;
 use App\Models\Jornada;
 use App\Models\SolicitudVacaciones;
 use App\Models\User;
+use App\Services\CupoVacaciones;
 use App\Services\JornadaService;
 use App\Services\RegistroCsv;
 use App\Support\Tiempo;
@@ -29,7 +30,11 @@ class JefeController extends Controller
 {
     private const MESES_QUE_SE_CONSERVAN = 48;
 
-    public function __construct(private JornadaService $jornada, private RegistroCsv $csv) {}
+    public function __construct(
+        private JornadaService $jornada,
+        private RegistroCsv $csv,
+        private CupoVacaciones $cupo,
+    ) {}
 
     public function index(): View
     {
@@ -149,18 +154,13 @@ class JefeController extends Controller
         return $this->csv->descargar($user);
     }
 
-    public function consultas(Request $request): View
+    public function consultas(): View
     {
         return view('jefe.consultas', [
-            'vista' => $request->query('vista') === 'vacaciones' ? 'vacaciones' : 'consulta',
             'consultas' => Consulta::query()
                 ->with('viewer', 'subject')
                 ->latest()
                 ->limit(100)
-                ->get(),
-            'solicitudes' => SolicitudVacaciones::query()
-                ->with('autor')
-                ->latest('id')
                 ->get(),
         ]);
     }
@@ -188,23 +188,29 @@ class JefeController extends Controller
             return back()->with('ok', 'Rechazada. Esas vacaciones no se añaden al calendario.');
         }
 
+        $autor = $solicitud->autor;
+        $cuentan = $this->cupo->queCuentan($autor, $solicitud->starts_on, $solicitud->ends_on);
+        if ($cuentan->isEmpty()) {
+            return back()->with('aviso', 'Esos días no cuentan: son fin de semana o festivo.');
+        }
+        if (! $this->cupo->cabe($autor, $solicitud->starts_on, $solicitud->ends_on, $solicitud->id)) {
+            return back()->with('aviso', 'No quedan tantos días. El máximo es 22 al año.');
+        }
+
         try {
-            DB::transaction(function () use ($request, $solicitud) {
+            DB::transaction(function () use ($request, $solicitud, $cuentan) {
                 $actual = SolicitudVacaciones::query()->lockForUpdate()->findOrFail($solicitud->id);
 
                 if ($actual->estado !== SolicitudVacaciones::PENDIENTE) {
                     return;
                 }
 
-                $dia = $actual->starts_on->copy();
-
-                while ($dia->lte($actual->ends_on)) {
+                foreach ($cuentan as $fecha) {
                     Ausencia::create([
                         'user_id' => $actual->user_id,
-                        'absence_date' => $dia->toDateString(),
+                        'absence_date' => $fecha,
                         'tipo' => 'vacaciones',
                     ]);
-                    $dia->addDay();
                 }
 
                 $actual->update([

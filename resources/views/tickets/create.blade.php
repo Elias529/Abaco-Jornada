@@ -13,7 +13,7 @@
         <input id="asunto" name="asunto" type="text" maxlength="120" value="{{ old('asunto') }}" required>
 
         <label for="descripcion">Qué ha pasado</label>
-        <textarea id="descripcion" name="descripcion" maxlength="2000" required>{{ old('descripcion') }}</textarea>
+        <textarea id="descripcion" name="descripcion" required placeholder="0 a 500 caracteres" data-max="500" data-vacio="Cuenta qué ha pasado." data-largo="La descripción puede tener hasta 500 caracteres.">{{ old('descripcion') }}</textarea>
 
         @if ($desde)
             <p class="secundario">Página desde la que lo abres: {{ $desde }}</p>
