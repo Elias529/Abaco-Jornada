@@ -64,7 +64,12 @@ class RegistroCsv
         $textos = [];
         $barras = [];
         foreach ($trabajos as $tramo) {
-            $fin = $tramo->ended_at ?? now();
+            $fin = $this->finDePresentacion($tramo, $jornada);
+            if ($fin === null) {
+                $textos[] = Tiempo::hora($tramo->started_at).' – sin salida';
+
+                continue;
+            }
             $textos[] = Tiempo::hora($tramo->started_at).' – '.Tiempo::hora($fin);
             $trozo = $this->eje($tramo->started_at, $fin);
             if ($trozo) {
@@ -150,6 +155,23 @@ class RegistroCsv
 
             fclose($salida);
         }, $nombre, ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    /**
+     * Un tramo abierto de un día pasado no usa la hora actual: no se sabe
+     * cuándo terminó.
+     */
+    private function finDePresentacion(Tramo $tramo, Jornada $jornada): ?Carbon
+    {
+        if ($tramo->ended_at) {
+            return $tramo->ended_at;
+        }
+
+        if ($jornada->work_date->isSameDay(now())) {
+            return now();
+        }
+
+        return null;
     }
 
     private function estado(Jornada $jornada): string

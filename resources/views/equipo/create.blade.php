@@ -3,7 +3,7 @@
 @section('contenido')
     <a class="volver" href="{{ route('equipo.index') }}">Volver al equipo</a>
     <h1>Dar de alta</h1>
-    <p class="secundario">Antes de crear el acceso, elige el tipo de jornada, cuánto tiempo estará y mira el calendario. Los festivos no esperan fichaje.</p>
+    <p class="secundario">Antes de crear el acceso, elige el tipo de jornada, la sede municipal, cuánto tiempo estará y mira el calendario. Los festivos son los de esa sede, no siempre los de Madrid.</p>
 
     <fieldset class="tipos-jornada">
         <legend>Tipo de jornada</legend>
@@ -64,6 +64,16 @@
                 </div>
             @endif
         </fieldset>
+
+        <fieldset class="tipos-jornada">
+            <legend>Sede municipal</legend>
+            <label for="centro">Los festivos siguen esta sede</label>
+            <select id="centro" name="centro" required onchange="this.form.requestSubmit()">
+                @foreach ($sedes as $opcion)
+                    <option value="{{ $opcion->value }}" @selected($sede === $opcion)>{{ $opcion->etiqueta() }}</option>
+                @endforeach
+            </select>
+        </fieldset>
     </form>
 
     @unless ($tipo)
@@ -96,7 +106,7 @@
         @if ($sinCalendario)
             <p class="franja" role="status">El calendario no está cargado. No inventamos festivos. Puedes elegir el tipo de jornada igual.</p>
         @else
-            <p class="secundario">Festivos públicos del centro {{ $centro }}. En rojo, los de todo el país. En verde, los de tu comunidad. Si cae en domingo, pasa al lunes.</p>
+            <p class="secundario">Festivos públicos de {{ $centro }} ({{ $sede->comunidad() }}). En rojo, los de todo el país. En verde, los de esa comunidad. Si cae en domingo, pasa al lunes.</p>
         @endif
 
         <ul class="leyenda">
@@ -174,6 +184,7 @@
         <form method="post" action="{{ route('equipo.store') }}" class="formulario">
             @csrf
             <input type="hidden" name="tipo" value="{{ $tipo->value }}">
+            <input type="hidden" name="centro" value="{{ $sede->value }}">
             <input type="hidden" name="starts_on" value="{{ $startsOn }}">
             <input type="hidden" name="duracion" value="{{ $duracion->value }}">
             @if ($duracion === \App\DuracionEstancia::HastaElDia)
@@ -187,7 +198,7 @@
                 @else
                     En la empresa desde el {{ $startsOn }}, sin fecha de fin.
                 @endif
-                Los festivos no esperan fichaje.
+                Sede en {{ $centro }}. Los festivos no esperan fichaje.
             </p>
 
             <label for="name">Nombre</label>

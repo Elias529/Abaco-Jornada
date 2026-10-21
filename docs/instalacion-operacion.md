@@ -30,7 +30,11 @@ php artisan serve
 
 Abre `http://127.0.0.1:8000/login`.
 
-`php artisan db:seed` crea las personas de demostración. No lo vuelvas a lanzar sobre una base que ya tiene esas cuentas: el seeder inserta filas nuevas y chocará con el correo repetido.
+`php artisan db:seed` carga la plantilla compartida de `database/seeders/data/personas.json`. Se puede repetir: no duplica correos ni borra fichajes. Las cuentas nuevas usan la clave de demostración.
+
+Al dar de alta a una persona, esa ficha entra también en el JSON. Súbelo para que el resto del equipo, al hacer `php artisan db:seed`, la tenga igual.
+
+Para recuperar la contraseña, en la pantalla de entrada está «No recuerdo la contraseña». El correo usa `MAIL_MAILER`. Con `log` el enlace queda en `storage/logs/laravel.log`.
 
 ## Actualizar
 

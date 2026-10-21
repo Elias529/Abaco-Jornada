@@ -8,13 +8,13 @@ Jornada es una aplicación web. La persona entra con su cuenta y el servidor con
 
 - Entrada, pausa, vuelta y salida. La pausa no suma como tiempo trabajado.
 - Inicio ya en curso («Ya estaba trabajando») y reunión que conserva la hora prevista del horario.
-- Día anterior sin cerrar: se pregunta la hora de salida antes de abrir el día nuevo.
+- Día anterior sin cerrar: se pregunta la hora de salida y no se puede abrir el día nuevo hasta cerrarlo. Un tramo sin salida no inventa la hora actual.
 - Equipo encendido después de la hora de salida: no alarga la jornada. La persona puede decir que sigue.
 - Trabajo fuera del equipo, con la hora de inicio y de fin que indica la persona.
-- Horario en el alta. Calendario de festivos del centro de Madrid para toda la plantilla.
+- Horario en el alta. Calendario de festivos de la sede municipal de cada persona.
 - Registro propio, copia CSV y corrección de una hora. La hora anterior se conserva, con quién la cambió y cuándo.
 - Consulta del registro de otra persona con un motivo, y ese acceso queda escrito.
-- Avisos por cierres sin completar. Cada uno cuenta desde el primero y no caduca hasta que la persona lo explica. No hay margen de 8 ni reinicio por tiempo. La jefa ve marcados en Estado los cierres sin resolver de hace más de 7 días.
+- Avisos por cierres sin completar. Cada uno cuenta desde el primero. Dentro del año en curso no caduca hasta que la persona lo explica. Se muestran por antigüedad y solo los de este año. No hay margen de 8 ni reinicio por tiempo. La jefa ve marcados en Estado los cierres sin resolver de hace más de 7 días, de este año.
 - Tres papeles: trabajadora, jefa y administrador técnico. La jefa gestiona el equipo y consulta los registros con motivo. El técnico ficha y gestiona actualizaciones y la base de datos activa. La baja cierra el acceso y no borra las jornadas.
 - Tickets: cualquier persona cuenta un fallo de la aplicación al técnico y conversan hasta resolverlo.
 
