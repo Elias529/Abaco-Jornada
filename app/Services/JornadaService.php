@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Exceptions\ReglaJornada;
 use App\Models\Aviso;
 use App\Models\Correccion;
+use App\Models\Explicacion;
 use App\Models\FalloComun;
 use App\Models\Horario;
 use App\Models\Jornada;
@@ -449,6 +450,17 @@ class JornadaService
             ]);
     }
 
+    private function diaEstaCerrado(User $user, string $fecha): bool
+    {
+        $jornada = Jornada::query()
+            ->where('user_id', $user->id)
+            ->whereDate('work_date', $fecha)
+            ->with('tramos')
+            ->first();
+
+        return $jornada?->estaCerrada() === true;
+    }
+
     public function marcarExplicados(User $user, string $fecha): void
     {
         Aviso::query()
@@ -547,6 +559,7 @@ class JornadaService
 
             $this->anotar($actor, $fresco, $campo, $anterior, $nueva, $motivo, $nota);
             $fresco->update([$campo => $nueva]);
+            $this->marcarExplicados($duena, $jornada->work_date->toDateString());
             $guardada = $nueva;
         });
 
@@ -596,7 +609,18 @@ class JornadaService
             $cambiaFin = $finHora !== null && ($fresco->ended_at === null || ! $nuevoFin->equalTo($fresco->ended_at));
 
             if (! $cambiaInicio && ! $cambiaFin) {
-                throw new ReglaJornada('Esas horas ya son las que están guardadas.');
+                if ($nota === null) {
+                    throw new ReglaJornada('Esas horas ya son las que están guardadas.');
+                }
+                Explicacion::create([
+                    'user_id' => $duena->id,
+                    'body' => $nota,
+                    'work_date' => $jornada->work_date->toDateString(),
+                ]);
+                $this->marcarExplicados($duena, $jornada->work_date->toDateString());
+                $texto = 'Guardado. La nota queda en el día.';
+
+                return;
             }
             if ($nuevoInicio->greaterThan(now()) || ($nuevoFin && $nuevoFin->greaterThan(now()))) {
                 throw new ReglaJornada('Esa hora todavía no ha llegado.');
@@ -633,6 +657,7 @@ class JornadaService
                 $this->declararSalida($fresco, $actor, $nuevoFin, now());
                 $this->responder($duena, 'cierre', $jornada->work_date);
             }
+            $this->marcarExplicados($duena, $jornada->work_date->toDateString());
 
             if ($cambiaInicio && $cambiaFin) {
                 $texto = 'Guardado. El inicio ha quedado en las '.Tiempo::hora($nuevoInicio).' y el fin en las '.Tiempo::hora($nuevoFin).'.';
@@ -698,8 +723,8 @@ class JornadaService
 
     /**
      * Avisos que cuentan y siguen sin explicar. La entrada de hoy no entra:
-     * el día sigue abierto y se puede fichar. Un aviso deja de contar solo
-     * cuando la persona lo explica.
+     * el día sigue abierto y se puede fichar. Si el día ya está cerrado,
+     * el aviso de cierre o de salida pendiente deja de contar.
      */
     public function problemasSinExplicar(User $user, Carbon $ahora): int
     {
@@ -708,7 +733,7 @@ class JornadaService
 
     public function avisosSinExplicar(User $user, Carbon $ahora): Collection
     {
-        return Aviso::query()
+        $avisos = Aviso::query()
             ->where('user_id', $user->id)
             ->where('cuenta', true)
             ->whereNull('responded_at')
@@ -720,6 +745,19 @@ class JornadaService
             ->orderBy('work_date')
             ->orderBy('id')
             ->get();
+
+        $cubiertos = $avisos->filter(fn (Aviso $aviso) => in_array($aviso->tipo, ['cierre', 'olvido'], true)
+            && $this->diaEstaCerrado($user, $aviso->work_date->toDateString()));
+
+        if ($cubiertos->isNotEmpty()) {
+            Aviso::query()
+                ->whereIn('id', $cubiertos->modelKeys())
+                ->whereNull('responded_at')
+                ->update(['responded_at' => now()]);
+            $avisos = $avisos->reject(fn (Aviso $aviso) => $cubiertos->contains('id', $aviso->id))->values();
+        }
+
+        return $avisos;
     }
 
     /**

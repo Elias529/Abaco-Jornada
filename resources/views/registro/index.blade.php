@@ -56,23 +56,6 @@
             </form>
         </details>
 
-        @if ($propio && $pendientes !== [])
-            <section class="registro-pendientes" id="pendientes">
-                <h2>Pendiente de explicar</h2>
-                <p class="secundario">Si un día no tiene fichaje, no sale en la lista. Explícalo aquí.</p>
-                @foreach ($pendientes as $pendiente)
-                    <form class="registro-pendiente" method="post" action="{{ route('registro.explicar') }}">
-                        @csrf
-                        <input type="hidden" name="work_date" value="{{ $pendiente['fecha'] }}">
-                        <p>El {{ $pendiente['dia'] }} {{ $pendiente['texto'] }}.</p>
-                        <label for="explicacion-{{ $pendiente['fecha'] }}">Qué pasó</label>
-                        <textarea id="explicacion-{{ $pendiente['fecha'] }}" name="body" rows="2" maxlength="500" required>{{ old('work_date') === $pendiente['fecha'] ? old('body') : '' }}</textarea>
-                        <button class="boton boton-secundario" type="submit">Explicar</button>
-                    </form>
-                @endforeach
-            </section>
-        @endif
-
         <div class="registro-lista" data-registro-lista>
         <section class="registro-card">
             @if ($jornadas->isEmpty())
@@ -89,7 +72,7 @@
                     </div>
                     @foreach ($jornadas as $jornada)
                         @php($fila = $tabla->presentacion($persona, $jornada))
-                        <a class="registro-fila" role="row" href="{{ route('registro.show', $jornada) }}">
+                        <a class="registro-fila" id="dia-{{ $jornada->work_date->toDateString() }}" role="row" href="{{ route('registro.show', $jornada) }}">
                             <span role="cell">{{ $fila['fecha'] }}</span>
                             <span role="cell" class="registro-tramos">{{ $fila['tramos'] }}</span>
                             <span role="cell" class="registro-barras" aria-hidden="true">

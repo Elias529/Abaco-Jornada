@@ -406,11 +406,13 @@ class JornadaTest extends TestCase
 
         Aviso::create(['user_id' => $ana->id, 'tipo' => 'cierre', 'work_date' => '2026-10-06', 'cuenta' => true]);
         $this->actingAs($ana)->get(route('jornada'))
-            ->assertSee('El martes 6 de octubre quedó el cierre sin completar', false)
-            ->assertSee(route('registro.show', $jornada), false);
+            ->assertDontSee('El martes 6 de octubre quedó el cierre sin completar', false);
+        $this->assertNotNull(Aviso::query()->where('user_id', $ana->id)->where('tipo', 'cierre')->first()->responded_at);
 
         Aviso::create(['user_id' => $ana->id, 'tipo' => 'olvido', 'work_date' => '2026-10-05', 'cuenta' => true]);
-        $this->actingAs($ana)->get(route('jornada'))->assertSee('Tienes 2 días sin explicar', false)->assertSee('lunes 5 de octubre', false);
+        $this->actingAs($ana)->get(route('jornada'))
+            ->assertSee('El lunes 5 de octubre falta la hora de salida', false)
+            ->assertDontSee('Tienes 2 días sin explicar', false);
 
         $this->assertSame('18:00', $tramo->fresh()->ended_at->timezone('Europe/Madrid')->format('H:i'));
     }
@@ -461,7 +463,9 @@ class JornadaTest extends TestCase
         $this->actingAs($ana)
             ->get(route('registro.dia', '2026-10-19'))
             ->assertOk()
+            ->assertSee('Mi registro', false)
             ->assertSee('Lunes, 19 de octubre', false)
+            ->assertSee(route('registro', ['periodo' => 'semana']).'#dia-2026-10-19', false)
             ->assertSee('Sin fichaje', false)
             ->assertSee('Este día no tiene fichaje.', false)
             ->assertDontSee('Qué pasó', false)
@@ -469,10 +473,9 @@ class JornadaTest extends TestCase
 
         $this->actingAs($ana)
             ->get(route('registro'))
-            ->assertSee('Pendiente de explicar', false)
-            ->assertSee('El lunes 19 de octubre no quedó registrada la entrada', false)
-            ->assertDontSee('martes 20 de octubre', false)
-            ->assertSee('Explicar', false);
+            ->assertDontSee('Pendiente de explicar', false)
+            ->assertDontSee('Qué pasó', false)
+            ->assertDontSee('martes 20 de octubre', false);
 
         $this->actingAs($ana)
             ->post(route('registro.explicar'), [
@@ -487,6 +490,47 @@ class JornadaTest extends TestCase
             ->assertSee('Ese lunes no fui a la oficina.', false);
 
         $this->actingAs($ana)->get(route('jornada'))->assertDontSee('lunes 19 de octubre', false);
+    }
+
+    public function test_revisar_abre_ese_dia_en_mi_registro_y_la_nota_va_en_corregir(): void
+    {
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
+        $this->horario($ana);
+        Carbon::setTestNow(Carbon::parse('2026-10-20 13:00:00', 'Europe/Madrid'));
+        $jornada = Jornada::create(['user_id' => $ana->id, 'work_date' => '2026-10-19']);
+        $tramo = Tramo::create([
+            'jornada_id' => $jornada->id,
+            'tipo' => Tramo::TRABAJO,
+            'started_at' => '2026-10-19 09:00:00',
+            'ended_at' => '2026-10-19 18:00:00',
+        ]);
+        Aviso::create(['user_id' => $ana->id, 'tipo' => 'inicio', 'work_date' => '2026-10-19', 'cuenta' => true]);
+
+        $this->actingAs($ana)
+            ->get(route('jornada'))
+            ->assertSee(route('registro.show', $jornada), false)
+            ->assertDontSee('Qué pasó', false);
+
+        $this->actingAs($ana)
+            ->get(route('registro.show', $jornada))
+            ->assertOk()
+            ->assertSee('Mi registro', false)
+            ->assertSee('Lunes, 19 de octubre', false)
+            ->assertSee('Corregir', false)
+            ->assertDontSee('Qué pasó', false)
+            ->assertSee(route('registro', ['periodo' => 'semana']).'#dia-2026-10-19', false);
+
+        $this->actingAs($ana)->post(route('tramos.corregir', $tramo), [
+            'inicio' => '09:00',
+            'fin' => '18:00',
+            'motivo' => 'olvido',
+            'nota' => 'Llegué a la hora y se me olvidó anotarlo.',
+        ])->assertSessionHas('ok');
+
+        $this->actingAs($ana)->get(route('jornada'))->assertDontSee('lunes 19 de octubre', false);
+        $this->actingAs($ana)
+            ->get(route('registro.show', $jornada))
+            ->assertSee('Llegué a la hora y se me olvidó anotarlo.', false);
     }
 
     public function test_registrar_las_horas_de_un_dia_sin_fichaje(): void
