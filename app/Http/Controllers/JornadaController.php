@@ -44,6 +44,11 @@ class JornadaController extends Controller
         return $this->borrarFichajeDePrueba($request, now()->subDay()->toDateString());
     }
 
+    public function borrarAnteayer(Request $request): RedirectResponse
+    {
+        return $this->borrarFichajeDePrueba($request, now()->subDays(2)->toDateString());
+    }
+
     private function borrarFichajeDePrueba(Request $request, string $fecha): RedirectResponse
     {
         if (! $this->puedeBorrarPrueba($request->user()->email)) {
@@ -92,22 +97,26 @@ class JornadaController extends Controller
     public function entrar(Request $request): RedirectResponse
     {
         $this->normalizarHora($request);
-        if (! $request->filled('hora')) {
-            return $this->hacer(fn () => $this->jornada->entrar($request->user()));
+        if (! $request->filled('hora') && ! $request->filled('modo')) {
+            if ($this->jornada->horaInicioSiEsTemprano($request->user()) && ! $request->boolean('confirmar_temprano')) {
+                return back()->with('confirma_temprano', true);
+            }
         }
 
         $datos = $request->validate([
-            'hora' => ['required', 'date_format:H:i'],
+            'modo' => ['nullable', 'in:ahora,prevista,otra'],
+            'hora' => ['nullable', 'required_if:modo,otra', 'date_format:H:i'],
         ], [
-            'hora.required' => 'Elige una hora.',
+            'modo.in' => 'Elige cómo empezó tu jornada.',
+            'hora.required' => 'Elige la hora de entrada.',
             'hora.date_format' => 'Elige una hora.',
         ]);
 
-        if ($datos['hora'] === now()->format('H:i')) {
-            return $this->hacer(fn () => $this->jornada->entrar($request->user()));
-        }
-
-        return $this->hacer(fn () => $this->jornada->yaEstaba($request->user(), $datos['hora']));
+        return $this->hacer(fn () => $this->jornada->entradaSegunMotivo(
+            $request->user(),
+            $datos['modo'] ?? null,
+            $datos['hora'] ?? null,
+        ));
     }
 
     public function salir(Request $request): RedirectResponse

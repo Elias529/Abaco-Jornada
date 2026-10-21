@@ -123,6 +123,28 @@
     }
     document.addEventListener("visibilitychange", tituloPendiente);
 
+    const dialogoTemprano = document.getElementById("confirma-temprano");
+    if (dialogoTemprano) {
+        document.querySelectorAll("form[data-confirma-temprano]").forEach(function (form) {
+            form.addEventListener("submit", function (event) {
+                if (typeof dialogoTemprano.showModal !== "function") {
+                    return;
+                }
+                event.preventDefault();
+                dialogoTemprano.showModal();
+            });
+        });
+        const cierraTemprano = dialogoTemprano.querySelector("[data-cierra-dialogo]");
+        if (cierraTemprano) {
+            cierraTemprano.addEventListener("click", function () {
+                dialogoTemprano.close();
+            });
+        }
+        if (dialogoTemprano.hasAttribute("data-abrir") && typeof dialogoTemprano.showModal === "function") {
+            dialogoTemprano.showModal();
+        }
+    }
+
     document.querySelectorAll("form").forEach(function (form) {
         form.addEventListener("submit", function (event) {
             form.querySelectorAll("[data-hora]").forEach(sincronizarHora);
@@ -154,6 +176,9 @@
                 return;
             }
             if ((form.getAttribute("method") || "get").toLowerCase() !== "post") {
+                return;
+            }
+            if (form.hasAttribute("data-confirma-temprano") && dialogoTemprano && typeof dialogoTemprano.showModal === "function") {
                 return;
             }
             if (form.dataset.enviando === "1") {
@@ -482,6 +507,37 @@
 })();
 
 (function () {
+    const dialogo = document.querySelector("[data-consulta-dialogo]");
+    const formulario = document.querySelector("[data-consulta-form]");
+    const destino = document.querySelector("[data-consulta-destino-input]");
+
+    if (!dialogo || !formulario || !destino) {
+        return;
+    }
+
+    document.querySelectorAll("[data-consulta-abre]").forEach(function (enlace) {
+        enlace.addEventListener("click", function (evento) {
+            evento.preventDefault();
+            formulario.action = enlace.getAttribute("data-consulta-action");
+            destino.value = enlace.getAttribute("data-consulta-destino");
+            formulario.querySelector("textarea").value = "";
+            dialogo.showModal();
+            formulario.querySelector("textarea").focus();
+        });
+    });
+
+    document.querySelector("[data-consulta-cancelar]").addEventListener("click", function () {
+        dialogo.close();
+    });
+
+    dialogo.addEventListener("click", function (evento) {
+        if (evento.target === dialogo) {
+            dialogo.close();
+        }
+    });
+})();
+
+(function () {
     document.querySelectorAll("[data-dialogo-abre]").forEach(function (boton) {
         boton.addEventListener("click", function () {
             const dialogo = document.querySelector('[data-dialogo="' + boton.getAttribute("data-dialogo-abre") + '"]');
@@ -533,5 +589,33 @@
             evento.preventDefault();
             campo.reportValidity();
         });
+    });
+})();
+
+(function () {
+    document.querySelectorAll("[data-inicio-tarde]").forEach(function (formulario) {
+        var otra = formulario.querySelector("[data-inicio-otra]");
+        var cajaHora = formulario.querySelector("[data-inicio-hora]");
+        var hora = formulario.querySelector("[name=hora]");
+        var partesHora = cajaHora.querySelectorAll("[data-parte]");
+        if (!otra || !cajaHora || !hora) {
+            return;
+        }
+
+        function actualizar() {
+            var mostrar = otra.checked;
+            cajaHora.hidden = !mostrar;
+            partesHora.forEach(function (parte) {
+                parte.required = mostrar;
+            });
+            if (!mostrar) {
+                hora.value = "";
+            }
+        }
+
+        formulario.querySelectorAll("[name=modo]").forEach(function (opcion) {
+            opcion.addEventListener("change", actualizar);
+        });
+        actualizar();
     });
 })();

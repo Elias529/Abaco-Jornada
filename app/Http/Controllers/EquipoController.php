@@ -8,8 +8,10 @@ use App\Models\Ausencia;
 use App\Models\Consulta;
 use App\Models\Horario;
 use App\Models\User;
+use App\Sede;
 use App\Services\JornadaService;
 use App\Services\NagerFestivos;
+use App\Services\PlantillaDemo;
 use App\Support\RejillaCalendario;
 use App\TipoJornada;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -25,6 +27,7 @@ class EquipoController extends Controller
     public function __construct(
         private JornadaService $jornada,
         private NagerFestivos $festivos,
+        private PlantillaDemo $plantilla,
     ) {}
 
     public function index(): View
@@ -57,19 +60,20 @@ class EquipoController extends Controller
             $anio = now()->year;
         }
 
-        $centro = (string) $request->user()->centro;
+        $sede = Sede::tryFrom((string) $request->old('centro', $request->query('centro', ''))) ?? Sede::porDefecto();
         $aniosFestivos = $periodoListo && $endsOn
             ? range($anioInicio, $anioFin)
             : [$anio];
         $festivos = collect();
         foreach (array_unique($aniosFestivos) as $anioFestivo) {
-            $festivos = $festivos->concat($this->festivos->delAnio($centro, $anioFestivo));
+            $festivos = $festivos->concat($this->festivos->delAnio($sede->value, $anioFestivo));
         }
         $consulta = array_filter([
             'tipo' => $tipo?->value,
             'starts_on' => $startsOn,
             'duracion' => $duracion?->value,
             'ends_on' => $duracion === DuracionEstancia::HastaElDia ? $endsOnInput : null,
+            'centro' => $sede->value,
         ]);
         $meses = RejillaCalendario::meses($anio, $festivos, $periodoListo ? $startsOn : null, $periodoListo ? $endsOn : null, $periodoListo);
         $aniosMeses = collect($meses)->pluck('anio')->unique();
@@ -81,7 +85,9 @@ class EquipoController extends Controller
             'puedeAvanzar' => $navegaAnios && $anio < ($periodoListo ? $anioFin : now()->year + 1),
             'puedeRetroceder' => $navegaAnios && $anio > ($periodoListo ? $anioInicio : 2020),
             'navegaAnios' => $navegaAnios,
-            'centro' => $request->user()->municipality ?: $centro,
+            'sede' => $sede,
+            'sedes' => Sede::cases(),
+            'centro' => $sede->municipio(),
             'festivos' => $festivos,
             'sinCalendario' => $festivos->isEmpty(),
             'meses' => $meses,
@@ -102,12 +108,13 @@ class EquipoController extends Controller
     {
         $datos = $this->validarPersona($request, true);
         $tipo = TipoJornada::from($datos['tipo']);
+        $sede = Sede::from($datos['centro']);
         $duracion = DuracionEstancia::from($datos['duracion']);
         $endsOn = $duracion->fechaFin(Carbon::parse($datos['starts_on']), $datos['ends_on'] ?? null);
         $datos = array_merge($datos, $tipo->horas());
 
         try {
-            DB::transaction(function () use ($datos, $tipo, $endsOn) {
+            $persona = DB::transaction(function () use ($datos, $tipo, $sede, $endsOn) {
                 $persona = User::create([
                     'name' => $datos['name'],
                     'email' => $datos['email'],
@@ -116,13 +123,19 @@ class EquipoController extends Controller
                     'active' => true,
                     'starts_on' => $datos['starts_on'],
                     'ends_on' => $endsOn,
-                    'municipality' => JornadaService::CENTRO,
-                    'centro' => 'ES-MD',
+                    'municipality' => $sede->municipio(),
+                    'centro' => $sede->value,
                 ]);
                 $this->guardarHorario($persona, $datos, $datos['starts_on'], $tipo);
+
+                return $persona;
             });
         } catch (ReglaJornada $e) {
             return back()->with('aviso', $e->getMessage())->withInput();
+        }
+
+        if (! app()->runningUnitTests()) {
+            $this->plantilla->registrarAlta($persona);
         }
 
         return redirect()->route('equipo.index')->with('ok', 'Guardado. '.$datos['name'].' ya puede entrar.');
@@ -202,6 +215,7 @@ class EquipoController extends Controller
             'duracion' => ['required', Rule::enum(DuracionEstancia::class)],
             'ends_on' => ['nullable', 'required_if:duracion,'.DuracionEstancia::HastaElDia->value, 'date', 'after_or_equal:starts_on'],
             'tipo' => ['required', Rule::enum(TipoJornada::class)],
+            'centro' => ['required', Rule::enum(Sede::class)],
         ];
         if ($conClave) {
             $reglas['password'] = ['required', 'string', 'min:8'];
@@ -219,6 +233,8 @@ class EquipoController extends Controller
             'ends_on.after_or_equal' => 'El último día no puede ser anterior al inicio.',
             'tipo.required' => 'Elige el tipo de jornada.',
             'tipo.enum' => 'Elige un tipo de jornada válido.',
+            'centro.required' => 'Elige la sede municipal.',
+            'centro.enum' => 'Elige una sede municipal válida.',
         ]);
     }
 

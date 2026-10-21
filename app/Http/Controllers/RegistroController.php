@@ -6,6 +6,7 @@ use App\Exceptions\ReglaJornada;
 use App\Models\Consulta;
 use App\Models\Correccion;
 use App\Models\Explicacion;
+use App\Models\Horario;
 use App\Models\Jornada;
 use App\Models\Tramo;
 use App\Models\User;
@@ -81,6 +82,7 @@ class RegistroController extends Controller
             'esJefa' => $request->user()->esJefa(),
             'explicar' => $this->explicarDe($persona, $jornada->work_date->toDateString()),
             'puedeRegistrar' => $detalle['filas'] === [] && ($request->user()->esJefa() || $jornada->work_date->gte(now()->subDays(7)->startOfDay())),
+            'crumb' => $this->volverAlRegistro($request->user(), $persona, $jornada->work_date->toDateString()),
         ]);
     }
 
@@ -110,6 +112,8 @@ class RegistroController extends Controller
             'esJefa' => $persona->esJefa(),
             'explicar' => $explicar,
             'puedeRegistrar' => $dia->gte(now()->subDays(7)->startOfDay()) || $persona->esJefa(),
+            'crumb' => $this->volverAlRegistro($persona, $persona, $fecha),
+            'abrirRegistrar' => $request->query('abrir') === 'registrar-horas',
         ]);
     }
 
@@ -290,7 +294,7 @@ class RegistroController extends Controller
             $filas[] = [
                 'tramo' => $tramo,
                 'titulo' => $this->tituloTramo($tramo, $horario),
-                'horas' => Tiempo::hora($tramo->started_at).'–'.($tramo->ended_at ? Tiempo::hora($tramo->ended_at) : 'ahora'),
+                'horas' => Tiempo::hora($tramo->started_at).'–'.$this->textoFin($tramo, $jornada),
                 'duracion' => Tiempo::corto($minutos).' min',
                 'nota' => $this->notaTramo($tramo),
             ];
@@ -309,7 +313,7 @@ class RegistroController extends Controller
                 $cambios[] = [
                     'cuando' => $correccion->created_at,
                     'titulo' => $campo.': '.Tiempo::hora($correccion->previous_value).' → '.Tiempo::hora($correccion->new_value),
-                    'texto' => 'Antes '.Tiempo::hora($correccion->previous_value).', ahora '.Tiempo::hora($correccion->new_value).'. '.$correccion->motivoTexto().'.',
+                    'texto' => 'Antes '.Tiempo::hora($correccion->previous_value).', ahora '.Tiempo::hora($correccion->new_value).'. '.$correccion->motivoTexto().'.'.($correccion->note ? ' '.$correccion->note : ''),
                     'quien' => ($correccion->autor->name ?? 'Alguien').' · '.$this->cuandoCorto($correccion->created_at),
                 ];
             }
@@ -322,9 +326,12 @@ class RegistroController extends Controller
                 ];
             }
         }
+        $cambios = array_merge($cambios, $this->notasDelDia($persona, $jornada->work_date->toDateString()));
         usort($cambios, fn (array $a, array $b) => $a['cuando'] <=> $b['cuando']);
 
         $cantidad = $trabajos->count();
+        $retraso = $this->jornada->diasDeRetraso($jornada);
+        $estadoRetraso = $retraso > 0 ? 'Fichado fuera de plazo' : 'Jornada cerrada';
 
         return [
             'titulo' => ucfirst($fecha->isoFormat('dddd')).', '.$fecha->isoFormat('D [de] MMMM'),
@@ -337,10 +344,12 @@ class RegistroController extends Controller
                 default => $cantidad.' tramos de trabajo',
             },
             'inicio' => $primero ? Tiempo::hora($primero->started_at) : '—',
-            'salida' => $ultimo ? Tiempo::hora($ultimo->ended_at) : '—',
-            'salidaTexto' => $abierta ? 'Jornada abierta' : ($jornada->closed_late ? 'Cerrada al día siguiente' : 'Jornada cerrada'),
-            'estado' => $abierta ? 'Abierta' : ($jornada->closed_late ? 'Cierre al día siguiente' : 'Cerrada'),
-            'estadoClase' => $abierta ? 'abierta' : 'cerrada',
+            'salida' => $ultimo ? Tiempo::hora($ultimo->ended_at) : ($abierta && ! $jornada->work_date->isSameDay(now()) ? 'sin salida' : '—'),
+            'salidaTexto' => $abierta
+                ? ($jornada->work_date->isSameDay(now()) ? 'Jornada abierta' : 'Sin salida')
+                : ($jornada->closed_late ? 'Cerrada al día siguiente' : $estadoRetraso),
+            'estado' => $abierta ? 'Abierta' : ($jornada->closed_late ? 'Cierre al día siguiente' : $estadoRetraso),
+            'estadoClase' => $abierta ? 'abierta' : (($jornada->closed_late || $retraso > 0) ? 'tardia' : 'cerrada'),
             'previsto' => $horario ? str_replace(' y ', ' · ', $horario->texto()) : null,
             'fecha' => $jornada->work_date->toDateString(),
             'filas' => $filas,
@@ -371,12 +380,12 @@ class RegistroController extends Controller
             'fecha' => $dia->toDateString(),
             'filas' => [],
             'barras' => [],
-            'cambios' => [],
+            'cambios' => $this->notasDelDia($persona, $dia->toDateString()),
             'aviso' => $aviso,
         ];
     }
 
-    private function tituloTramo(Tramo $tramo, ?\App\Models\Horario $horario): string
+    private function tituloTramo(Tramo $tramo, ?Horario $horario): string
     {
         if ($tramo->tipo === Tramo::PAUSA) {
             return 'Pausa';
@@ -411,13 +420,29 @@ class RegistroController extends Controller
         return implode('. ', $partes);
     }
 
-    private function finVisible(Tramo $tramo, Jornada $jornada, ?\App\Models\Horario $horario): Carbon
+    private function textoFin(Tramo $tramo, Jornada $jornada): string
+    {
+        if ($tramo->ended_at) {
+            return Tiempo::hora($tramo->ended_at);
+        }
+
+        if (! $jornada->work_date->isSameDay(now())) {
+            return 'sin salida';
+        }
+
+        return 'ahora';
+    }
+
+    private function finVisible(Tramo $tramo, Jornada $jornada, ?Horario $horario): Carbon
     {
         if ($tramo->ended_at) {
             return $tramo->ended_at;
         }
 
         $ahora = now();
+        if (! $jornada->work_date->isSameDay($ahora)) {
+            return $tramo->started_at;
+        }
         if (! $horario || $jornada->sigue || $tramo->tipo !== Tramo::TRABAJO) {
             return $ahora;
         }
@@ -486,7 +511,6 @@ class RegistroController extends Controller
             'estado' => $filtros['estado'],
             'incidencia' => $filtros['incidencia'],
             'tabla' => $this->csv,
-            'pendientes' => $visor->id === $persona->id ? $this->jornada->pendientesDeExplicar($persona, now()) : [],
             'explicaciones' => $persona->explicaciones()->latest()->limit(10)->get(),
             'consultas' => $consulta
                 ? Consulta::query()->with('viewer')->where('subject_id', $persona->id)->latest()->limit(10)->get()
@@ -519,7 +543,7 @@ class RegistroController extends Controller
         return [
             'desde' => is_string($desde) ? $desde : '',
             'hasta' => is_string($hasta) ? $hasta : '',
-            'estado' => in_array($estado, ['cerrada', 'pendiente', 'tardia'], true) ? $estado : '',
+            'estado' => in_array($estado, ['cerrada', 'pendiente', 'tardia', 'fuera_plazo'], true) ? $estado : '',
             'incidencia' => in_array($incidencia, ['si', 'no'], true) ? $incidencia : '',
         ];
     }
@@ -570,6 +594,58 @@ class RegistroController extends Controller
         }
 
         return $inicio->day.' de '.$inicio->isoFormat('MMMM').' – '.$fin->day.' de '.$fin->isoFormat('MMMM');
+    }
+
+    /**
+     * @return list<array{cuando: Carbon, titulo: string, texto: string, quien: string}>
+     */
+    private function notasDelDia(User $persona, string $fecha): array
+    {
+        return $persona->explicaciones()
+            ->whereDate('work_date', $fecha)
+            ->get()
+            ->map(fn (Explicacion $explicacion) => [
+                'cuando' => $explicacion->created_at,
+                'titulo' => 'Nota',
+                'texto' => $explicacion->body,
+                'quien' => $persona->name.' · '.$this->cuandoCorto($explicacion->created_at),
+            ])
+            ->all();
+    }
+
+    /**
+     * @return array{texto: string, url: string}
+     */
+    private function volverAlRegistro(User $visor, User $persona, string $fecha): array
+    {
+        $dia = Carbon::parse($fecha);
+        $ancla = '#dia-'.$fecha;
+        if ($visor->id !== $persona->id) {
+            return [
+                'texto' => 'Registro de '.$persona->name,
+                'url' => route('equipo.registro', $persona).$ancla,
+            ];
+        }
+
+        $hoy = now();
+        if ($dia->between($hoy->copy()->startOfWeek(Carbon::MONDAY)->startOfDay(), $hoy->copy()->endOfWeek(Carbon::SUNDAY)->endOfDay())) {
+            $params = ['periodo' => 'semana'];
+        } elseif ($dia->isSameMonth($hoy)) {
+            $params = ['periodo' => 'mes'];
+        } elseif ($dia->isSameMonth($hoy->copy()->subMonthNoOverflow())) {
+            $params = ['periodo' => 'anterior'];
+        } else {
+            $params = [
+                'periodo' => 'todo',
+                'desde' => $dia->copy()->startOfWeek(Carbon::MONDAY)->toDateString(),
+                'hasta' => $dia->copy()->endOfWeek(Carbon::SUNDAY)->toDateString(),
+            ];
+        }
+
+        return [
+            'texto' => 'Mi registro',
+            'url' => route('registro', $params).$ancla,
+        ];
     }
 
     private function pedirMotivo(Request $request, User $persona): ?View

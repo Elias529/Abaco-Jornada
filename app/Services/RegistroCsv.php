@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Incidencia;
 use App\Models\Jornada;
 use App\Models\Tramo;
 use App\Models\User;
@@ -37,7 +38,8 @@ class RegistroCsv
             ->filter(fn (Tramo $tramo) => $tramo->ended_at !== null)
             ->sortBy('ended_at')
             ->last();
-        $incidencia = $jornada->tramos->contains(fn (Tramo $tramo) => $tramo->situacion === 'incidencia');
+        $incidencia = $this->incidenciaEnDia($persona, $jornada)
+            || $jornada->tramos->contains(fn (Tramo $tramo) => $tramo->situacion === 'incidencia');
 
         return [
             'Fecha' => Tiempo::fecha($jornada->work_date),
@@ -62,7 +64,12 @@ class RegistroCsv
         $textos = [];
         $barras = [];
         foreach ($trabajos as $tramo) {
-            $fin = $tramo->ended_at ?? now();
+            $fin = $this->finDePresentacion($tramo, $jornada);
+            if ($fin === null) {
+                $textos[] = Tiempo::hora($tramo->started_at).' – sin salida';
+
+                continue;
+            }
             $textos[] = Tiempo::hora($tramo->started_at).' – '.Tiempo::hora($fin);
             $trozo = $this->eje($tramo->started_at, $fin);
             if ($trozo) {
@@ -70,15 +77,17 @@ class RegistroCsv
             }
         }
         $abierta = $jornada->tramoAbierto() !== null;
+        $retraso = $this->jornada->diasDeRetraso($jornada);
 
         return [
             'fecha' => ucfirst($fecha->isoFormat('dddd')).', '.$fecha->day.' '.rtrim($fecha->isoFormat('MMM'), '.'),
             'tramos' => $textos === [] ? '—' : implode(' · ', $textos),
             'barras' => $barras,
             'total' => Tiempo::corto($this->jornada->minutosRegistrados($persona, $jornada)),
-            'estado' => $abierta ? 'Abierta' : ($jornada->closed_late ? 'Cierre al día siguiente' : 'Cerrada'),
-            'clase' => $abierta ? 'abierta' : ($jornada->closed_late ? 'tardia' : 'cerrada'),
-            'incidencia' => $jornada->tramos->contains(fn (Tramo $tramo) => $tramo->situacion === 'incidencia'),
+            'estado' => $this->estadoTexto($jornada, $abierta, $retraso),
+            'clase' => $abierta ? 'abierta' : (($jornada->closed_late || $retraso > 0) ? 'tardia' : 'cerrada'),
+            'incidencia' => $this->incidenciaEnDia($persona, $jornada)
+                || $jornada->tramos->contains(fn (Tramo $tramo) => $tramo->situacion === 'incidencia'),
         ];
     }
 
@@ -87,6 +96,9 @@ class RegistroCsv
      */
     public function consulta(User $persona, string $desde, string $hasta, string $estado, string $incidencia): Builder
     {
+        $incidenciaDias = $this->diasConIncidencia($persona, $desde, $hasta);
+        $fueraDePlazoDias = $this->diasFueraDePlazo($persona, $desde, $hasta);
+
         return Jornada::query()
             ->with('tramos')
             ->where('user_id', $persona->id)
@@ -96,11 +108,21 @@ class RegistroCsv
             ->when($estado === 'tardia', fn ($q) => $q
                 ->where('closed_late', true)
                 ->whereDoesntHave('tramos', fn ($tramo) => $tramo->whereNull('ended_at')))
+            ->when($estado === 'fuera_plazo', fn ($q) => $q
+                ->where('closed_late', false)
+                ->whereDoesntHave('tramos', fn ($tramo) => $tramo->whereNull('ended_at'))
+                ->whereIn('work_date', $fueraDePlazoDias))
             ->when($estado === 'cerrada', fn ($q) => $q
                 ->where('closed_late', false)
-                ->whereDoesntHave('tramos', fn ($tramo) => $tramo->whereNull('ended_at')))
-            ->when($incidencia === 'si', fn ($q) => $q->whereHas('tramos', fn ($tramo) => $tramo->where('situacion', 'incidencia')))
-            ->when($incidencia === 'no', fn ($q) => $q->whereDoesntHave('tramos', fn ($tramo) => $tramo->where('situacion', 'incidencia')))
+                ->whereDoesntHave('tramos', fn ($tramo) => $tramo->whereNull('ended_at'))
+                ->whereNotIn('work_date', $fueraDePlazoDias))
+            ->when($incidencia === 'si', fn ($q) => $q->where(function ($q) use ($incidenciaDias) {
+                $q->whereHas('tramos', fn ($tramo) => $tramo->where('situacion', 'incidencia'))
+                    ->orWhereIn('work_date', $incidenciaDias);
+            }))
+            ->when($incidencia === 'no', fn ($q) => $q
+                ->whereDoesntHave('tramos', fn ($tramo) => $tramo->where('situacion', 'incidencia'))
+                ->whereNotIn('work_date', $incidenciaDias))
             ->orderByDesc('work_date');
     }
 
@@ -135,6 +157,23 @@ class RegistroCsv
         }, $nombre, ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
+    /**
+     * Un tramo abierto de un día pasado no usa la hora actual: no se sabe
+     * cuándo terminó.
+     */
+    private function finDePresentacion(Tramo $tramo, Jornada $jornada): ?Carbon
+    {
+        if ($tramo->ended_at) {
+            return $tramo->ended_at;
+        }
+
+        if ($jornada->work_date->isSameDay(now())) {
+            return now();
+        }
+
+        return null;
+    }
+
     private function estado(Jornada $jornada): string
     {
         if ($jornada->tramoAbierto()) {
@@ -145,7 +184,70 @@ class RegistroCsv
             return 'Cerrada al día siguiente';
         }
 
+        $retraso = $this->jornada->diasDeRetraso($jornada);
+        if ($retraso > 0) {
+            return 'Fichado fuera de plazo';
+        }
+
         return 'Cerrada';
+    }
+
+    private function estadoTexto(Jornada $jornada, bool $abierta, int $retraso): string
+    {
+        if ($abierta) {
+            return 'Abierta';
+        }
+        if ($jornada->closed_late) {
+            return 'Cierre al día siguiente';
+        }
+        if ($retraso > 0) {
+            return 'Fichado fuera de plazo';
+        }
+
+        return 'Cerrada';
+    }
+
+    private function incidenciaEnDia(User $persona, Jornada $jornada): bool
+    {
+        return Incidencia::query()
+            ->where('user_id', $persona->id)
+            ->whereDate('created_at', $jornada->work_date->toDateString())
+            ->exists();
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function diasConIncidencia(User $persona, string $desde, string $hasta): array
+    {
+        return Incidencia::query()
+            ->where('user_id', $persona->id)
+            ->when($desde !== '', fn ($q) => $q->whereDate('created_at', '>=', $desde))
+            ->when($hasta !== '', fn ($q) => $q->whereDate('created_at', '<=', $hasta))
+            ->get(['created_at'])
+            ->map(fn (Incidencia $incidencia) => $incidencia->created_at->toDateString())
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function diasFueraDePlazo(User $persona, string $desde, string $hasta): array
+    {
+        return Jornada::query()
+            ->with('tramos')
+            ->where('user_id', $persona->id)
+            ->when($desde !== '', fn ($q) => $q->whereDate('work_date', '>=', $desde))
+            ->when($hasta !== '', fn ($q) => $q->whereDate('work_date', '<=', $hasta))
+            ->get()
+            ->filter(fn (Jornada $jornada) => ! $jornada->tramoAbierto()
+                && ! $jornada->closed_late
+                && $this->jornada->diasDeRetraso($jornada) > 0)
+            ->map(fn (Jornada $jornada) => $jornada->work_date->toDateString())
+            ->values()
+            ->all();
     }
 
     /**

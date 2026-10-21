@@ -39,7 +39,7 @@
                     <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 8v4.5l2.5 1.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
                     Hoy
                 </a>
-                <a href="{{ route('registro') }}" @if (request()->routeIs('registro', 'registro.show')) aria-current="page" @endif>
+                <a href="{{ route('registro') }}" @if (request()->routeIs('registro', 'registro.show', 'registro.dia')) aria-current="page" @endif>
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 7h10M8 12h10M8 17h7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
                     Mi registro
                 </a>
@@ -137,6 +137,10 @@
                 </button>
                 <nav class="migas" aria-label="Ruta">
                     <a href="{{ route('jornada') }}">Ábaco Jornada</a>
+                    @if (! empty($miga['url'] ?? null))
+                        <span aria-hidden="true">›</span>
+                        <a href="{{ $miga['url'] }}">{{ $miga['texto'] }}</a>
+                    @endif
                     <span aria-hidden="true">›</span>
                     <span>{{ $titulo ?? 'Hoy' }}</span>
                 </nav>

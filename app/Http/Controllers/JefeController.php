@@ -49,6 +49,7 @@ class JefeController extends Controller
                 'horario' => $persona->horarioEn($ahora),
                 'estado' => $this->jornada->estadoDe($persona, $ahora),
                 'antiguos' => $this->jornada->cierresSinResolverAntiguos($persona, $ahora),
+                'desde' => $this->desdeEstado($persona, $ahora),
             ]);
 
         return view('jefe.index', [
@@ -60,8 +61,25 @@ class JefeController extends Controller
                 'trabajando' => $personas->where('estado.estado', 'trabajando')->count(),
                 'pausa' => $personas->where('estado.estado', 'pausa')->count(),
                 'pendiente' => $personas->where('estado.estado', 'pendiente')->count(),
+                'ausencia' => $personas->where('estado.estado', 'ausencia')->count(),
+                'sin_empezar' => $personas->where('estado.estado', 'sin_empezar_hoy')->count(),
             ],
         ]);
+    }
+
+    private function desdeEstado(User $persona, Carbon $ahora): ?string
+    {
+        $jornada = Jornada::query()
+            ->with('tramos')
+            ->where('user_id', $persona->id)
+            ->whereDate('work_date', $ahora->toDateString())
+            ->first();
+        $tramo = $jornada?->tramos
+            ->where('tipo', 'trabajo')
+            ->sortByDesc('started_at')
+            ->first(fn ($tramo) => $tramo->ended_at === null);
+
+        return $tramo?->started_at ? Tiempo::hora($tramo->started_at) : null;
     }
 
     public function persona(User $user): View
@@ -99,8 +117,10 @@ class JefeController extends Controller
             'mes' => $mes->format('Y-m'),
             'meses' => $this->mesesDisponibles($user, $ahora),
             'mesTexto' => $mes->copy()->locale('es')->isoFormat('MMMM [de] YYYY'),
+            'jornadas' => $jornadas,
             'resumen' => $this->jornada->resumenDelMes($user, $mes, $jornadas, $ahora),
             'semanas' => $this->porSemanas($user, $jornadas, $ahora),
+            'filas' => $jornadas->map(fn (Jornada $jornada) => $this->csv->presentacion($user, $jornada)),
             'servicio' => $this->jornada,
             'explicaciones' => $user->explicaciones()->latest()->limit(10)->get(),
             'consultas' => $this->consultasDe($user, 10),
@@ -140,6 +160,11 @@ class JefeController extends Controller
         ]);
 
         $request->session()->put('consulta.'.$user->id, true);
+
+        if ($request->filled('redirect_to')) {
+            return redirect()->route('jefe.registro', $user)
+                ->with('ok', 'Guardado. Esta consulta queda escrita.');
+        }
 
         return redirect()->intended(route('jefe.registro', $user))
             ->with('ok', 'Guardado. Esta consulta queda escrita.');

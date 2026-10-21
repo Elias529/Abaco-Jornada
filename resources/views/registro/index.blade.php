@@ -50,28 +50,20 @@
                         <option value="cerrada" @selected($estado === 'cerrada')>Cerrada</option>
                         <option value="pendiente" @selected($estado === 'pendiente')>Abierta</option>
                         <option value="tardia" @selected($estado === 'tardia')>Cierre al día siguiente</option>
+                        <option value="fuera_plazo" @selected($estado === 'fuera_plazo')>Fichado fuera de plazo</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="incidencia">Incidencias</label>
+                    <select id="incidencia" name="incidencia">
+                        <option value="">Todas</option>
+                        <option value="si" @selected($incidencia === 'si')>Con incidencias</option>
+                        <option value="no" @selected($incidencia === 'no')>Sin incidencias</option>
                     </select>
                 </div>
                 <button class="boton boton-secundario" type="submit">Ver</button>
             </form>
         </details>
-
-        @if ($propio && $pendientes !== [])
-            <section class="registro-pendientes" id="pendientes">
-                <h2>Pendiente de explicar</h2>
-                <p class="secundario">Si un día no tiene fichaje, no sale en la lista. Explícalo aquí.</p>
-                @foreach ($pendientes as $pendiente)
-                    <form class="registro-pendiente" method="post" action="{{ route('registro.explicar') }}">
-                        @csrf
-                        <input type="hidden" name="work_date" value="{{ $pendiente['fecha'] }}">
-                        <p>El {{ $pendiente['dia'] }} {{ $pendiente['texto'] }}.</p>
-                        <label for="explicacion-{{ $pendiente['fecha'] }}">Qué pasó</label>
-                        <textarea id="explicacion-{{ $pendiente['fecha'] }}" name="body" rows="2" maxlength="500" required>{{ old('work_date') === $pendiente['fecha'] ? old('body') : '' }}</textarea>
-                        <button class="boton boton-secundario" type="submit">Explicar</button>
-                    </form>
-                @endforeach
-            </section>
-        @endif
 
         <div class="registro-lista" data-registro-lista>
         <section class="registro-card">
@@ -89,7 +81,7 @@
                     </div>
                     @foreach ($jornadas as $jornada)
                         @php($fila = $tabla->presentacion($persona, $jornada))
-                        <a class="registro-fila" role="row" href="{{ route('registro.show', $jornada) }}">
+                        <a class="registro-fila" id="dia-{{ $jornada->work_date->toDateString() }}" role="row" href="{{ route('registro.show', $jornada) }}">
                             <span role="cell">{{ $fila['fecha'] }}</span>
                             <span role="cell" class="registro-tramos">{{ $fila['tramos'] }}</span>
                             <span role="cell" class="registro-barras" aria-hidden="true">
@@ -101,7 +93,7 @@
                             <span role="cell" class="registro-estados">
                                 <x-chip :tipo="$fila['clase']">{{ $fila['estado'] }}</x-chip>
                                 @if ($fila['incidencia'])
-                                    <x-chip tipo="incidencia">Incidencia</x-chip>
+                                    <x-chip tipo="mensaje">Incidencia</x-chip>
                                 @endif
                             </span>
                             <span role="cell" class="registro-flecha" aria-hidden="true">›</span>
@@ -152,6 +144,7 @@
             </ul>
         @endif
     </div>
+
     <script>
         (function () {
             var raiz = document.querySelector('[data-registro]');

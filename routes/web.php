@@ -14,6 +14,10 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'create'])->name('login');
     Route::post('/login', [AuthController::class, 'store'])->middleware('throttle:6,1');
+    Route::get('/clave', [AuthController::class, 'pedirClave'])->name('password.request');
+    Route::post('/clave', [AuthController::class, 'enviarClave'])->middleware('throttle:6,1')->name('password.email');
+    Route::get('/clave/{token}', [AuthController::class, 'editarClave'])->name('password.reset');
+    Route::post('/clave/nueva', [AuthController::class, 'guardarClave'])->middleware('throttle:6,1')->name('password.update');
 });
 
 Route::middleware(['auth', 'activo'])->group(function () {
@@ -35,6 +39,7 @@ Route::middleware(['auth', 'activo'])->group(function () {
     Route::post('/jornada/completar', [JornadaController::class, 'completar'])->name('jornada.completar');
     Route::post('/jornada/borrar-prueba', [JornadaController::class, 'borrarPrueba'])->name('jornada.borrar-prueba');
     Route::post('/jornada/borrar-prueba-ayer', [JornadaController::class, 'borrarAyer'])->name('jornada.borrar-ayer');
+    Route::post('/jornada/borrar-prueba-anteayer', [JornadaController::class, 'borrarAnteayer'])->name('jornada.borrar-anteayer');
 
     Route::get('/registro', [RegistroController::class, 'index'])->name('registro');
     Route::get('/registro/copia.csv', [RegistroController::class, 'csv'])->name('registro.csv');

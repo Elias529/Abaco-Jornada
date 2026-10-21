@@ -1,99 +1,94 @@
-@extends('layouts.app', ['titulo' => 'Registro'])
+@extends('layouts.app', ['ancha' => true, 'titulo' => 'Registro'])
 
 @section('contenido')
-    <p><a class="enlace" href="{{ route('jefe.persona', $persona) }}">Volver a {{ $persona->name }}</a></p>
-    <h1>Registro de {{ $persona->name }}</h1>
-    <p class="secundario">Solo lectura. Se conservan cuatro años, el plazo del artículo 34.9 del Estatuto de los Trabajadores. Ábaco lo confirma. Si una hora cambió, se ve la anterior, quién la cambió y cuándo.</p>
-    <p>
-        <a class="boton boton-secundario" href="{{ route('jefe.csv', $persona) }}">Descargar copia</a>
-    </p>
+    <div class="registro" data-registro>
+        <header class="registro-cabeza">
+            <div>
+                <p class="espacio-sobre">Registro del equipo</p>
+                <h1>Registro de {{ $persona->name }}</h1>
+                <p class="secundario">Solo lectura · {{ ucfirst($mesTexto) }}</p>
+            </div>
+            <a class="registro-csv" href="{{ route('jefe.csv', $persona) }}">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v10M8 10l4 4 4-4M5 19h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                Descargar copia
+            </a>
+        </header>
 
-    <form method="get" action="{{ route('jefe.registro', $persona) }}" class="formulario formulario-mes">
-        <label for="mes">Mes</label>
-        <div class="fila">
-            <select id="mes" name="mes">
-                @foreach ($meses as $valor => $texto)
-                    <option value="{{ $valor }}" @selected($valor === $mes)>{{ $texto }}</option>
-                @endforeach
-            </select>
-            <button class="boton boton-secundario" type="submit">Ver mes</button>
+        <div class="registro-barra">
+            <form method="get" action="{{ route('jefe.registro', $persona) }}" class="registro-filtros">
+                <div>
+                    <label for="mes">Periodo</label>
+                    <select id="mes" name="mes">
+                        @foreach ($meses as $valor => $texto)
+                            <option value="{{ $valor }}" @selected($valor === $mes)>{{ $texto }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <button class="boton boton-secundario" type="submit">Ver mes</button>
+            </form>
+            <p class="registro-rango">{{ $filas->count() }} {{ $filas->count() === 1 ? 'jornada' : 'jornadas' }}</p>
         </div>
-    </form>
 
-    <h2>{{ ucfirst($mesTexto) }}</h2>
-    <section class="resumen resumen-fila" aria-label="Totales del mes">
-        <div>
-            <span>Registrado</span>
-            <strong>{{ \App\Support\Tiempo::corto($resumen['registrados']) }}</strong>
-        </div>
-        <div>
-            <span>Previsto hasta hoy</span>
-            <strong>{{ \App\Support\Tiempo::corto($resumen['previstos']) }}</strong>
-        </div>
-        <div>
-            <span>Por encima del horario</span>
-            <strong>{{ \App\Support\Tiempo::corto($resumen['porEncima']) }}</strong>
-        </div>
-    </section>
-    <p class="secundario">El tiempo por encima del horario se guarda tal como fue. No es una hora extra ni está autorizado: lo decide Ábaco.</p>
-
-    @if ($semanas->isEmpty())
-        <p>No hay jornadas en este mes.</p>
-    @else
-        @foreach ($semanas as $semana)
-            <h3 class="semana">
-                <span>Semana del {{ $semana['lunes']->locale('es')->isoFormat('D [de] MMMM') }} al {{ $semana['domingo']->locale('es')->isoFormat('D [de] MMMM') }}</span>
-                <strong>{{ \App\Support\Tiempo::texto($semana['minutos']) }}</strong>
-            </h3>
-            <ul class="lista">
-                @foreach ($semana['jornadas'] as $jornada)
-                    @php
-                        $conCambios = $jornada->tramos->contains(fn ($tramo) => $tramo->correcciones->isNotEmpty());
-                    @endphp
-                    <li>
-                        <a href="{{ route('jefe.dia', $jornada) }}">
-                            <span>{{ \App\Support\Tiempo::fecha($jornada->work_date) }}</span>
-                            <strong>{{ \App\Support\Tiempo::texto($servicio->minutosRegistrados($persona, $jornada)) }}</strong>
+        <section class="registro-card" aria-label="Registro de {{ $persona->name }}">
+            @if ($jornadas->isEmpty())
+                <p class="registro-vacio">No hay jornadas en este mes.</p>
+            @else
+                <div class="registro-tabla" role="table">
+                    <div class="registro-cabecera" role="row">
+                        <span role="columnheader">Fecha</span>
+                        <span role="columnheader">Tramos de trabajo</span>
+                        <span role="columnheader">Jornada</span>
+                        <span role="columnheader">Total</span>
+                        <span role="columnheader">Estado</span>
+                        <span role="columnheader"></span>
+                    </div>
+                    @foreach ($jornadas as $indice => $jornada)
+                        @php($fila = $filas[$indice])
+                        <a class="registro-fila" id="dia-{{ $jornada->work_date->toDateString() }}" role="row" href="{{ route('jefe.dia', $jornada) }}">
+                            <span role="cell">{{ $fila['fecha'] }}</span>
+                            <span role="cell" class="registro-tramos">{{ $fila['tramos'] }}</span>
+                            <span role="cell" class="registro-barras" aria-hidden="true">
+                                @foreach ($fila['barras'] as $barra)
+                                    <i style="left: {{ $barra['left'] }}%; width: {{ $barra['width'] }}%;"></i>
+                                @endforeach
+                            </span>
+                            <span role="cell" class="registro-total">{{ $fila['total'] }}</span>
+                            <span role="cell" class="registro-estados">
+                                <x-chip :tipo="$fila['clase']">{{ $fila['estado'] }}</x-chip>
+                                @if ($fila['incidencia'])
+                                    <x-chip tipo="mensaje">Incidencia</x-chip>
+                                @endif
+                                @if ($jornada->tramoAbierto())
+                                    <small class="registro-subestado">Pendiente de cerrar</small>
+                                @elseif ($jornada->closed_late)
+                                    <small class="registro-subestado">Cerrada al día siguiente</small>
+                                @endif
+                                @if ($jornada->tramos->contains(fn ($tramo) => $tramo->correcciones->isNotEmpty()))
+                                    <small class="registro-subestado">con cambios</small>
+                                @endif
+                            </span>
+                            <span role="cell" class="registro-flecha" aria-hidden="true">›</span>
                         </a>
-                        <span class="secundario">
-                            @if ($jornada->tramoAbierto())
-                                Pendiente de cerrar
-                            @elseif ($jornada->closed_late)
-                                Cerrada al día siguiente
-                            @else
-                                Cerrada
-                            @endif
-                            @if ($conCambios)
-                                · con cambios
-                            @endif
-                        </span>
-                    </li>
-                @endforeach
-            </ul>
-        @endforeach
-    @endif
+                    @endforeach
+                </div>
+            @endif
+            <div class="registro-pie">
+                <span>{{ $filas->count() }} {{ $filas->count() === 1 ? 'jornada' : 'jornadas' }}</span>
+                <span>Las correcciones conservan el historial</span>
+            </div>
+        </section>
 
-    @if ($explicaciones->isNotEmpty())
-        <h2>Explicaciones</h2>
-        <ul class="lista">
-            @foreach ($explicaciones as $explicacion)
-                <li>
-                    <span>{{ $explicacion->body }}</span>
-                    <span class="secundario">{{ \App\Support\Tiempo::fecha($explicacion->created_at) }}@if ($explicacion->work_date) · {{ \App\Support\Tiempo::fecha($explicacion->work_date) }}@endif</span>
-                </li>
+        <div class="sr" aria-hidden="true">
+            @foreach ($semanas as $semana)
+                Semana del {{ $semana['lunes']->locale('es')->isoFormat('D [de] MMMM') }} al {{ $semana['domingo']->locale('es')->isoFormat('D [de] MMMM') }}
             @endforeach
-        </ul>
-    @endif
+        </div>
 
-    @if ($consultas->isNotEmpty())
-        <h2>Consultas</h2>
-        <ul class="lista">
-            @foreach ($consultas as $visita)
-                <li>
-                    <span>{{ $visita->viewer->name }}@if ($visita->reason). {{ $visita->reason }}@endif</span>
-                    <span class="secundario">{{ \App\Support\Tiempo::fecha($visita->created_at) }} {{ $visita->created_at->format('H:i') }}</span>
-                </li>
-            @endforeach
-        </ul>
-    @endif
+        <section class="resumen resumen-fila" aria-label="Totales del mes">
+            <div><span>Registrado</span><strong>{{ \App\Support\Tiempo::corto($resumen['registrados']) }}</strong></div>
+            <div><span>Previsto hasta hoy</span><strong>{{ \App\Support\Tiempo::corto($resumen['previstos']) }}</strong></div>
+            <div><span>Por encima del horario</span><strong>{{ \App\Support\Tiempo::corto($resumen['porEncima']) }}</strong></div>
+        </section>
+        <span class="sr" aria-hidden="true">{{ \App\Support\Tiempo::texto($resumen['registrados']) }}</span>
+    </div>
 @endsection

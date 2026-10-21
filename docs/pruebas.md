@@ -9,17 +9,24 @@ La revisión de Pablo del 9 de octubre de 2026 vio 18 pruebas y 92 aserciones. D
 | Prueba | Qué demuestra |
 | --- | --- |
 | `test_entrada_pausa_salida_y_no_duplica` | Entrada, pausa, vuelta y salida. Una segunda entrada no abre otra jornada |
-| `test_cierre_olvidado_permite_empezar_el_dia_nuevo` | El día anterior sin cerrar se completa y después se puede empezar |
+| `test_cierre_olvidado_permite_empezar_el_dia_nuevo` | No se puede empezar el día nuevo hasta indicar la hora de salida del anterior |
+| `test_empezar_jornada_antes_de_tiempo_pide_confirmacion` | Diez minutos o más antes de la hora prevista, Hoy pregunta antes de fichar |
+| `test_empezar_jornada_en_el_margen_de_diez_minutos_no_pregunta` | Dentro de los diez minutos se ficha sin pregunta |
 | `test_una_persona_no_ve_el_registro_de_otra` | El registro ajeno no se abre sin permiso |
 | `test_la_baja_conserva_la_jornada` | La baja cierra el acceso y deja la jornada |
-| `test_quien_esta_en_otra_comunidad_sigue_el_calendario_de_madrid` | Otra ficha municipal ve el festivo del centro de Madrid |
+| `test_el_festivo_sigue_el_centro_y_no_el_municipio` | El festivo es el de la sede (`centro`), no el del municipio escrito en la ficha |
+| `test_el_alta_guarda_la_sede_elegida` | El alta guarda la sede municipal y sus festivos |
+| `PlantillaDemoTest` | El seeder se puede repetir, no borra fichajes y un alta entra en la plantilla compartida |
+| `RecuperarClaveTest` | Pedir el enlace, avisar si el correo no está registrado, cambiar la contraseña y rechazar un token inventado |
 | `test_la_reunion_conserva_la_hora_prevista` | La reunión guarda la hora de inicio del horario |
 | `test_el_equipo_encendido_no_alarga_la_jornada` | Pasada la hora de salida, el equipo encendido no suma de más en el panel |
 | `test_seguir_guarda_la_salida_real_sin_pedir_autorizacion` | Salir más tarde guarda esa hora, sin autorización |
 | `test_el_festivo_del_centro_pregunta_si_hay_trabajo` | El festivo pregunta si hay trabajo real |
 | `test_el_trabajo_fuera_del_equipo_usa_las_horas_indicadas` | El tramo fuera del equipo usa las horas indicadas |
 | `test_un_solo_cierre_sin_completar_ya_se_avisa_y_no_cambia_el_registro` | Un solo cierre sin completar ya se avisa y el aviso no cambia el registro |
-| `test_un_aviso_sin_explicar_no_caduca_con_el_tiempo` | Un aviso sin explicar sigue contando meses después |
+| `test_un_aviso_sin_explicar_no_caduca_con_el_tiempo` | Un aviso sin explicar sigue contando meses después, dentro del mismo año |
+| `test_un_aviso_del_anio_anterior_no_sale_en_pendientes` | Un aviso de un año anterior se conserva y no sale en la lista de este año |
+| `test_una_entrada_sin_salida_de_ayer_no_inventa_la_hora` | Un tramo abierto de ayer no usa la hora actual ni suma minutos |
 | `test_explicar_un_aviso_deja_de_contarlo` | Explicar un aviso es lo único que lo deja de contar |
 | `test_la_jefa_ve_marcados_los_cierres_sin_resolver_de_mas_de_siete_dias` | Estado y la ficha marcan los avisos sin explicar de hace más de 7 días y no crean avisos |
 | `test_el_fallo_comun_y_el_horario_no_cuentan` | Un fallo común o un cambio de horario deja el aviso fuera de la cuenta |

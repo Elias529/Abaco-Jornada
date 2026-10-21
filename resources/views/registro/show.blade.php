@@ -1,16 +1,16 @@
-@extends('layouts.app', ['ancha' => true, 'titulo' => 'Día'])
+@extends('layouts.app', ['ancha' => true, 'titulo' => $detalle['titulo'], 'miga' => $crumb])
 
 @section('contenido')
     <div class="detalle">
         <header class="detalle-cabeza">
             <div>
-                <p class="espacio-sobre">Registro / detalle</p>
+                <p class="espacio-sobre">{{ $crumb['texto'] }}</p>
                 <h1>{{ $detalle['titulo'] }}</h1>
                 <p class="secundario">{{ $persona->name }} · Detalle del registro</p>
             </div>
-            <a class="detalle-volver" href="{{ $esJefa && auth()->id() !== $persona->id ? route('equipo.registro', $persona) : route('registro') }}">
+            <a class="detalle-volver" href="{{ $crumb['url'] }}">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                Volver al registro
+                Volver a {{ $crumb['texto'] }}
             </a>
         </header>
 
@@ -170,7 +170,7 @@
     @endif
 
     @if ($puedeRegistrar)
-        <dialog class="dialogo-hoy" data-dialogo="registrar-horas" aria-labelledby="titulo-registrar-horas">
+        <dialog class="dialogo-hoy" data-dialogo="registrar-horas" @if ($abrirRegistrar ?? false) data-abierto @endif aria-labelledby="titulo-registrar-horas">
             <div class="dialogo-cabecera">
                 <h2 id="titulo-registrar-horas">Registrar las horas</h2>
                 <form method="dialog">

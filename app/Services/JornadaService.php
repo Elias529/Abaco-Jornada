@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Exceptions\ReglaJornada;
 use App\Models\Aviso;
 use App\Models\Correccion;
+use App\Models\Explicacion;
 use App\Models\FalloComun;
 use App\Models\Horario;
 use App\Models\Jornada;
@@ -20,6 +21,8 @@ use Illuminate\Support\Facades\DB;
 class JornadaService
 {
     public const MINUTOS_HASTA_AVISO_DE_INICIO = 20;
+
+    public const MINUTOS_ANTES_PARA_CONFIRMAR = 10;
 
     public const DIAS_HASTA_AVISAR_A_LA_JEFA = 7;
 
@@ -114,6 +117,8 @@ class JornadaService
             'notaDia' => implode(' ', $notas),
             'banner' => $banner,
             'pendiente' => $banner !== null,
+            'inicioTarde' => $this->inicioTarde($user, $ahora),
+            'inicioPrevisto' => $horario ? $horario->corta($horario->morning_start) : null,
             'puedeEntrar' => $puedeAbrir && $puedePorFestivo && ! $pasada && (! $hoy || $this->soloFuera($hoy)) && ! $this->faltaExplicarAyer($user, $ahora),
             'puedeSalir' => $abierto !== null && ! $pasada && ! $cierrePendiente,
             'puedePausar' => $abierto?->tipo === Tramo::TRABAJO && ! $cierrePendiente,
@@ -136,7 +141,26 @@ class JornadaService
             'tramosAbiertos' => $hoy ? $hoy->tramos->whereNull('ended_at')->count() : 0,
             'barra' => $this->barra($horario, $hoy, $hasta),
             'esJefa' => $user->esJefa(),
+            'horaInicioPrevista' => $horario ? $horario->corta($horario->morning_start) : null,
+            'pideConfirmacionTemprana' => $this->horaInicioSiEsTemprano($user, $ahora) !== null,
         ];
+    }
+
+    public function horaInicioSiEsTemprano(User $user, ?Carbon $ahora = null): ?string
+    {
+        $ahora ??= now();
+        $horario = $user->horarioEn($ahora);
+        if ($horario === null) {
+            return null;
+        }
+
+        $prevista = $horario->corta($horario->morning_start);
+        $inicio = $this->momento($ahora, $prevista);
+        if ($ahora->copy()->addMinutes(self::MINUTOS_ANTES_PARA_CONFIRMAR)->lte($inicio)) {
+            return $prevista;
+        }
+
+        return null;
     }
 
     public function entrar(User $user): string
@@ -156,6 +180,39 @@ class JornadaService
         }
 
         return 'Guardado. Entrada a las '.Tiempo::hora($ahora).'.';
+    }
+
+    public function entradaSegunMotivo(User $user, ?string $modo, ?string $hora = null): string
+    {
+        if ($this->inicioTarde($user, now()) && $modo !== null) {
+            if ($modo === 'prevista') {
+                return $this->reunion($user);
+            }
+            if ($modo === 'otra') {
+                if (! $hora) {
+                    throw new ReglaJornada('Elige la hora de entrada.');
+                }
+
+                return $this->yaEstaba($user, $hora);
+            }
+            if ($modo !== 'ahora') {
+                throw new ReglaJornada('Elige cómo empezó tu jornada.');
+            }
+        } elseif ($modo === 'otra' && $hora) {
+            return $this->yaEstaba($user, $hora);
+        }
+
+        return $this->entrar($user);
+    }
+
+    public function inicioTarde(User $user, ?Carbon $ahora = null): bool
+    {
+        $ahora ??= now();
+        $horario = $user->horarioEn($ahora);
+
+        return $horario !== null
+            && $this->esDiaEsperado($user, $ahora)
+            && $ahora->greaterThan($this->momento($ahora, $horario->corta($horario->morning_start)));
     }
 
     public function yaEstaba(User $user, string $hora): string
@@ -386,6 +443,24 @@ class JornadaService
         });
     }
 
+    public function diasDeRetraso(Jornada $jornada): int
+    {
+        $jornada->loadMissing('tramos');
+        $tramo = $jornada->tramos
+            ->where('tipo', Tramo::TRABAJO)
+            ->sortBy('anotado_at')
+            ->first();
+
+        if (! $tramo?->anotado_at) {
+            return 0;
+        }
+
+        $diaTrabajo = Carbon::parse($jornada->work_date->toDateString(), config('app.timezone'))->startOfDay();
+        $diaRegistro = $tramo->anotado_at->copy()->timezone(config('app.timezone'))->startOfDay();
+
+        return max(0, $diaTrabajo->diffInDays($diaRegistro, false));
+    }
+
     public function declararIncidencia(User $user, string $inicioHora, string $finHora, string $motivo): string
     {
         $ahora = now();
@@ -447,6 +522,17 @@ class JornadaService
                 'cuenta' => false,
                 'exclusion' => 'comun',
             ]);
+    }
+
+    private function diaEstaCerrado(User $user, string $fecha): bool
+    {
+        $jornada = Jornada::query()
+            ->where('user_id', $user->id)
+            ->whereDate('work_date', $fecha)
+            ->with('tramos')
+            ->first();
+
+        return $jornada?->estaCerrada() === true;
     }
 
     public function marcarExplicados(User $user, string $fecha): void
@@ -547,6 +633,7 @@ class JornadaService
 
             $this->anotar($actor, $fresco, $campo, $anterior, $nueva, $motivo, $nota);
             $fresco->update([$campo => $nueva]);
+            $this->marcarExplicados($duena, $jornada->work_date->toDateString());
             $guardada = $nueva;
         });
 
@@ -596,7 +683,18 @@ class JornadaService
             $cambiaFin = $finHora !== null && ($fresco->ended_at === null || ! $nuevoFin->equalTo($fresco->ended_at));
 
             if (! $cambiaInicio && ! $cambiaFin) {
-                throw new ReglaJornada('Esas horas ya son las que están guardadas.');
+                if ($nota === null) {
+                    throw new ReglaJornada('Esas horas ya son las que están guardadas.');
+                }
+                Explicacion::create([
+                    'user_id' => $duena->id,
+                    'body' => $nota,
+                    'work_date' => $jornada->work_date->toDateString(),
+                ]);
+                $this->marcarExplicados($duena, $jornada->work_date->toDateString());
+                $texto = 'Guardado. La nota queda en el día.';
+
+                return;
             }
             if ($nuevoInicio->greaterThan(now()) || ($nuevoFin && $nuevoFin->greaterThan(now()))) {
                 throw new ReglaJornada('Esa hora todavía no ha llegado.');
@@ -633,6 +731,7 @@ class JornadaService
                 $this->declararSalida($fresco, $actor, $nuevoFin, now());
                 $this->responder($duena, 'cierre', $jornada->work_date);
             }
+            $this->marcarExplicados($duena, $jornada->work_date->toDateString());
 
             if ($cambiaInicio && $cambiaFin) {
                 $texto = 'Guardado. El inicio ha quedado en las '.Tiempo::hora($nuevoInicio).' y el fin en las '.Tiempo::hora($nuevoFin).'.';
@@ -697,9 +796,12 @@ class JornadaService
     }
 
     /**
-     * Avisos que cuentan y siguen sin explicar. La entrada de hoy no entra:
-     * el día sigue abierto y se puede fichar. Un aviso deja de contar solo
-     * cuando la persona lo explica.
+     * Avisos que cuentan y siguen sin explicar. Solo los del año en curso,
+     * el más antiguo primero. La entrada de hoy no entra: el día sigue
+     * abierto y se puede fichar. Si el día ya está cerrado, el aviso de
+     * cierre o de salida pendiente deja de contar. Un aviso de este año
+     * deja de contar también cuando la persona lo explica. El histórico
+     * de otros años se conserva.
      */
     public function problemasSinExplicar(User $user, Carbon $ahora): int
     {
@@ -708,10 +810,11 @@ class JornadaService
 
     public function avisosSinExplicar(User $user, Carbon $ahora): Collection
     {
-        return Aviso::query()
+        $avisos = Aviso::query()
             ->where('user_id', $user->id)
             ->where('cuenta', true)
             ->whereNull('responded_at')
+            ->whereDate('work_date', '>=', $ahora->copy()->startOfYear()->toDateString())
             ->whereDate('work_date', '<=', $ahora->toDateString())
             ->where(function ($consulta) use ($ahora) {
                 $consulta->whereDate('work_date', '<', $ahora->toDateString())
@@ -720,6 +823,19 @@ class JornadaService
             ->orderBy('work_date')
             ->orderBy('id')
             ->get();
+
+        $cubiertos = $avisos->filter(fn (Aviso $aviso) => in_array($aviso->tipo, ['cierre', 'olvido'], true)
+            && $this->diaEstaCerrado($user, $aviso->work_date->toDateString()));
+
+        if ($cubiertos->isNotEmpty()) {
+            Aviso::query()
+                ->whereIn('id', $cubiertos->modelKeys())
+                ->whereNull('responded_at')
+                ->update(['responded_at' => now()]);
+            $avisos = $avisos->reject(fn (Aviso $aviso) => $cubiertos->contains('id', $aviso->id))->values();
+        }
+
+        return $avisos;
     }
 
     /**
@@ -767,8 +883,8 @@ class JornadaService
     }
 
     /**
-     * Avisos sin explicar de hace más de siete días: lo que la jefa debe mirar.
-     * Solo consulta. Cuenta lo mismo que problemasSinExplicar, por antigüedad.
+     * Avisos sin explicar de este año y de hace más de siete días: lo que
+     * la jefa debe mirar. Solo consulta. El más antiguo primero.
      */
     public function cierresSinResolverAntiguos(User $user, Carbon $ahora): int
     {
@@ -778,6 +894,7 @@ class JornadaService
             ->where('user_id', $user->id)
             ->where('cuenta', true)
             ->whereNull('responded_at')
+            ->whereDate('work_date', '>=', $ahora->copy()->startOfYear()->toDateString())
             ->whereDate('work_date', '<', $limite)
             ->count();
     }
@@ -961,18 +1078,6 @@ class JornadaService
                     ->where('user_id', $user->id)
                     ->whereDate('work_date', $ayer->toDateString())
                     ->value('id'),
-            ];
-        }
-
-        $puedePreguntarInicio = $esperada || $respuestaFestivo === 'si';
-        if ((! $hoy || $this->soloFuera($hoy)) && $puedePreguntarInicio && $horario && $ahora->greaterThan($this->momento($ahora, $horario->corta($horario->morning_start)))) {
-            $this->registrarAviso($user, 'inicio', $ahora);
-            $prevista = $horario->corta($horario->morning_start);
-
-            return [
-                'texto' => 'Tu jornada empezaba a las '.$prevista.'. ¿Ya estabas trabajando?',
-                'accion' => 'inicio',
-                'hora' => $prevista,
             ];
         }
 
@@ -1216,7 +1321,7 @@ class JornadaService
             ->whereBetween('work_date', [$lunes, $domingo])
             ->get();
 
-        return $jornadas->sum(fn (Jornada $jornada) => $this->minutosDeJornada($jornada, $this->hastaVisible($user, $jornada, $ahora)));
+        return $jornadas->sum(fn (Jornada $jornada) => $this->minutosRegistrados($user, $jornada, $ahora));
     }
 
     private function horaFin(Jornada $jornada): string

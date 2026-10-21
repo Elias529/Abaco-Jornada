@@ -11,6 +11,7 @@ use App\Models\SolicitudVacaciones;
 use App\Models\Ticket;
 use App\Models\Tramo;
 use App\Models\User;
+use App\Services\JornadaService;
 use App\Services\NagerFestivos;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -56,6 +57,54 @@ class JornadaTest extends TestCase
         $jornada = Jornada::query()->with('tramos')->first();
         $this->assertTrue($jornada->estaCerrada());
         $this->assertNotNull($jornada->tramos->first()->ended_at);
+    }
+
+    public function test_empezar_jornada_antes_de_tiempo_pide_confirmacion(): void
+    {
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
+        $this->horario($ana);
+        Carbon::setTestNow(Carbon::parse('2026-10-07 08:40:00', 'Europe/Madrid'));
+
+        $this->actingAs($ana)
+            ->get(route('jornada'))
+            ->assertOk()
+            ->assertSee('Empezar jornada', false)
+            ->assertSee('Tu jornada empieza a las 09:00. ¿Empiezas ya?', false)
+            ->assertSee('Sí, empiezo', false)
+            ->assertSee('Todavía no', false);
+
+        $this->actingAs($ana)
+            ->post(route('jornada.entrada'))
+            ->assertRedirect()
+            ->assertSessionHas('confirma_temprano')
+            ->assertSessionMissing('ok');
+
+        $this->assertDatabaseCount('jornadas', 0);
+
+        $this->actingAs($ana)
+            ->post(route('jornada.entrada'), ['confirmar_temprano' => '1'])
+            ->assertSessionHas('ok', 'Guardado. Entrada a las 08:40.');
+
+        $this->assertSame('08:40', Tramo::query()->first()->started_at->timezone('Europe/Madrid')->format('H:i'));
+    }
+
+    public function test_empezar_jornada_en_el_margen_de_diez_minutos_no_pregunta(): void
+    {
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
+        $this->horario($ana);
+        Carbon::setTestNow(Carbon::parse('2026-10-07 08:51:00', 'Europe/Madrid'));
+
+        $this->actingAs($ana)
+            ->get(route('jornada'))
+            ->assertOk()
+            ->assertSee('Empezar jornada', false)
+            ->assertDontSee('¿Empiezas ya?', false);
+
+        $this->actingAs($ana)
+            ->post(route('jornada.entrada'))
+            ->assertSessionHas('ok');
+
+        $this->assertSame('08:51', Tramo::query()->first()->started_at->timezone('Europe/Madrid')->format('H:i'));
     }
 
     public function test_cierre_olvidado_permite_empezar_el_dia_nuevo(): void
@@ -202,7 +251,8 @@ class JornadaTest extends TestCase
         $this->actingAs($cataluna)
             ->get(route('jornada'))
             ->assertDontSee('Hoy es festivo en tu centro', false)
-            ->assertSee('¿Ya estabas trabajando?', false);
+            ->assertSee('¿Cuándo empezaste?', false)
+            ->assertDontSee('¿Ya estabas trabajando?', false);
     }
 
     public function test_la_reunion_conserva_la_hora_prevista(): void
@@ -215,7 +265,9 @@ class JornadaTest extends TestCase
             ->assertSee('Inicio de jornada', false)
             ->assertSee('Empezar jornada', false)
             ->assertDontSee('Trabajé sin el portátil', false)
-            ->assertSee('Ya estaba trabajando', false)
+            ->assertSee('¿Cuándo empezaste?', false)
+            ->assertSee('Empiezo ahora', false)
+            ->assertSee('Otra hora', false)
             ->assertDontSee('Estaba en una reunión desde las 09:00', false)
             ->assertDontSee('Empecé a otra hora', false)
             ->assertDontSee('Trabajo fuera del equipo', false)
@@ -233,18 +285,29 @@ class JornadaTest extends TestCase
     {
         $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
         $this->horario($ana);
+        $jornada = Jornada::create(['user_id' => $ana->id, 'work_date' => '2026-10-06']);
+        Tramo::create([
+            'jornada_id' => $jornada->id,
+            'tipo' => Tramo::TRABAJO,
+            'started_at' => '2026-10-06 09:00:00',
+        ]);
 
         $this->actingAs($ana)
             ->get(route('jornada'))
-            ->assertSee('Inicio de jornada', false)
+            ->assertSee('No cerraste el martes', false)
             ->assertSee('value="23"', false)
             ->assertDontSee('>AM<', false);
 
         $this->actingAs($ana)
-            ->post(route('jornada.entrada'), ['hora' => '08:30'])
+            ->post(route('jornada.completar'), ['hora' => '18:00'])
             ->assertSessionHas('ok');
 
-        $this->assertSame('08:30', Tramo::query()->first()->started_at->timezone('Europe/Madrid')->format('H:i'));
+        $this->actingAs($ana)
+            ->post(route('jornada.entrada'), ['modo' => 'otra', 'hora' => '08:30'])
+            ->assertSessionHas('ok');
+
+        $hoy = Tramo::query()->whereDate('started_at', '2026-10-07')->first();
+        $this->assertSame('08:30', $hoy->started_at->timezone('Europe/Madrid')->format('H:i'));
     }
 
     public function test_ana_marta_y_carmen_pueden_borrar_el_fichaje_de_hoy_para_probar(): void
@@ -406,11 +469,13 @@ class JornadaTest extends TestCase
 
         Aviso::create(['user_id' => $ana->id, 'tipo' => 'cierre', 'work_date' => '2026-10-06', 'cuenta' => true]);
         $this->actingAs($ana)->get(route('jornada'))
-            ->assertSee('El martes 6 de octubre quedó el cierre sin completar', false)
-            ->assertSee(route('registro.show', $jornada), false);
+            ->assertDontSee('El martes 6 de octubre quedó el cierre sin completar', false);
+        $this->assertNotNull(Aviso::query()->where('user_id', $ana->id)->where('tipo', 'cierre')->first()->responded_at);
 
         Aviso::create(['user_id' => $ana->id, 'tipo' => 'olvido', 'work_date' => '2026-10-05', 'cuenta' => true]);
-        $this->actingAs($ana)->get(route('jornada'))->assertSee('Tienes 2 días sin explicar', false)->assertSee('lunes 5 de octubre', false);
+        $this->actingAs($ana)->get(route('jornada'))
+            ->assertSee('El lunes 5 de octubre falta la hora de salida', false)
+            ->assertDontSee('Tienes 2 días sin explicar', false);
 
         $this->assertSame('18:00', $tramo->fresh()->ended_at->timezone('Europe/Madrid')->format('H:i'));
     }
@@ -424,6 +489,30 @@ class JornadaTest extends TestCase
         Aviso::create(['user_id' => $ana->id, 'tipo' => 'cierre', 'work_date' => '2026-07-01', 'cuenta' => true]);
 
         $this->actingAs($ana)->get(route('jornada'))->assertSee('El miércoles 1 de julio quedó el cierre sin completar', false);
+    }
+
+    public function test_un_aviso_del_anio_anterior_no_sale_en_pendientes(): void
+    {
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
+        $this->horario($ana);
+        Carbon::setTestNow(Carbon::parse('2026-10-07 08:00:00', 'Europe/Madrid'));
+
+        Aviso::create(['user_id' => $ana->id, 'tipo' => 'cierre', 'work_date' => '2025-12-15', 'cuenta' => true]);
+        Aviso::create(['user_id' => $ana->id, 'tipo' => 'cierre', 'work_date' => '2026-07-01', 'cuenta' => true]);
+
+        $this->actingAs($ana)
+            ->get(route('jornada'))
+            ->assertOk()
+            ->assertSee('El miércoles 1 de julio quedó el cierre sin completar', false)
+            ->assertDontSee('15 de diciembre', false);
+
+        $this->actingAs($ana)
+            ->get(route('registro'))
+            ->assertOk()
+            ->assertDontSee('Pendiente de explicar', false)
+            ->assertDontSee('15 de diciembre', false);
+
+        $this->assertDatabaseCount('avisos', 2);
     }
 
     public function test_explicar_un_aviso_deja_de_contarlo(): void
@@ -456,23 +545,23 @@ class JornadaTest extends TestCase
         $this->actingAs($ana)
             ->get(route('jornada'))
             ->assertSee('El lunes 19 de octubre no quedó registrada la entrada', false)
-            ->assertSee(route('registro.dia', '2026-10-19'), false);
+            ->assertSee(route('registro.dia', '2026-10-19').'?abrir=registrar-horas', false);
 
         $this->actingAs($ana)
-            ->get(route('registro.dia', '2026-10-19'))
+            ->get(route('registro.dia', '2026-10-19').'?abrir=registrar-horas')
             ->assertOk()
+            ->assertSee('Mi registro', false)
             ->assertSee('Lunes, 19 de octubre', false)
-            ->assertSee('Sin fichaje', false)
             ->assertSee('Este día no tiene fichaje.', false)
-            ->assertDontSee('Qué pasó', false)
-            ->assertSee('Registrar las horas', false);
+            ->assertSee('Registrar las horas', false)
+            ->assertSee('data-abierto', false)
+            ->assertSee(route('registro.dia.horas', '2026-10-19'), false);
 
         $this->actingAs($ana)
             ->get(route('registro'))
-            ->assertSee('Pendiente de explicar', false)
-            ->assertSee('El lunes 19 de octubre no quedó registrada la entrada', false)
-            ->assertDontSee('martes 20 de octubre', false)
-            ->assertSee('Explicar', false);
+            ->assertDontSee('Pendiente de explicar', false)
+            ->assertDontSee('Qué pasó', false)
+            ->assertDontSee('martes 20 de octubre', false);
 
         $this->actingAs($ana)
             ->post(route('registro.explicar'), [
@@ -487,6 +576,47 @@ class JornadaTest extends TestCase
             ->assertSee('Ese lunes no fui a la oficina.', false);
 
         $this->actingAs($ana)->get(route('jornada'))->assertDontSee('lunes 19 de octubre', false);
+    }
+
+    public function test_revisar_abre_ese_dia_en_mi_registro_y_la_nota_va_en_corregir(): void
+    {
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
+        $this->horario($ana);
+        Carbon::setTestNow(Carbon::parse('2026-10-20 13:00:00', 'Europe/Madrid'));
+        $jornada = Jornada::create(['user_id' => $ana->id, 'work_date' => '2026-10-19']);
+        $tramo = Tramo::create([
+            'jornada_id' => $jornada->id,
+            'tipo' => Tramo::TRABAJO,
+            'started_at' => '2026-10-19 09:00:00',
+            'ended_at' => '2026-10-19 18:00:00',
+        ]);
+        Aviso::create(['user_id' => $ana->id, 'tipo' => 'inicio', 'work_date' => '2026-10-19', 'cuenta' => true]);
+
+        $this->actingAs($ana)
+            ->get(route('jornada'))
+            ->assertSee(route('registro.show', $jornada), false)
+            ->assertDontSee('Qué pasó', false);
+
+        $this->actingAs($ana)
+            ->get(route('registro.show', $jornada))
+            ->assertOk()
+            ->assertSee('Mi registro', false)
+            ->assertSee('Lunes, 19 de octubre', false)
+            ->assertSee('Corregir', false)
+            ->assertDontSee('Qué pasó', false)
+            ->assertSee(route('registro', ['periodo' => 'semana']).'#dia-2026-10-19', false);
+
+        $this->actingAs($ana)->post(route('tramos.corregir', $tramo), [
+            'inicio' => '09:00',
+            'fin' => '18:00',
+            'motivo' => 'olvido',
+            'nota' => 'Llegué a la hora y se me olvidó anotarlo.',
+        ])->assertSessionHas('ok');
+
+        $this->actingAs($ana)->get(route('jornada'))->assertDontSee('lunes 19 de octubre', false);
+        $this->actingAs($ana)
+            ->get(route('registro.show', $jornada))
+            ->assertSee('Llegué a la hora y se me olvidó anotarlo.', false);
     }
 
     public function test_registrar_las_horas_de_un_dia_sin_fichaje(): void
@@ -508,7 +638,16 @@ class JornadaTest extends TestCase
         $this->actingAs($ana)
             ->get(route('registro.show', $creada))
             ->assertSee('09:00–14:00', false)
+            ->assertSee('Fichado fuera de plazo', false)
             ->assertDontSee('Registrar las horas', false);
+
+        $this->actingAs($ana)
+            ->get(route('registro'))
+            ->assertSee('Fichado fuera de plazo', false);
+
+        $this->actingAs($ana)
+            ->get(route('registro', ['estado' => 'fuera_plazo']))
+            ->assertSee('Fichado fuera de plazo', false);
 
         $this->actingAs($ana)->get(route('jornada'))->assertDontSee('lunes 19 de octubre', false);
     }
@@ -767,6 +906,46 @@ class JornadaTest extends TestCase
         $this->assertStringNotContainsString('12 h', $copia);
     }
 
+    public function test_una_entrada_sin_salida_de_ayer_no_inventa_la_hora(): void
+    {
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
+        $this->horario($ana);
+        $jornada = Jornada::create(['user_id' => $ana->id, 'work_date' => '2026-10-06']);
+        Tramo::create([
+            'jornada_id' => $jornada->id,
+            'tipo' => Tramo::TRABAJO,
+            'started_at' => '2026-10-06 09:00:00',
+        ]);
+
+        Carbon::setTestNow(Carbon::parse('2026-10-07 10:45:00', 'Europe/Madrid'));
+
+        $this->actingAs($ana)
+            ->post(route('jornada.entrada'))
+            ->assertSessionHas('aviso');
+
+        $this->actingAs($ana)
+            ->get(route('jornada'))
+            ->assertOk()
+            ->assertSee('No cerraste el martes', false)
+            ->assertDontSee('Empezar jornada', false);
+
+        $this->actingAs($ana)
+            ->get(route('registro.show', $jornada))
+            ->assertOk()
+            ->assertSee('sin salida', false)
+            ->assertSee('0 h 00', false)
+            ->assertDontSee('09:00–ahora', false);
+
+        $this->actingAs($ana)
+            ->get(route('registro'))
+            ->assertOk()
+            ->assertSee('sin salida', false)
+            ->assertDontSee('09:00 – 10:45', false);
+
+        $this->assertSame(0, app(JornadaService::class)->minutosRegistrados($ana, $jornada->fresh(['tramos'])));
+        $this->assertDatabaseCount('jornadas', 1);
+    }
+
     public function test_el_acceso_no_se_queda_congelado_si_la_sesion_sigue_abierta(): void
     {
         $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
@@ -793,7 +972,8 @@ class JornadaTest extends TestCase
         $this->actingAs($ana)
             ->get(route('jornada'))
             ->assertDontSee('Borrar fichaje de hoy', false)
-            ->assertDontSee('Borrar fichaje de ayer', false);
+            ->assertDontSee('Borrar fichaje de ayer', false)
+            ->assertDontSee('Borrar fichaje de anteayer', false);
 
         $this->actingAs($ana)
             ->post(route('jornada.borrar-prueba'))
@@ -801,6 +981,10 @@ class JornadaTest extends TestCase
 
         $this->actingAs($ana)
             ->post(route('jornada.borrar-ayer'))
+            ->assertForbidden();
+
+        $this->actingAs($ana)
+            ->post(route('jornada.borrar-anteayer'))
             ->assertForbidden();
 
         $this->assertSame(1, Jornada::query()->count());
@@ -834,6 +1018,36 @@ class JornadaTest extends TestCase
                 ->exists()
         );
         $this->assertDatabaseHas('jornadas', ['id' => $hoy->id]);
+    }
+
+    public function test_borrar_el_fichaje_de_anteayer_deja_los_dias_posteriores(): void
+    {
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
+        $anteayer = Jornada::create(['user_id' => $ana->id, 'work_date' => '2026-10-05']);
+        Tramo::create([
+            'jornada_id' => $anteayer->id,
+            'tipo' => Tramo::TRABAJO,
+            'started_at' => '2026-10-05 09:00:00',
+            'ended_at' => '2026-10-05 18:00:00',
+        ]);
+        $ayer = Jornada::create(['user_id' => $ana->id, 'work_date' => '2026-10-06']);
+        $hoy = Jornada::create(['user_id' => $ana->id, 'work_date' => '2026-10-07']);
+
+        $this->actingAs($ana)
+            ->post(route('jornada.borrar-anteayer'))
+            ->assertRedirect();
+
+        $this->assertDatabaseMissing('jornadas', ['id' => $anteayer->id]);
+        $this->assertDatabaseHas('jornadas', ['id' => $ayer->id]);
+        $this->assertDatabaseHas('jornadas', ['id' => $hoy->id]);
+        $this->assertTrue(
+            Aviso::query()
+                ->where('user_id', $ana->id)
+                ->where('tipo', 'inicio')
+                ->whereDate('work_date', '2026-10-05')
+                ->whereNull('responded_at')
+                ->exists()
+        );
     }
 
     public function test_sin_el_fichaje_de_ayer_hay_que_explicarlo_antes_de_empezar_hoy(): void
@@ -896,6 +1110,35 @@ class JornadaTest extends TestCase
             ->get(route('jornada'))
             ->assertSee('Empezar jornada', false)
             ->assertSee('Incidencia', false);
+    }
+
+    public function test_una_incidencia_enviada_aparece_en_el_estado_del_dia(): void
+    {
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
+        $this->horario($ana);
+        $jornada = Jornada::create(['user_id' => $ana->id, 'work_date' => '2026-10-07']);
+        Tramo::create([
+            'jornada_id' => $jornada->id,
+            'tipo' => Tramo::TRABAJO,
+            'started_at' => '2026-10-07 09:00:00',
+            'ended_at' => '2026-10-07 18:00:00',
+        ]);
+
+        $this->actingAs($ana)
+            ->post(route('jornada.incidencia'), ['motivo' => 'Se cayó la conexión'])
+            ->assertSessionHas('ok');
+
+        $this->actingAs($ana)
+            ->get(route('registro', ['desde' => '2026-10-07', 'hasta' => '2026-10-07']))
+            ->assertSee('Incidencia', false);
+
+        $this->actingAs($ana)
+            ->get(route('registro', [
+                'desde' => '2026-10-07',
+                'hasta' => '2026-10-07',
+                'incidencia' => 'si',
+            ]))
+            ->assertSee('Miércoles, 7 oct', false);
     }
 
     public function test_el_chat_de_una_incidencia_se_cierra_al_resolverla(): void
@@ -1182,9 +1425,20 @@ class JornadaTest extends TestCase
             ->get(route('registro', ['desde' => '2026-10-07', 'hasta' => '2026-10-07']))
             ->assertOk()
             ->assertSee('Incidencia', false)
+            ->assertSee('Con incidencias', false)
             ->assertDontSee('>Sí<', false)
             ->assertSee('Miércoles, 7 oct', false)
             ->assertDontSee('Martes, 6 oct', false);
+
+        $this->actingAs($ana)
+            ->get(route('registro', ['desde' => '2026-10-07', 'hasta' => '2026-10-07', 'incidencia' => 'si']))
+            ->assertSee('Miércoles, 7 oct', false)
+            ->assertSee('Incidencia', false);
+
+        $this->actingAs($ana)
+            ->get(route('registro', ['desde' => '2026-10-06', 'hasta' => '2026-10-07', 'incidencia' => 'no']))
+            ->assertSee('Martes, 6 oct', false)
+            ->assertDontSee('09:00 – 10:30', false);
 
         $copia = $this->actingAs($ana)
             ->get(route('registro.csv', ['desde' => '2026-10-07', 'hasta' => '2026-10-07']))
@@ -1443,13 +1697,14 @@ class JornadaTest extends TestCase
         $this->assertNotNull(Jornada::query()->where('user_id', $ana->id)->whereDate('work_date', '2026-04-02')->first());
     }
 
-    public function test_el_alta_no_pide_municipio_y_guarda_madrid(): void
+    public function test_el_alta_pide_la_sede_y_no_impone_madrid(): void
     {
         $marta = $this->persona('Marta Ruiz', 'marta.ruiz@abaco.test', 'Madrid', 'jefa');
 
         $this->actingAs($marta)
             ->get(route('equipo.create'))
             ->assertOk()
+            ->assertSee('Sede municipal', false)
             ->assertDontSee('Municipio del centro', false);
 
         $this->actingAs($marta)
@@ -1459,6 +1714,7 @@ class JornadaTest extends TestCase
                 'password' => 'Jornada2026',
                 'starts_on' => '2026-10-13',
                 'duracion' => 'indefinido',
+                'centro' => 'ES-AN',
                 'tipo' => 'partida',
                 'morning_start' => '09:00',
                 'morning_end' => '14:00',
@@ -1467,7 +1723,9 @@ class JornadaTest extends TestCase
             ])
             ->assertSessionHas('ok');
 
-        $this->assertSame('Madrid', User::query()->where('email', 'nuria.vega@abaco.test')->first()->municipality);
+        $alta = User::query()->where('email', 'nuria.vega@abaco.test')->first();
+        $this->assertSame('Sevilla', $alta->municipality);
+        $this->assertSame('ES-AN', $alta->centro);
     }
 
     private function persona(string $nombre, string $correo, string $municipio, string $papel = 'trabajadora'): User
