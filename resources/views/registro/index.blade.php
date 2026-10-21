@@ -50,6 +50,15 @@
                         <option value="cerrada" @selected($estado === 'cerrada')>Cerrada</option>
                         <option value="pendiente" @selected($estado === 'pendiente')>Abierta</option>
                         <option value="tardia" @selected($estado === 'tardia')>Cierre al día siguiente</option>
+                        <option value="fuera_plazo" @selected($estado === 'fuera_plazo')>Fichado fuera de plazo</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="incidencia">Incidencias</label>
+                    <select id="incidencia" name="incidencia">
+                        <option value="">Todas</option>
+                        <option value="si" @selected($incidencia === 'si')>Con incidencias</option>
+                        <option value="no" @selected($incidencia === 'no')>Sin incidencias</option>
                     </select>
                 </div>
                 <button class="boton boton-secundario" type="submit">Ver</button>
@@ -84,7 +93,7 @@
                             <span role="cell" class="registro-estados">
                                 <x-chip :tipo="$fila['clase']">{{ $fila['estado'] }}</x-chip>
                                 @if ($fila['incidencia'])
-                                    <x-chip tipo="incidencia">Incidencia</x-chip>
+                                    <x-chip tipo="mensaje">Incidencia</x-chip>
                                 @endif
                             </span>
                             <span role="cell" class="registro-flecha" aria-hidden="true">›</span>
@@ -135,6 +144,7 @@
             </ul>
         @endif
     </div>
+
     <script>
         (function () {
             var raiz = document.querySelector('[data-registro]');

@@ -26,6 +26,10 @@
                 <rect x="6" y="4" width="12" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/>
                 <path d="M9 9h6M9 13h6M9 17h3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
                 @break
+            @case('mensaje')
+                <path d="M5 6.5A2.5 2.5 0 0 1 7.5 4h9A2.5 2.5 0 0 1 19 6.5v6a2.5 2.5 0 0 1-2.5 2.5H11l-4.5 4v-4.2A2.5 2.5 0 0 1 5 12.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M8.5 9.5h7M8.5 12.5h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                @break
             @default
                 <circle cx="12" cy="12" r="4" fill="currentColor"/>
         @endswitch

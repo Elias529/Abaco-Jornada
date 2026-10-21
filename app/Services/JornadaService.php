@@ -115,6 +115,8 @@ class JornadaService
             'notaDia' => implode(' ', $notas),
             'banner' => $banner,
             'pendiente' => $banner !== null,
+            'inicioTarde' => $this->inicioTarde($user, $ahora),
+            'inicioPrevisto' => $horario ? $horario->corta($horario->morning_start) : null,
             'puedeEntrar' => $puedeAbrir && $puedePorFestivo && ! $pasada && (! $hoy || $this->soloFuera($hoy)) && ! $this->faltaExplicarAyer($user, $ahora),
             'puedeSalir' => $abierto !== null && ! $pasada && ! $cierrePendiente,
             'puedePausar' => $abierto?->tipo === Tramo::TRABAJO && ! $cierrePendiente,
@@ -157,6 +159,39 @@ class JornadaService
         }
 
         return 'Guardado. Entrada a las '.Tiempo::hora($ahora).'.';
+    }
+
+    public function entradaSegunMotivo(User $user, ?string $modo, ?string $hora = null): string
+    {
+        if ($this->inicioTarde($user, now()) && $modo !== null) {
+            if ($modo === 'prevista') {
+                return $this->reunion($user);
+            }
+            if ($modo === 'otra') {
+                if (! $hora) {
+                    throw new ReglaJornada('Elige la hora de entrada.');
+                }
+
+                return $this->yaEstaba($user, $hora);
+            }
+            if ($modo !== 'ahora') {
+                throw new ReglaJornada('Elige cómo empezó tu jornada.');
+            }
+        } elseif ($modo === 'otra' && $hora) {
+            return $this->yaEstaba($user, $hora);
+        }
+
+        return $this->entrar($user);
+    }
+
+    public function inicioTarde(User $user, ?Carbon $ahora = null): bool
+    {
+        $ahora ??= now();
+        $horario = $user->horarioEn($ahora);
+
+        return $horario !== null
+            && $this->esDiaEsperado($user, $ahora)
+            && $ahora->greaterThan($this->momento($ahora, $horario->corta($horario->morning_start)));
     }
 
     public function yaEstaba(User $user, string $hora): string
@@ -385,6 +420,24 @@ class JornadaService
 
             return $jornada;
         });
+    }
+
+    public function diasDeRetraso(Jornada $jornada): int
+    {
+        $jornada->loadMissing('tramos');
+        $tramo = $jornada->tramos
+            ->where('tipo', Tramo::TRABAJO)
+            ->sortBy('anotado_at')
+            ->first();
+
+        if (! $tramo?->anotado_at) {
+            return 0;
+        }
+
+        $diaTrabajo = Carbon::parse($jornada->work_date->toDateString(), config('app.timezone'))->startOfDay();
+        $diaRegistro = $tramo->anotado_at->copy()->timezone(config('app.timezone'))->startOfDay();
+
+        return max(0, $diaTrabajo->diffInDays($diaRegistro, false));
     }
 
     public function declararIncidencia(User $user, string $inicioHora, string $finHora, string $motivo): string
@@ -999,18 +1052,6 @@ class JornadaService
                     ->where('user_id', $user->id)
                     ->whereDate('work_date', $ayer->toDateString())
                     ->value('id'),
-            ];
-        }
-
-        $puedePreguntarInicio = $esperada || $respuestaFestivo === 'si';
-        if ((! $hoy || $this->soloFuera($hoy)) && $puedePreguntarInicio && $horario && $ahora->greaterThan($this->momento($ahora, $horario->corta($horario->morning_start)))) {
-            $this->registrarAviso($user, 'inicio', $ahora);
-            $prevista = $horario->corta($horario->morning_start);
-
-            return [
-                'texto' => 'Tu jornada empezaba a las '.$prevista.'. ¿Ya estabas trabajando?',
-                'accion' => 'inicio',
-                'hora' => $prevista,
             ];
         }
 

@@ -112,6 +112,7 @@ class RegistroController extends Controller
             'explicar' => $explicar,
             'puedeRegistrar' => $dia->gte(now()->subDays(7)->startOfDay()) || $persona->esJefa(),
             'crumb' => $this->volverAlRegistro($persona, $persona, $fecha),
+            'abrirRegistrar' => $request->query('abrir') === 'registrar-horas',
         ]);
     }
 
@@ -328,6 +329,8 @@ class RegistroController extends Controller
         usort($cambios, fn (array $a, array $b) => $a['cuando'] <=> $b['cuando']);
 
         $cantidad = $trabajos->count();
+        $retraso = $this->jornada->diasDeRetraso($jornada);
+        $estadoRetraso = $retraso > 0 ? 'Fichado fuera de plazo' : 'Jornada cerrada';
 
         return [
             'titulo' => ucfirst($fecha->isoFormat('dddd')).', '.$fecha->isoFormat('D [de] MMMM'),
@@ -341,9 +344,9 @@ class RegistroController extends Controller
             },
             'inicio' => $primero ? Tiempo::hora($primero->started_at) : '—',
             'salida' => $ultimo ? Tiempo::hora($ultimo->ended_at) : '—',
-            'salidaTexto' => $abierta ? 'Jornada abierta' : ($jornada->closed_late ? 'Cerrada al día siguiente' : 'Jornada cerrada'),
-            'estado' => $abierta ? 'Abierta' : ($jornada->closed_late ? 'Cierre al día siguiente' : 'Cerrada'),
-            'estadoClase' => $abierta ? 'abierta' : 'cerrada',
+            'salidaTexto' => $abierta ? 'Jornada abierta' : ($jornada->closed_late ? 'Cerrada al día siguiente' : $estadoRetraso),
+            'estado' => $abierta ? 'Abierta' : ($jornada->closed_late ? 'Cierre al día siguiente' : $estadoRetraso),
+            'estadoClase' => $abierta ? 'abierta' : (($jornada->closed_late || $retraso > 0) ? 'tardia' : 'cerrada'),
             'previsto' => $horario ? str_replace(' y ', ' · ', $horario->texto()) : null,
             'fecha' => $jornada->work_date->toDateString(),
             'filas' => $filas,
@@ -476,7 +479,6 @@ class RegistroController extends Controller
         $jornadas = $this->csv->consulta($persona, $periodo['desde'], $periodo['hasta'], $filtros['estado'], $filtros['incidencia'])
             ->paginate(60)
             ->withQueryString();
-
         return view('registro.index', [
             'persona' => $persona,
             'consulta' => $consulta,
@@ -521,7 +523,7 @@ class RegistroController extends Controller
         return [
             'desde' => is_string($desde) ? $desde : '',
             'hasta' => is_string($hasta) ? $hasta : '',
-            'estado' => in_array($estado, ['cerrada', 'pendiente', 'tardia'], true) ? $estado : '',
+            'estado' => in_array($estado, ['cerrada', 'pendiente', 'tardia', 'fuera_plazo'], true) ? $estado : '',
             'incidencia' => in_array($incidencia, ['si', 'no'], true) ? $incidencia : '',
         ];
     }

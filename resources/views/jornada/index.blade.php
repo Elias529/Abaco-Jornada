@@ -29,7 +29,7 @@
             <x-franja>
                 {{ $banner['texto'] }}
                 <x-slot:primero>
-                    <a class="franja-accion" href="{{ $banner['jornada'] ? route('registro.show', $banner['jornada']) : route('registro.dia', $banner['fecha']) }}">Revisar</a>
+                    <a class="franja-accion" href="{{ $banner['jornada'] ? route('registro.show', $banner['jornada']) : route('registro.dia', $banner['fecha']).'?abrir=registrar-horas' }}">Revisar</a>
                 </x-slot:primero>
             </x-franja>
         @elseif (($banner['accion'] ?? null) === 'calendario')
@@ -159,7 +159,11 @@
                                 <p class="etiqueta-estado">Inicio de jornada</p>
                                 <form method="post" action="{{ route('jornada.entrada') }}">
                                     @csrf
-                                    <button class="boton-hoy boton-hoy-principal" type="submit">Empezar jornada</button>
+                                    @if ($puedeEntrar && $inicioTarde)
+                                        <button class="boton-hoy boton-hoy-principal" type="button" data-dialogo-abre="inicio-tarde">Empezar jornada</button>
+                                    @else
+                                        <button class="boton-hoy boton-hoy-principal" type="submit">Empezar jornada</button>
+                                    @endif
                                 </form>
                             </div>
                         @endif
@@ -212,6 +216,10 @@
                     <form method="post" action="{{ route('jornada.borrar-ayer') }}">
                         @csrf
                         <button class="enlace-prueba" type="submit">Borrar fichaje de ayer</button>
+                    </form>
+                    <form method="post" action="{{ route('jornada.borrar-anteayer') }}">
+                        @csrf
+                        <button class="enlace-prueba" type="submit">Borrar fichaje de anteayer</button>
                     </form>
                 @endif
             </section>
@@ -273,6 +281,31 @@
                 @csrf
                 <x-campo-hora id="hora-otra" name="hora" :max="now()->format('H:i')" />
                 <button class="boton boton-principal" type="submit">Terminé a otra hora</button>
+            </form>
+        </dialog>
+    @endif
+
+    @if ($puedeEntrar && $inicioTarde)
+        <dialog class="dialogo-hoy dialogo-inicio-tarde" data-dialogo="inicio-tarde" aria-labelledby="titulo-inicio-tarde">
+            <div class="dialogo-cabecera">
+                <h2 id="titulo-inicio-tarde">¿Cuándo empezaste?</h2>
+                <form method="dialog">
+                    <button class="dialogo-cerrar" type="submit">Cerrar</button>
+                </form>
+            </div>
+            <form method="post" action="{{ route('jornada.entrada') }}" class="formulario" data-inicio-tarde>
+                @csrf
+                <fieldset>
+                    <legend>Indica el motivo del inicio</legend>
+                    <label><input type="radio" name="modo" value="prevista" required> Ya estaba trabajando</label>
+                    <label><input type="radio" name="modo" value="ahora"> Empiezo ahora</label>
+                    <label><input type="radio" name="modo" value="otra" data-inicio-otra> Otra hora</label>
+                </fieldset>
+                <div data-inicio-hora hidden>
+                    <label for="hora-inicio-tarde">Hora de entrada</label>
+                    <x-campo-hora id="hora-inicio-tarde" name="hora" :max="now()->format('H:i')" :required="false" />
+                </div>
+                <button class="boton boton-principal" type="submit">Empezar jornada</button>
             </form>
         </dialog>
     @endif

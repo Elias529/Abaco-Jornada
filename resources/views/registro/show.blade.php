@@ -170,7 +170,7 @@
     @endif
 
     @if ($puedeRegistrar)
-        <dialog class="dialogo-hoy" data-dialogo="registrar-horas" aria-labelledby="titulo-registrar-horas">
+        <dialog class="dialogo-hoy" data-dialogo="registrar-horas" @if ($abrirRegistrar ?? false) data-abierto @endif aria-labelledby="titulo-registrar-horas">
             <div class="dialogo-cabecera">
                 <h2 id="titulo-registrar-horas">Registrar las horas</h2>
                 <form method="dialog">

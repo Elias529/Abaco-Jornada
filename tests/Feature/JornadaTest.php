@@ -202,7 +202,8 @@ class JornadaTest extends TestCase
         $this->actingAs($cataluna)
             ->get(route('jornada'))
             ->assertDontSee('Hoy es festivo en tu centro', false)
-            ->assertSee('¿Ya estabas trabajando?', false);
+            ->assertSee('¿Cuándo empezaste?', false)
+            ->assertDontSee('¿Ya estabas trabajando?', false);
     }
 
     public function test_la_reunion_conserva_la_hora_prevista(): void
@@ -215,7 +216,9 @@ class JornadaTest extends TestCase
             ->assertSee('Inicio de jornada', false)
             ->assertSee('Empezar jornada', false)
             ->assertDontSee('Trabajé sin el portátil', false)
-            ->assertSee('Ya estaba trabajando', false)
+            ->assertSee('¿Cuándo empezaste?', false)
+            ->assertSee('Empiezo ahora', false)
+            ->assertSee('Otra hora', false)
             ->assertDontSee('Estaba en una reunión desde las 09:00', false)
             ->assertDontSee('Empecé a otra hora', false)
             ->assertDontSee('Trabajo fuera del equipo', false)
@@ -241,7 +244,7 @@ class JornadaTest extends TestCase
             ->assertDontSee('>AM<', false);
 
         $this->actingAs($ana)
-            ->post(route('jornada.entrada'), ['hora' => '08:30'])
+            ->post(route('jornada.entrada'), ['modo' => 'otra', 'hora' => '08:30'])
             ->assertSessionHas('ok');
 
         $this->assertSame('08:30', Tramo::query()->first()->started_at->timezone('Europe/Madrid')->format('H:i'));
@@ -458,18 +461,17 @@ class JornadaTest extends TestCase
         $this->actingAs($ana)
             ->get(route('jornada'))
             ->assertSee('El lunes 19 de octubre no quedó registrada la entrada', false)
-            ->assertSee(route('registro.dia', '2026-10-19'), false);
+            ->assertSee(route('registro.dia', '2026-10-19').'?abrir=registrar-horas', false);
 
         $this->actingAs($ana)
-            ->get(route('registro.dia', '2026-10-19'))
+            ->get(route('registro.dia', '2026-10-19').'?abrir=registrar-horas')
             ->assertOk()
             ->assertSee('Mi registro', false)
             ->assertSee('Lunes, 19 de octubre', false)
-            ->assertSee(route('registro', ['periodo' => 'semana']).'#dia-2026-10-19', false)
-            ->assertSee('Sin fichaje', false)
             ->assertSee('Este día no tiene fichaje.', false)
-            ->assertDontSee('Qué pasó', false)
-            ->assertSee('Registrar las horas', false);
+            ->assertSee('Registrar las horas', false)
+            ->assertSee('data-abierto', false)
+            ->assertSee(route('registro.dia.horas', '2026-10-19'), false);
 
         $this->actingAs($ana)
             ->get(route('registro'))
@@ -552,7 +554,16 @@ class JornadaTest extends TestCase
         $this->actingAs($ana)
             ->get(route('registro.show', $creada))
             ->assertSee('09:00–14:00', false)
+            ->assertSee('Fichado fuera de plazo', false)
             ->assertDontSee('Registrar las horas', false);
+
+        $this->actingAs($ana)
+            ->get(route('registro'))
+            ->assertSee('Fichado fuera de plazo', false);
+
+        $this->actingAs($ana)
+            ->get(route('registro', ['estado' => 'fuera_plazo']))
+            ->assertSee('Fichado fuera de plazo', false);
 
         $this->actingAs($ana)->get(route('jornada'))->assertDontSee('lunes 19 de octubre', false);
     }
@@ -837,7 +848,8 @@ class JornadaTest extends TestCase
         $this->actingAs($ana)
             ->get(route('jornada'))
             ->assertDontSee('Borrar fichaje de hoy', false)
-            ->assertDontSee('Borrar fichaje de ayer', false);
+            ->assertDontSee('Borrar fichaje de ayer', false)
+            ->assertDontSee('Borrar fichaje de anteayer', false);
 
         $this->actingAs($ana)
             ->post(route('jornada.borrar-prueba'))
@@ -845,6 +857,10 @@ class JornadaTest extends TestCase
 
         $this->actingAs($ana)
             ->post(route('jornada.borrar-ayer'))
+            ->assertForbidden();
+
+        $this->actingAs($ana)
+            ->post(route('jornada.borrar-anteayer'))
             ->assertForbidden();
 
         $this->assertSame(1, Jornada::query()->count());
@@ -878,6 +894,36 @@ class JornadaTest extends TestCase
                 ->exists()
         );
         $this->assertDatabaseHas('jornadas', ['id' => $hoy->id]);
+    }
+
+    public function test_borrar_el_fichaje_de_anteayer_deja_los_dias_posteriores(): void
+    {
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
+        $anteayer = Jornada::create(['user_id' => $ana->id, 'work_date' => '2026-10-05']);
+        Tramo::create([
+            'jornada_id' => $anteayer->id,
+            'tipo' => Tramo::TRABAJO,
+            'started_at' => '2026-10-05 09:00:00',
+            'ended_at' => '2026-10-05 18:00:00',
+        ]);
+        $ayer = Jornada::create(['user_id' => $ana->id, 'work_date' => '2026-10-06']);
+        $hoy = Jornada::create(['user_id' => $ana->id, 'work_date' => '2026-10-07']);
+
+        $this->actingAs($ana)
+            ->post(route('jornada.borrar-anteayer'))
+            ->assertRedirect();
+
+        $this->assertDatabaseMissing('jornadas', ['id' => $anteayer->id]);
+        $this->assertDatabaseHas('jornadas', ['id' => $ayer->id]);
+        $this->assertDatabaseHas('jornadas', ['id' => $hoy->id]);
+        $this->assertTrue(
+            Aviso::query()
+                ->where('user_id', $ana->id)
+                ->where('tipo', 'inicio')
+                ->whereDate('work_date', '2026-10-05')
+                ->whereNull('responded_at')
+                ->exists()
+        );
     }
 
     public function test_sin_el_fichaje_de_ayer_hay_que_explicarlo_antes_de_empezar_hoy(): void
@@ -940,6 +986,35 @@ class JornadaTest extends TestCase
             ->get(route('jornada'))
             ->assertSee('Empezar jornada', false)
             ->assertSee('Incidencia', false);
+    }
+
+    public function test_una_incidencia_enviada_aparece_en_el_estado_del_dia(): void
+    {
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
+        $this->horario($ana);
+        $jornada = Jornada::create(['user_id' => $ana->id, 'work_date' => '2026-10-07']);
+        Tramo::create([
+            'jornada_id' => $jornada->id,
+            'tipo' => Tramo::TRABAJO,
+            'started_at' => '2026-10-07 09:00:00',
+            'ended_at' => '2026-10-07 18:00:00',
+        ]);
+
+        $this->actingAs($ana)
+            ->post(route('jornada.incidencia'), ['motivo' => 'Se cayó la conexión'])
+            ->assertSessionHas('ok');
+
+        $this->actingAs($ana)
+            ->get(route('registro', ['desde' => '2026-10-07', 'hasta' => '2026-10-07']))
+            ->assertSee('Incidencia', false);
+
+        $this->actingAs($ana)
+            ->get(route('registro', [
+                'desde' => '2026-10-07',
+                'hasta' => '2026-10-07',
+                'incidencia' => 'si',
+            ]))
+            ->assertSee('Miércoles, 7 oct', false);
     }
 
     public function test_el_chat_de_una_incidencia_se_cierra_al_resolverla(): void
@@ -1226,9 +1301,20 @@ class JornadaTest extends TestCase
             ->get(route('registro', ['desde' => '2026-10-07', 'hasta' => '2026-10-07']))
             ->assertOk()
             ->assertSee('Incidencia', false)
+            ->assertSee('Con incidencias', false)
             ->assertDontSee('>Sí<', false)
             ->assertSee('Miércoles, 7 oct', false)
             ->assertDontSee('Martes, 6 oct', false);
+
+        $this->actingAs($ana)
+            ->get(route('registro', ['desde' => '2026-10-07', 'hasta' => '2026-10-07', 'incidencia' => 'si']))
+            ->assertSee('Miércoles, 7 oct', false)
+            ->assertSee('Incidencia', false);
+
+        $this->actingAs($ana)
+            ->get(route('registro', ['desde' => '2026-10-06', 'hasta' => '2026-10-07', 'incidencia' => 'no']))
+            ->assertSee('Martes, 6 oct', false)
+            ->assertDontSee('09:00 – 10:30', false);
 
         $copia = $this->actingAs($ana)
             ->get(route('registro.csv', ['desde' => '2026-10-07', 'hasta' => '2026-10-07']))
