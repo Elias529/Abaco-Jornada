@@ -268,7 +268,7 @@ class JornadaTest extends TestCase
             ->assertSee('¿Cuándo empezaste?', false)
             ->assertSee('Empiezo ahora', false)
             ->assertSee('Otra hora', false)
-            ->assertDontSee('Estaba en una reunión desde las 09:00', false)
+            ->assertSee('Estaba en una reunión desde las 09:00', false)
             ->assertDontSee('Empecé a otra hora', false)
             ->assertDontSee('Trabajo fuera del equipo', false)
             ->assertDontSee('Reunión, mantener las 09:00', false);
@@ -889,6 +889,8 @@ class JornadaTest extends TestCase
         $this->actingAs($ana)
             ->get(route('registro'))
             ->assertSee('9 h 00', false)
+            ->assertSee('1–7 de octubre', false)
+            ->assertDontSee('5–11 de octubre', false)
             ->assertDontSee('12 h', false);
 
         $this->actingAs($ana)
@@ -1084,7 +1086,7 @@ class JornadaTest extends TestCase
 
         $this->actingAs($ana)->get(route('jornada.incidencia.crear'))
             ->assertOk()
-            ->assertSee('0 a 500 caracteres', false)
+            ->assertSee('10 a 500 caracteres', false)
             ->assertDontSee('0/500 caracteres', false);
 
         $this->actingAs($ana)
@@ -1158,7 +1160,7 @@ class JornadaTest extends TestCase
         ])->assertRedirect(route('jornada.incidencia.crear'));
 
         $incidencia = Incidencia::query()->where('user_id', $ana->id)->firstOrFail();
-        $this->assertSame(Incidencia::ABIERTA, $incidencia->estado);
+        $this->assertSame(Incidencia::PENDIENTE, $incidencia->estado);
 
         $this->actingAs($ana)
             ->get(route('jornada.incidencia.crear', ['incidencia' => $incidencia->id]))
@@ -1190,7 +1192,7 @@ class JornadaTest extends TestCase
             ->assertRedirect(route('jornada'));
 
         $this->actingAs($marta)->post(route('incidencias.resolver', $incidencia))
-            ->assertSessionHas('ok', 'Resuelta. El chat queda cerrado.');
+            ->assertSessionHas('ok', 'Resuelta. Queda en el archivo.');
 
         $this->assertSame(Incidencia::RESUELTA, $incidencia->fresh()->estado);
 
@@ -1227,7 +1229,7 @@ class JornadaTest extends TestCase
             ->assertSee('name="destinatario"', false)
             ->assertSee('Ana López', false)
             ->assertSee('Lucía Vega', false)
-            ->assertSee('0 a 500 caracteres', false);
+            ->assertSee('10 a 500 caracteres', false);
 
         $this->actingAs($marta)->post(route('jornada.incidencia'), [
             'motivo' => 'Revisa el fichaje del lunes',
@@ -1726,6 +1728,30 @@ class JornadaTest extends TestCase
         $alta = User::query()->where('email', 'nuria.vega@abaco.test')->first();
         $this->assertSame('Sevilla', $alta->municipality);
         $this->assertSame('ES-AN', $alta->centro);
+    }
+
+    public function test_la_pantalla_de_hoy_trae_los_tramos_cargados_y_el_horario(): void
+    {
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
+        $this->horario($ana);
+        $jornada = Jornada::create(['user_id' => $ana->id, 'work_date' => '2026-10-07']);
+        Tramo::create([
+            'jornada_id' => $jornada->id,
+            'tipo' => Tramo::TRABAJO,
+            'started_at' => '2026-10-07 09:00:00',
+            'ended_at' => '2026-10-07 10:00:00',
+        ]);
+
+        $datos = app(JornadaService::class)->pantalla($ana);
+
+        $this->assertCount(1, $datos['tramos']);
+        $this->assertSame('09:00', $datos['tramos']->first()->started_at->timezone('Europe/Madrid')->format('H:i'));
+        $this->assertSame([
+            'mananaInicio' => '09:00',
+            'mananaFin' => '14:00',
+            'tardeInicio' => '15:00',
+            'tardeFin' => '18:00',
+        ], $datos['horarioHoy']);
     }
 
     private function persona(string $nombre, string $correo, string $municipio, string $papel = 'trabajadora'): User

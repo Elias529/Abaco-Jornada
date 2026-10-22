@@ -26,10 +26,18 @@
                     <p>{!! nl2br(e($incidencia->cuerpo)) !!}</p>
                 </div>
                 @unless ($incidencia->estaResuelta())
-                    <form method="post" action="{{ route('incidencias.resolver', $incidencia) }}" class="comunicar-resolver">
-                        @csrf
-                        <button class="boton boton-principal" type="submit">Resolver</button>
-                    </form>
+                    <div class="comunicar-acciones">
+                        @if ($incidencia->estaPendiente())
+                            <form method="post" action="{{ route('incidencias.curso', $incidencia) }}">
+                                @csrf
+                                <button class="boton boton-secundario" type="submit">En curso</button>
+                            </form>
+                        @endif
+                        <form method="post" action="{{ route('incidencias.resolver', $incidencia) }}">
+                            @csrf
+                            <button class="boton boton-principal" type="submit">Resolver</button>
+                        </form>
+                    </div>
                 @endunless
             </section>
 

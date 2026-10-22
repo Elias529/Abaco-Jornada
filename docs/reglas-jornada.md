@@ -56,6 +56,8 @@ El fichaje necesita conexión y la confirmación del servidor. Si el navegador e
 
 Al recuperar la conexión, la persona puede comunicar la incidencia. No hace falta escribir horas: el texto queda en Incidencias para la jefa y, además, llega al administrador técnico como un ticket («Incidencia de conexión») para que pueda contestarlo en Ayuda. Si el ticket o el correo fallan, el texto de la jefa se guarda igualmente. No abre un fichaje ni un aviso de olvido.
 
+El motivo tiene entre 10 y 500 caracteres. Una incidencia nueva está Pendiente. Un mensaje o «En curso» la pasa a En curso. Al resolverla, el chat se cierra y sale del listado principal; se consulta en Archivo.
+
 ## Papeles
 
 - Trabajadora: ficha y ve su registro.

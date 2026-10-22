@@ -21,7 +21,7 @@
                         <x-campo-hora id="hora-cierre" name="hora" :min="$banner['min']" :max="$banner['max']" />
                     </x-slot:primero>
                     <x-slot:segundo>
-                        <button class="franja-accion" type="submit">Completar</button>
+                        <button class="boton boton-secundario" type="submit">Completar</button>
                     </x-slot:segundo>
                 </x-franja>
             </form>
@@ -325,6 +325,12 @@
                 </div>
                 <button class="boton boton-principal" type="submit">Empezar jornada</button>
             </form>
+            @if ($horaInicioPrevista)
+                <form method="post" action="{{ route('jornada.reunion') }}" class="formulario">
+                    @csrf
+                    <button class="boton boton-secundario" type="submit">Estaba en una reunión desde las {{ $horaInicioPrevista }}</button>
+                </form>
+            @endif
         </dialog>
     @endif
 @endsection
