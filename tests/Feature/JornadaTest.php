@@ -1540,9 +1540,12 @@ class JornadaTest extends TestCase
         $this->actingAs($marta)->get(route('jefe.consultas', ['vista' => 'vacaciones']))
             ->assertOk()
             ->assertSee('Registros consultados', false)
-            ->assertDontSee('Solicitud de vacaciones', false)
-            ->assertDontSee('Aprobar', false)
-            ->assertDontSee('Viaje familiar', false);
+            ->assertSee('Solicitudes de vacaciones', false)
+            ->assertSee('Ana López', false)
+            ->assertSee('Del 20/10/2026 al 22/10/2026', false)
+            ->assertDontSee('Viaje familiar', false)
+            ->assertSee('Aprobar solicitud de Ana López', false)
+            ->assertSee('Rechazar solicitud de Ana López', false);
 
         $this->actingAs($marta)->post(route('jefe.vacaciones.decidir', $solicitud), [
             'decision' => 'aprobada',

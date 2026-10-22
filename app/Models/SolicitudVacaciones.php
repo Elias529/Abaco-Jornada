@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Support\Tiempo;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -47,13 +46,13 @@ class SolicitudVacaciones extends Model
 
     public function periodoTexto(): string
     {
-        $desde = Tiempo::fecha($this->starts_on);
+        $desde = $this->starts_on->format('d/m/Y');
 
         if ($this->starts_on->toDateString() === $this->ends_on->toDateString()) {
             return 'El '.$desde;
         }
 
-        return 'Del '.$desde.' al '.Tiempo::fecha($this->ends_on);
+        return 'Del '.$desde.' al '.$this->ends_on->format('d/m/Y');
     }
 
     protected function casts(): array

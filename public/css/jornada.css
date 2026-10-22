@@ -1341,6 +1341,9 @@ input, textarea { padding-left: 14px; padding-right: 14px; }
 .equipo-ver-registro svg { width: 16px; height: 16px; }
 
 .consultas-pagina {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
     width: min(1120px, 100%);
 }
 
@@ -1348,18 +1351,56 @@ input, textarea { padding-left: 14px; padding-right: 14px; }
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 20px;
-    margin-bottom: 18px;
+    gap: 16px;
 }
 
-.consultas-cabeza h1 { margin: 0 0 4px; }
+.consultas-cabeza > div {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.consultas-cabeza .espacio-sobre {
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+.consultas-cabeza h1 {
+    margin: 0;
+    font-size: 24px;
+}
 
 .consultas-cabeza .equipo-solo-lectura { margin-top: 10px; }
+
+.consultas-seccion {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.consultas-seccion-cabeza {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 16px;
+}
+
+.consultas-seccion-cabeza h2 {
+    margin: 0;
+    font-size: 20px;
+}
+
+.consultas-seccion-cabeza .pastilla {
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 500;
+}
 
 .consultas-tabla {
     overflow: hidden;
     border: 1px solid var(--linea);
-    border-radius: 12px;
+    border-radius: 8px;
     background: var(--fondo-ventana);
 }
 
@@ -1369,22 +1410,21 @@ input, textarea { padding-left: 14px; padding-right: 14px; }
     grid-template-columns: minmax(180px, 1fr) minmax(180px, 1.25fr) minmax(260px, 1.55fr) minmax(190px, 1.1fr);
     align-items: center;
     gap: 16px;
-    padding: 11px 16px;
+    padding: 12px 16px;
 }
 
 .consultas-tabla-cabeza {
     background: var(--superficie-2);
     color: var(--texto-suave);
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: .08em;
-    text-transform: uppercase;
+    font-size: 12px;
+    font-weight: 500;
 }
 
 .consultas-fila {
     min-height: 56px;
     border-top: 1px solid var(--linea);
-    font-size: 13px;
+    font-size: 14px;
+    font-weight: 400;
 }
 
 .consultas-fila span {
@@ -1392,6 +1432,55 @@ input, textarea { padding-left: 14px; padding-right: 14px; }
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.consultas-fecha {
+    font-variant-numeric: tabular-nums;
+}
+
+.solicitudes-tabla-cabeza,
+.solicitud-fila {
+    grid-template-columns: minmax(180px, 1fr) minmax(220px, 1.4fr) minmax(110px, auto);
+}
+
+.solicitud-acciones {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.solicitud-acciones form { margin: 0; }
+
+.solicitud-accion {
+    width: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
+    border-radius: 8px;
+}
+
+.solicitud-accion svg { width: 18px; height: 18px; }
+
+.solicitud-aprobar {
+    background: var(--estado-aprobado);
+    color: #fff;
+}
+
+.solicitud-aprobar:hover,
+.solicitud-aprobar:focus-visible {
+    background: var(--estado-aprobado-oscuro);
+}
+
+.solicitud-rechazar {
+    background: var(--estado-error-tecnico);
+    color: #fff;
+    border-color: var(--estado-error-tecnico);
+}
+
+.solicitud-rechazar:hover,
+.solicitud-rechazar:focus-visible {
+    background: var(--estado-error-tecnico-oscuro);
+    border-color: var(--estado-error-tecnico-oscuro);
 }
 
 .consultas-pie {
@@ -2412,21 +2501,21 @@ form.bandeja-incidencias .campo-ancho select {
 
 .consulta-nota { color: var(--texto-suave); }
 
-.solicitud-acciones {
+.lista-consultas .solicitud-acciones {
     display: flex;
     flex-direction: column;
     gap: 8px;
     margin: 0;
 }
 
-.solicitud-acciones .boton { width: 148px; }
+.lista-consultas .solicitud-acciones .boton { width: 148px; }
 
 @media (max-width: 640px) {
     .lista-consultas li.solicitud-pendiente { grid-template-columns: 1fr; }
 
-    .solicitud-acciones { flex-direction: row; flex-wrap: wrap; }
+    .lista-consultas .solicitud-acciones { flex-direction: row; flex-wrap: wrap; }
 
-    .solicitud-acciones .boton { width: auto; min-width: 140px; }
+    .lista-consultas .solicitud-acciones .boton { width: auto; min-width: 140px; }
 }
 
 .pastilla-tardia { background: #d7ecec; }
@@ -2656,6 +2745,7 @@ html[data-tema="oscuro"] .ventana-incidencia-icono {
 
 @media (max-width: 640px) {
     h1 { font-size: 26px; }
+    .consultas-cabeza h1 { font-size: 22px; }
 
     .pagina { width: min(1120px, calc(100% - 24px)); padding: 20px 0 32px; }
 

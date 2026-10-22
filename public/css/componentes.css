@@ -4,18 +4,19 @@
         align-items: center;
         justify-content: center;
         width: auto;
-        min-height: 44px;
-        padding: 12px 16px;
+        min-height: var(--alto-control);
+        padding: var(--e3) var(--e4);
         border: 1px solid transparent;
-        border-radius: 8px;
+        border-radius: var(--radio);
         font: inherit;
-        font-size: 14px;
-        font-weight: 500;
+        font-size: var(--texto-lista);
+        font-weight: var(--peso-boton);
         text-decoration: none;
         cursor: pointer;
     }
 
     .boton-principal {
+        min-height: var(--alto-boton);
         background: var(--marca-primario);
         color: #fff;
     }
@@ -36,19 +37,18 @@
     .formulario {
         display: flex;
         flex-direction: column;
-        gap: 8px;
-        margin-top: 16px;
+        gap: var(--e2);
+        margin-top: var(--e4);
         max-width: 640px;
     }
 
     .dialogo {
         width: min(400px, calc(100% - 32px));
-        padding: 24px;
+        padding: var(--e6);
         border: 1px solid var(--linea);
-        border-radius: 12px;
+        border-radius: var(--radio);
         background: var(--fondo-ventana);
         color: var(--texto);
-        box-shadow: 0 16px 40px rgba(7, 17, 26, 0.28);
     }
 
     .dialogo::backdrop { background: rgba(7, 17, 26, 0.55); }

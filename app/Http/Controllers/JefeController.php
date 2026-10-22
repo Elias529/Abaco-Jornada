@@ -187,6 +187,11 @@ class JefeController extends Controller
                 ->latest()
                 ->limit(100)
                 ->get(),
+            'solicitudesVacaciones' => SolicitudVacaciones::query()
+                ->with('autor')
+                ->where('estado', SolicitudVacaciones::PENDIENTE)
+                ->latest('id')
+                ->get(),
         ]);
     }
 
