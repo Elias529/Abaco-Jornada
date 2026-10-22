@@ -21,8 +21,12 @@ class IncidenciaController extends Controller
             $personaId = null;
         }
 
+        $archivo = $request->boolean('archivo');
+
         $incidencias = Incidencia::query()
             ->with('autor', 'destinatario')
+            ->when($archivo, fn ($q) => $q->where('estado', Incidencia::RESUELTA))
+            ->when(! $archivo, fn ($q) => $q->where('estado', '!=', Incidencia::RESUELTA))
             ->when($personaId !== null, fn ($q) => $q->where(function ($consulta) use ($personaId) {
                 $consulta->where('user_id', $personaId)->orWhere('destinatario_id', $personaId);
             }))
@@ -30,18 +34,20 @@ class IncidenciaController extends Controller
             ->when($hasta !== '', fn ($q) => $q->whereDate('created_at', '<=', $hasta))
             ->latest('id')
             ->get();
-        $nuevas = Incidencia::query()
-            ->with('autor', 'destinatario')
-            ->whereNull('destinatario_id')
-            ->whereNull('vista_at')
-            ->where('estado', Incidencia::ABIERTA)
-            ->when($personaId !== null, fn ($q) => $q->where(function ($consulta) use ($personaId) {
-                $consulta->where('user_id', $personaId)->orWhere('destinatario_id', $personaId);
-            }))
-            ->when($desde !== '', fn ($q) => $q->whereDate('created_at', '>=', $desde))
-            ->when($hasta !== '', fn ($q) => $q->whereDate('created_at', '<=', $hasta))
-            ->latest('id')
-            ->get();
+        $nuevas = $archivo
+            ? collect()
+            : Incidencia::query()
+                ->with('autor', 'destinatario')
+                ->whereNull('destinatario_id')
+                ->whereNull('vista_at')
+                ->whereIn('estado', [Incidencia::PENDIENTE, Incidencia::ABIERTA])
+                ->when($personaId !== null, fn ($q) => $q->where(function ($consulta) use ($personaId) {
+                    $consulta->where('user_id', $personaId)->orWhere('destinatario_id', $personaId);
+                }))
+                ->when($desde !== '', fn ($q) => $q->whereDate('created_at', '>=', $desde))
+                ->when($hasta !== '', fn ($q) => $q->whereDate('created_at', '<=', $hasta))
+                ->latest('id')
+                ->get();
 
         return view('incidencias.index', [
             'incidencias' => $incidencias,
@@ -52,6 +58,7 @@ class IncidenciaController extends Controller
             'desde' => $desde,
             'hasta' => $hasta,
             'hoy' => now()->toDateString(),
+            'archivo' => $archivo,
         ]);
     }
 
@@ -90,7 +97,24 @@ class IncidenciaController extends Controller
             'cuerpo' => trim($datos['cuerpo']),
         ]);
 
+        $incidencia->pasarAEnCurso();
+
         return back()->with('ok', 'Mensaje enviado.');
+    }
+
+    public function enCurso(Incidencia $incidencia): RedirectResponse
+    {
+        if ($incidencia->estaResuelta()) {
+            return back()->with('aviso', 'Esa incidencia ya está resuelta.');
+        }
+
+        if ($incidencia->estaEnCurso()) {
+            return back()->with('aviso', 'Esa incidencia ya está en curso.');
+        }
+
+        $incidencia->pasarAEnCurso();
+
+        return back()->with('ok', 'En curso.');
     }
 
     public function resolver(Request $request, Incidencia $incidencia): RedirectResponse
@@ -104,7 +128,9 @@ class IncidenciaController extends Controller
             'resuelta_at' => now(),
         ]);
 
-        return back()->with('ok', 'Resuelta. El chat queda cerrado.');
+        return redirect()
+            ->route('incidencias.index')
+            ->with('ok', 'Resuelta. Queda en el archivo.');
     }
 
     private function fecha(mixed $valor): string

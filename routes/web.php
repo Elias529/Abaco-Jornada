@@ -76,6 +76,7 @@ Route::middleware(['auth', 'activo'])->group(function () {
 
         Route::get('/incidencias', [IncidenciaController::class, 'index'])->name('incidencias.index');
         Route::get('/incidencias/{incidencia}', [IncidenciaController::class, 'show'])->name('incidencias.show');
+        Route::post('/incidencias/{incidencia}/curso', [IncidenciaController::class, 'enCurso'])->name('incidencias.curso');
         Route::post('/incidencias/{incidencia}/resolver', [IncidenciaController::class, 'resolver'])->name('incidencias.resolver');
 
         // Funciones de dirección: estado del equipo y registros en solo lectura.

@@ -617,10 +617,13 @@
         });
 
         campo.form.addEventListener("submit", function (evento) {
+            var minimo = Number(campo.getAttribute("data-min")) || 1;
             var texto = campo.value.trim();
             if (texto.length < 1) {
                 campo.setCustomValidity(campo.getAttribute("data-vacio") || "Escribe un texto.");
-            } else if (campo.value.length > maximo) {
+            } else if (texto.length < minimo) {
+                campo.setCustomValidity(campo.getAttribute("data-corto") || "El texto tiene que tener al menos " + minimo + " caracteres.");
+            } else if (texto.length > maximo) {
                 campo.setCustomValidity(campo.getAttribute("data-largo") || "El texto puede tener hasta " + maximo + " caracteres.");
             } else {
                 campo.setCustomValidity("");

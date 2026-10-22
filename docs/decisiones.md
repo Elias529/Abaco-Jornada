@@ -2,6 +2,14 @@
 
 Cada fila enlaza la regla o la tarea que la aplica. El estado «vigente» es lo que el código hace hoy. «Pendiente de aplicar» es un acuerdo de Pablo del 9 de octubre de 2026 que el código todavía no cumple.
 
+## 2026-10-22 · Incidencias con texto acotado, estados y archivo
+
+- Decisión: al comunicar una incidencia el texto tiene mínimo 10 caracteres y máximo 500. Los estados son Pendiente, En curso y Resuelta. La lista principal solo muestra las activas; al resolver, pasa sola al archivo.
+- Motivo: un texto demasiado corto se usa para spam, y las resueltas llenaban el listado de la jefa.
+- Alternativa descartada: dejar Abierta/Resuelta sin archivo, o pedir un máximo sin mínimo.
+- Estado: vigente.
+- Aplica en: [reglas-jornada.md](reglas-jornada.md). Pruebas `IncidenciaGestionTest`.
+
 ## 2026-10-09 · Fichaje con conexión
 
 - Decisión: el proyecto es una aplicación web. Cada fichaje requiere conexión y la confirmación del servidor.
