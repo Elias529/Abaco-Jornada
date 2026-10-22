@@ -17,6 +17,7 @@ Jornada es una aplicación web. La persona entra con su cuenta y el servidor con
 - Avisos por cierres sin completar. Cada uno cuenta desde el primero. Dentro del año en curso no caduca hasta que la persona lo explica. Se muestran por antigüedad y solo los de este año. No hay margen de 8 ni reinicio por tiempo. La jefa ve marcados en Estado los cierres sin resolver de hace más de 7 días, de este año.
 - Tres papeles: trabajadora, jefa y administrador técnico. La jefa gestiona el equipo y consulta los registros con motivo. El técnico ficha y gestiona actualizaciones y la base de datos activa. La baja cierra el acceso y no borra las jornadas.
 - Tickets: cualquier persona cuenta un fallo de la aplicación al técnico y conversan hasta resolverlo.
+- Incidencias: el texto tiene mínimo y máximo. La jefa las ve en Pendiente, En curso o Resuelta. Las resueltas salen del listado y quedan en el archivo.
 
 ## Fuera
 

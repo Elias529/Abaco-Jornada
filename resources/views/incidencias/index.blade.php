@@ -21,14 +21,29 @@
                     @endforeach
                 </select>
                 <label for="incidencia-motivo">Qué pasó</label>
-                <textarea id="incidencia-motivo" name="motivo" required placeholder="0 a 500 caracteres" data-max="500" data-vacio="Escribe el motivo de la incidencia." data-largo="El motivo puede tener hasta 500 caracteres.">{{ old('motivo') }}</textarea>
+                <textarea id="incidencia-motivo" name="motivo" required minlength="{{ \App\Models\Incidencia::CUERPO_MINIMO }}" maxlength="{{ \App\Models\Incidencia::CUERPO_MAXIMO }}" placeholder="{{ \App\Models\Incidencia::CUERPO_MINIMO }} a {{ \App\Models\Incidencia::CUERPO_MAXIMO }} caracteres" data-min="{{ \App\Models\Incidencia::CUERPO_MINIMO }}" data-max="{{ \App\Models\Incidencia::CUERPO_MAXIMO }}" data-vacio="Escribe el motivo de la incidencia." data-corto="El motivo tiene que tener al menos {{ \App\Models\Incidencia::CUERPO_MINIMO }} caracteres." data-largo="El motivo puede tener hasta {{ \App\Models\Incidencia::CUERPO_MAXIMO }} caracteres.">{{ old('motivo') }}</textarea>
                 <button class="boton boton-principal" type="submit">Enviar incidencia</button>
             </form>
         </div>
     </dialog>
 
+    @php
+        $filtro = array_filter([
+            'persona' => $personaId,
+            'desde' => $desde !== '' ? $desde : null,
+            'hasta' => $hasta !== '' ? $hasta : null,
+        ]);
+    @endphp
+    <div class="registro-tabs incidencias-tabs">
+        <a href="{{ route('incidencias.index', $filtro) }}" @unless ($archivo) aria-current="page" @endunless>Activas</a>
+        <a href="{{ route('incidencias.index', array_merge($filtro, ['archivo' => 1])) }}" @if ($archivo) aria-current="page" @endif>Archivo</a>
+    </div>
+
     <section class="bandeja-incidencias">
         <form method="get" class="filtros-incidencia" action="{{ route('incidencias.index') }}">
+            @if ($archivo)
+                <input type="hidden" name="archivo" value="1">
+            @endif
             <div class="campo-incidencia">
                 <label for="persona">Persona</label>
                 <select id="persona" name="persona">
@@ -48,11 +63,11 @@
             </div>
             <button class="boton boton-secundario" type="submit">Ver</button>
         </form>
-        <a class="boton-hoy @if ($desde === $hoy && $hasta === $hoy && $personaId === null) boton-hoy-activo @endif" href="{{ route('incidencias.index', ['desde' => $hoy, 'hasta' => $hoy]) }}">Hoy</a>
+        <a class="boton-hoy @if ($desde === $hoy && $hasta === $hoy && $personaId === null && ! $archivo) boton-hoy-activo @endif" href="{{ route('incidencias.index', ['desde' => $hoy, 'hasta' => $hoy]) }}">Hoy</a>
     </section>
 
     @if ($incidencias->isEmpty())
-        <p class="incidencia-vacia">No hay incidencias.</p>
+        <p class="incidencia-vacia">{{ $archivo ? 'No hay incidencias en el archivo.' : 'No hay incidencias activas.' }}</p>
     @else
         <ul class="lista incidencias-lista">
             @foreach ($incidencias as $incidencia)
@@ -68,7 +83,7 @@
                                     @endif
                                 </span>
                             </span>
-                            <x-chip :tipo="$incidencia->estado">{{ $incidencia->estadoTexto() }}</x-chip>
+                            <x-chip :tipo="$incidencia->estadoChip()">{{ $incidencia->estadoTexto() }}</x-chip>
                         </span>
                         <span class="incidencia-texto">{{ \Illuminate\Support\Str::limit($incidencia->cuerpo, 110) }}</span>
                         <span class="secundario">{{ \App\Support\Tiempo::fecha($incidencia->created_at) }} {{ $incidencia->created_at->format('H:i') }}</span>

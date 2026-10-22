@@ -32,7 +32,7 @@
         <button class="boton boton-principal" type="submit">Entrar</button>
         <div class="acceso-pie">
             <a class="enlace-clave" href="{{ route('password.request') }}">No recuerdo la contraseña</a>
-            <button type="button" class="tema" data-tema-toggle aria-label="Modo oscuro">
+            <button type="button" class="tema" data-tema-toggle aria-label="Cambiar a modo oscuro">
                 <svg class="tema-luna" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                     <path fill="currentColor" d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>
                 </svg>

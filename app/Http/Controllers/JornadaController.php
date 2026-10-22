@@ -197,7 +197,7 @@ class JornadaController extends Controller
                 $consulta->where('user_id', $usuario->id)
                     ->orWhere('destinatario_id', $usuario->id);
             })
-            ->orderByRaw("case when estado = 'resuelta' then 1 else 0 end")
+            ->orderByRaw("case when estado = '".Incidencia::RESUELTA."' then 1 else 0 end")
             ->latest('id')
             ->get();
         $pedido = $request->query('incidencia');
@@ -218,12 +218,13 @@ class JornadaController extends Controller
 
     public function incidencia(Request $request): RedirectResponse
     {
+        $request->merge(['motivo' => trim((string) $request->input('motivo', ''))]);
+
         $datos = $request->validate([
-            'motivo' => ['required', 'string', 'max:500'],
+            'motivo' => Incidencia::reglasDeMotivo(),
             'destinatario' => [$request->user()->esJefa() ? 'required' : 'nullable', 'integer', 'exists:users,id'],
         ], [
-            'motivo.required' => 'Escribe el motivo de la incidencia.',
-            'motivo.max' => 'El motivo puede tener hasta 500 caracteres.',
+            ...Incidencia::mensajesDeMotivo(),
             'destinatario.required' => 'Elige a quién va dirigida.',
             'destinatario.exists' => 'Elige a una persona del equipo.',
         ]);
@@ -243,7 +244,8 @@ class JornadaController extends Controller
         Incidencia::create([
             'user_id' => $request->user()->id,
             'destinatario_id' => $destinatarioId,
-            'cuerpo' => trim($datos['motivo']),
+            'cuerpo' => $datos['motivo'],
+            'estado' => Incidencia::PENDIENTE,
         ]);
 
         if ($destinatarioId !== null) {

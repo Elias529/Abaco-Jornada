@@ -143,6 +143,13 @@ class JornadaService
             'esJefa' => $user->esJefa(),
             'horaInicioPrevista' => $horario ? $horario->corta($horario->morning_start) : null,
             'pideConfirmacionTemprana' => $this->horaInicioSiEsTemprano($user, $ahora) !== null,
+            'tramos' => $hoy?->tramos ?? collect(),
+            'horarioHoy' => $horario === null ? null : [
+                'mananaInicio' => $horario->corta($horario->morning_start),
+                'mananaFin' => $horario->corta($horario->morning_end),
+                'tardeInicio' => $horario->corta($horario->afternoon_start),
+                'tardeFin' => $horario->corta($horario->afternoon_end),
+            ],
         ];
     }
 

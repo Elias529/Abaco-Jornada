@@ -145,7 +145,7 @@
                     <span>{{ $titulo ?? 'Hoy' }}</span>
                 </nav>
                 <span class="cabecera-fecha">{{ $fechaBarra }}</span>
-                <button type="button" class="tema" data-tema-toggle aria-label="Modo oscuro">
+                <button type="button" class="tema" data-tema-toggle aria-label="Cambiar a modo oscuro">
                     <svg class="tema-luna" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                         <path fill="currentColor" d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>
                     </svg>
@@ -194,7 +194,7 @@
             }
             function pintar() {
                 var oscuro = raiz.getAttribute('data-tema') === 'oscuro';
-                boton.setAttribute('aria-label', oscuro ? 'Modo claro' : 'Modo oscuro');
+                boton.setAttribute('aria-label', oscuro ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro');
                 boton.setAttribute('aria-pressed', oscuro ? 'true' : 'false');
             }
             pintar();

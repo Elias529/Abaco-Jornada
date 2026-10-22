@@ -494,6 +494,7 @@ class RegistroController extends Controller
 
         $filtros = $this->filtros($request);
         $periodo = $this->periodo($request, $filtros);
+        $periodo = $this->mesEnCursoSiNoHayFiltro($request, $filtros, $periodo);
         $buscado = $filtros['desde'] !== '' || $filtros['hasta'] !== '' || $filtros['estado'] !== '' || $filtros['incidencia'] !== '';
         $jornadas = $this->csv->consulta($persona, $periodo['desde'], $periodo['hasta'], $filtros['estado'], $filtros['incidencia'])
             ->paginate(60)
@@ -576,6 +577,35 @@ class RegistroController extends Controller
         }
 
         return ['clave' => $pedido, 'desde' => $desde, 'hasta' => $hasta];
+    }
+
+    /**
+     * Sin fechas ni estado ni incidencia, Mi registro abre el mes en curso hasta hoy.
+     * La descarga sigue usando periodo() y no entra por aquí.
+     *
+     * @param  array{desde: string, hasta: string, estado: string, incidencia: string}  $filtros
+     * @param  array{clave: string, desde: string, hasta: string}  $periodo
+     * @return array{clave: string, desde: string, hasta: string}
+     */
+    private function mesEnCursoSiNoHayFiltro(Request $request, array $filtros, array $periodo): array
+    {
+        $pedido = $request->query('periodo');
+        $pedido = is_string($pedido) ? $pedido : '';
+        $sinAcotar = $filtros['desde'] === ''
+            && $filtros['hasta'] === ''
+            && $filtros['estado'] === ''
+            && $filtros['incidencia'] === ''
+            && ! in_array($pedido, ['semana', 'mes', 'anterior', 'todo'], true);
+
+        if (! $sinAcotar) {
+            return $periodo;
+        }
+
+        return [
+            'clave' => 'mes',
+            'desde' => now()->copy()->startOfMonth()->toDateString(),
+            'hasta' => now()->toDateString(),
+        ];
     }
 
     private function rango(string $desde, string $hasta): string

@@ -12,9 +12,31 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class Incidencia extends Model
 {
-    public const ABIERTA = 'abierta';
+    public const PENDIENTE = 'pendiente';
+
+    public const EN_CURSO = 'en_curso';
 
     public const RESUELTA = 'resuelta';
+
+    public const CUERPO_MINIMO = 10;
+
+    public const CUERPO_MAXIMO = 500;
+
+    /**
+     * @var array<string, string>
+     */
+    public const ESTADOS = [
+        self::PENDIENTE => 'Pendiente',
+        self::EN_CURSO => 'En curso',
+        self::RESUELTA => 'Resuelta',
+    ];
+
+    /**
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'estado' => self::PENDIENTE,
+    ];
 
     protected $fillable = [
         'user_id',
@@ -51,6 +73,16 @@ class Incidencia extends Model
         return $this->hasMany(IncidenciaMensaje::class)->oldest('id');
     }
 
+    public function estaPendiente(): bool
+    {
+        return $this->estado === self::PENDIENTE || $this->estado === 'abierta';
+    }
+
+    public function estaEnCurso(): bool
+    {
+        return $this->estado === self::EN_CURSO;
+    }
+
     public function estaResuelta(): bool
     {
         return $this->estado === self::RESUELTA;
@@ -58,6 +90,49 @@ class Incidencia extends Model
 
     public function estadoTexto(): string
     {
-        return $this->estaResuelta() ? 'Resuelta' : 'Abierta';
+        if ($this->estaPendiente()) {
+            return self::ESTADOS[self::PENDIENTE];
+        }
+
+        return self::ESTADOS[$this->estado] ?? $this->estado;
+    }
+
+    public function estadoChip(): string
+    {
+        return $this->estaPendiente() ? self::PENDIENTE : $this->estado;
+    }
+
+    public function estadoLista(): string
+    {
+        return $this->estaPendiente() ? self::PENDIENTE : $this->estado;
+    }
+
+    public function pasarAEnCurso(): void
+    {
+        if (! $this->estaPendiente()) {
+            return;
+        }
+
+        $this->update(['estado' => self::EN_CURSO]);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public static function reglasDeMotivo(): array
+    {
+        return ['required', 'string', 'min:'.self::CUERPO_MINIMO, 'max:'.self::CUERPO_MAXIMO];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function mensajesDeMotivo(): array
+    {
+        return [
+            'motivo.required' => 'Escribe el motivo de la incidencia.',
+            'motivo.min' => 'El motivo tiene que tener al menos '.self::CUERPO_MINIMO.' caracteres.',
+            'motivo.max' => 'El motivo puede tener hasta '.self::CUERPO_MAXIMO.' caracteres.',
+        ];
     }
 }

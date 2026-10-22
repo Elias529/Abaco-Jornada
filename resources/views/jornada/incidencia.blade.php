@@ -16,7 +16,7 @@
             <form method="post" action="{{ route('jornada.incidencia') }}" class="formulario comunicar-formulario">
                 @csrf
                 <label for="incidencia-motivo">Qué pasó</label>
-                <textarea id="incidencia-motivo" name="motivo" required placeholder="0 a 500 caracteres" data-max="500" data-vacio="Escribe el motivo de la incidencia." data-largo="El motivo puede tener hasta 500 caracteres.">{{ old('motivo') }}</textarea>
+                <textarea id="incidencia-motivo" name="motivo" required minlength="{{ \App\Models\Incidencia::CUERPO_MINIMO }}" maxlength="{{ \App\Models\Incidencia::CUERPO_MAXIMO }}" placeholder="{{ \App\Models\Incidencia::CUERPO_MINIMO }} a {{ \App\Models\Incidencia::CUERPO_MAXIMO }} caracteres" data-min="{{ \App\Models\Incidencia::CUERPO_MINIMO }}" data-max="{{ \App\Models\Incidencia::CUERPO_MAXIMO }}" data-vacio="Escribe el motivo de la incidencia." data-corto="El motivo tiene que tener al menos {{ \App\Models\Incidencia::CUERPO_MINIMO }} caracteres." data-largo="El motivo puede tener hasta {{ \App\Models\Incidencia::CUERPO_MAXIMO }} caracteres.">{{ old('motivo') }}</textarea>
                 <button class="boton boton-principal" type="submit">Enviar Incidencia</button>
             </form>
         </section>
@@ -40,7 +40,7 @@
                 <ul class="comunicar-lista">
                     @foreach ($incidencias as $incidencia)
                         <li>
-                            <a class="estado-{{ $incidencia->estado }}" href="{{ route('jornada.incidencia.crear', ['incidencia' => $incidencia->id]) }}">
+                            <a class="estado-{{ $incidencia->estadoLista() }}" href="{{ route('jornada.incidencia.crear', ['incidencia' => $incidencia->id]) }}">
                                 <span class="incidencia-texto">
                                     @if ($incidencia->user_id !== auth()->id())
                                         De {{ $incidencia->autor->name }}:

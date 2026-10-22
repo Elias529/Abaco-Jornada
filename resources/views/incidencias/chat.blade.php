@@ -2,11 +2,7 @@
     @unless ($sinCabecera ?? false)
         <header class="comunicar-panel-cabeza">
             <h2>Chat</h2>
-            @if ($incidencia->estaResuelta())
-                <x-chip tipo="resuelta">Resuelta</x-chip>
-            @else
-                <x-chip tipo="abierta">Abierta</x-chip>
-            @endif
+            <x-chip :tipo="$incidencia->estadoChip()">{{ $incidencia->estadoTexto() }}</x-chip>
         </header>
     @endunless
 

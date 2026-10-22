@@ -442,12 +442,19 @@ body:has(.comunicar) .cuerpo {
 }
 
 .lateral-cuenta {
-    display: flex;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
-    gap: 8px;
+    column-gap: 8px;
+    row-gap: 8px;
     margin-top: 12px;
     padding-top: 12px;
     border-top: 1px solid var(--linea);
+}
+
+.lateral-cuenta > .solo-lectura {
+    grid-column: 1 / -1;
+    justify-self: start;
 }
 
 .lateral-inicial {
@@ -2054,6 +2061,8 @@ label.casilla input { width: 20px; min-height: 20px; flex: 0 0 auto; accent-colo
 .paginas a[aria-current="page"] { font-weight: 700; text-decoration: none; }
 .lista li.mensaje-tecnico { border-left: 4px solid var(--marca-primario); }
 
+.incidencias-tabs { margin: 20px 0 0; }
+
 .bandeja-incidencias {
     display: flex;
     flex-wrap: wrap;
@@ -2951,8 +2960,11 @@ body:has(.comunicar) main {
 
 .dialogo-comunicar {
     width: min(520px, calc(100vw - 32px));
-    height: auto;
+    height: fit-content;
+    max-height: none;
 }
+
+.dialogo-comunicar .historial-ventana-caja { height: auto; }
 
 .dialogo-comunicar .comunicar-formulario select {
     flex: none;
@@ -2989,7 +3001,15 @@ body:has(.comunicar) main {
 .chat-origen { margin: 0; }
 
 .comunicar-lista a.estado-abierta,
-.comunicar-lista a.estado-abierta .incidencia-texto {
+.comunicar-lista a.estado-abierta .incidencia-texto,
+.comunicar-lista a.estado-pendiente,
+.comunicar-lista a.estado-pendiente .incidencia-texto {
+    background: #fff4d6;
+    color: #8a5a00;
+}
+
+.comunicar-lista a.estado-en_curso,
+.comunicar-lista a.estado-en_curso .incidencia-texto {
     background: #e5f6ec;
     color: #0b7a32;
 }
@@ -3103,13 +3123,15 @@ body:has(.comunicar) main {
 }
 
 .comunicar-formulario textarea {
-    flex: 1;
-    min-height: 96px;
+    flex: none;
+    min-height: 120px;
+    height: 120px;
     resize: none;
 }
 
 .comunicar-formulario .boton,
 .comunicar-resolver .boton,
+.comunicar-acciones .boton,
 .chat-escribir .boton {
     width: auto;
     border-radius: 999px;
@@ -3154,7 +3176,17 @@ body:has(.comunicar) main {
     padding: 8px 18px;
 }
 
-.comunicar-resolver { margin: 0; padding: 0 18px 18px; }
+.comunicar-resolver,
+.comunicar-acciones {
+    margin: 0;
+    padding: 0 18px 18px;
+}
+
+.comunicar-acciones {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
 
 .chat-hilo {
     flex: 1;
@@ -3230,7 +3262,15 @@ html[data-tema="oscuro"] .incidencia-marca.pastilla-abierta {
 }
 
 html[data-tema="oscuro"] .comunicar-lista a.estado-abierta,
-html[data-tema="oscuro"] .comunicar-lista a.estado-abierta .incidencia-texto {
+html[data-tema="oscuro"] .comunicar-lista a.estado-abierta .incidencia-texto,
+html[data-tema="oscuro"] .comunicar-lista a.estado-pendiente,
+html[data-tema="oscuro"] .comunicar-lista a.estado-pendiente .incidencia-texto {
+    background: #3d320c;
+    color: #f2d48a;
+}
+
+html[data-tema="oscuro"] .comunicar-lista a.estado-en_curso,
+html[data-tema="oscuro"] .comunicar-lista a.estado-en_curso .incidencia-texto {
     background: #0e3d28;
     color: #7dcea0;
 }
