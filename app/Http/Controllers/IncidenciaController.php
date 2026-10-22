@@ -30,9 +30,22 @@ class IncidenciaController extends Controller
             ->when($hasta !== '', fn ($q) => $q->whereDate('created_at', '<=', $hasta))
             ->latest('id')
             ->get();
+        $nuevas = Incidencia::query()
+            ->with('autor', 'destinatario')
+            ->whereNull('destinatario_id')
+            ->whereNull('vista_at')
+            ->where('estado', Incidencia::ABIERTA)
+            ->when($personaId !== null, fn ($q) => $q->where(function ($consulta) use ($personaId) {
+                $consulta->where('user_id', $personaId)->orWhere('destinatario_id', $personaId);
+            }))
+            ->when($desde !== '', fn ($q) => $q->whereDate('created_at', '>=', $desde))
+            ->when($hasta !== '', fn ($q) => $q->whereDate('created_at', '<=', $hasta))
+            ->latest('id')
+            ->get();
 
         return view('incidencias.index', [
             'incidencias' => $incidencias,
+            'nuevas' => $nuevas,
             'personas' => User::query()->orderBy('name')->get(),
             'equipo' => User::query()->where('active', true)->where('role', '!=', 'jefa')->orderBy('name')->get(['id', 'name']),
             'personaId' => $personaId,

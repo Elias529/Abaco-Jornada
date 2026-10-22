@@ -69,7 +69,7 @@
                     </div>
                 </div>
 
-                @forelse ($detalle['filas'] as $fila)
+                @forelse (collect($detalle['filas'])->where('visible', true) as $fila)
                     <article class="detalle-tramo">
                         <span class="detalle-tramo-icono" aria-hidden="true">
                             @if ($fila['tramo']->tipo === 'pausa')
@@ -80,10 +80,6 @@
                         </span>
                         <div>
                             <p class="detalle-tramo-titulo">{{ $fila['titulo'] }}</p>
-                            <p class="secundario">{{ $fila['duracion'] }}</p>
-                            @if ($fila['nota'] !== '')
-                                <p class="secundario">{{ $fila['nota'] }}</p>
-                            @endif
                         </div>
                         <p class="detalle-tramo-horas">{{ $fila['horas'] }}</p>
                         @if ($puedeCorregir)
@@ -134,10 +130,10 @@
     </div>
 
     @if ($puedeCorregir)
-        @foreach ($detalle['filas'] as $fila)
+        @foreach (collect($detalle['filas'])->where('visible', true) as $fila)
             <dialog class="dialogo-hoy" data-dialogo="corregir-{{ $fila['tramo']->id }}" aria-labelledby="titulo-corregir-{{ $fila['tramo']->id }}">
                 <div class="dialogo-cabecera">
-                    <h2 id="titulo-corregir-{{ $fila['tramo']->id }}">Corregir {{ strtolower($fila['titulo']) }}</h2>
+                    <h2 id="titulo-corregir-{{ $fila['tramo']->id }}">Corregir horas</h2>
                     <form method="dialog">
                         <button class="dialogo-cerrar" type="submit">Cerrar</button>
                     </form>
@@ -145,19 +141,27 @@
                 <form method="post" action="{{ route('tramos.corregir', $fila['tramo']) }}" class="formulario">
                     @csrf
                     <div class="horas-par">
-                        <div>
-                            <label for="inicio-{{ $fila['tramo']->id }}">Hora de inicio</label>
+                        <div data-correccion-hora="inicio">
+                            <label for="inicio-{{ $fila['tramo']->id }}">
+                                <span data-etiqueta-normal>Hora de inicio</span>
+                                <span data-etiqueta-pausa hidden>Inicio de la pausa</span>
+                            </label>
                             <x-hora id="inicio-{{ $fila['tramo']->id }}" name="inicio" :valor="\App\Support\Tiempo::hora($fila['tramo']->started_at)" :required="false" />
                         </div>
-                        <div>
-                            <label for="fin-{{ $fila['tramo']->id }}">Hora de fin</label>
+                        <div data-correccion-hora="fin">
+                            <label for="fin-{{ $fila['tramo']->id }}">
+                                <span data-etiqueta-normal>Hora de fin</span>
+                                <span data-etiqueta-pausa hidden>Fin de la pausa</span>
+                            </label>
                             <x-hora id="fin-{{ $fila['tramo']->id }}" name="fin" :valor="$fila['tramo']->ended_at ? \App\Support\Tiempo::hora($fila['tramo']->ended_at) : ''" :required="false" />
                         </div>
                     </div>
                     <label for="motivo-{{ $fila['tramo']->id }}">Motivo</label>
-                    <select id="motivo-{{ $fila['tramo']->id }}" name="motivo" required>
+                    <select id="motivo-{{ $fila['tramo']->id }}" name="motivo" required data-motivo-correccion>
                         @foreach ($motivos as $clave => $texto)
-                            <option value="{{ $clave }}">{{ $texto }}</option>
+                            @if ($clave === 'hora' || ($clave === 'fichar_pausa' && ($fila['puedeFicharPausa'] ?? false)))
+                                <option value="{{ $clave }}">{{ $texto }}</option>
+                            @endif
                         @endforeach
                     </select>
                     <label for="nota-{{ $fila['tramo']->id }}">Nota, si hace falta</label>

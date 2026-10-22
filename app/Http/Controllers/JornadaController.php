@@ -210,8 +210,15 @@ class JornadaController extends Controller
             $seleccion->update(['vista_at' => now()]);
         }
 
+        $nuevas = $incidencias->filter(fn (Incidencia $incidencia) => $incidencia->destinatario_id === $usuario->id
+            && $incidencia->vista_at === null
+            && ! $incidencia->estaResuelta());
+        $historial = $incidencias->reject(fn (Incidencia $incidencia) => $nuevas->contains('id', $incidencia->id));
+
         return view('jornada.incidencia', [
             'incidencias' => $incidencias,
+            'nuevas' => $nuevas,
+            'historial' => $historial,
             'seleccion' => $seleccion,
         ]);
     }

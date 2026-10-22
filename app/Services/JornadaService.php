@@ -402,7 +402,7 @@ class JornadaService
             throw new ReglaJornada('Ese día todavía no ha llegado.');
         }
         if (! $user->esJefa() && $dia->lt($ahora->copy()->subDays(7)->startOfDay())) {
-            throw new ReglaJornada('Para cambiar este día, habla con tu jefa.');
+            throw new ReglaJornada('Solo puedes corregir un registro durante los primeros 7 días.');
         }
 
         $inicio = $this->momento($dia, $inicioHora);
@@ -588,8 +588,8 @@ class JornadaService
         if ($actor->id !== $duena->id && ! $actor->esJefa()) {
             throw new ReglaJornada('Solo puedes ver tu registro.');
         }
-        if (! $actor->esJefa() && $jornada->work_date->lt(now()->subDays(7)->startOfDay())) {
-            throw new ReglaJornada('Para cambiar este día, habla con tu jefa.');
+        if ($jornada->work_date->lt(now()->subDays(7)->startOfDay())) {
+            throw new ReglaJornada('Solo puedes corregir un registro durante los primeros 7 días.');
         }
 
         $nota = $nota !== null ? trim($nota) : null;
@@ -640,6 +640,76 @@ class JornadaService
         return 'Guardado. La hora ha quedado en las '.Tiempo::hora($guardada).'.';
     }
 
+    public function ficharPausa(User $actor, Tramo $tramo, string $inicioHora, string $finHora, ?string $nota): string
+    {
+        $tramo->load('jornada.user');
+        $jornada = $tramo->jornada;
+        $duena = $jornada->user;
+
+        if ($actor->id !== $duena->id && ! $actor->esJefa()) {
+            throw new ReglaJornada('Solo puedes ver tu registro.');
+        }
+        if ($jornada->work_date->lt(now()->subDays(7)->startOfDay())) {
+            throw new ReglaJornada('Solo puedes corregir un registro durante los primeros 7 días.');
+        }
+
+        $nota = $nota !== null ? trim($nota) : null;
+        if ($nota === '') {
+            $nota = null;
+        }
+
+        $texto = '';
+        DB::transaction(function () use ($actor, $tramo, $jornada, $duena, $inicioHora, $finHora, $nota, &$texto) {
+            $this->bloquear($duena);
+            $fresco = Tramo::query()->whereKey($tramo->id)->lockForUpdate()->first();
+            if (! $fresco || $fresco->tipo !== Tramo::TRABAJO) {
+                throw new ReglaJornada('Selecciona un tramo de trabajo.');
+            }
+
+            $jornada->unsetRelation('tramos');
+            $jornada->load('tramos');
+            if ($jornada->tramos->contains('tipo', Tramo::PAUSA)) {
+                throw new ReglaJornada('Ese día ya tiene una pausa fichada.');
+            }
+            if (! $fresco->ended_at) {
+                throw new ReglaJornada('La pausa se puede fichar cuando el tramo está cerrado.');
+            }
+
+            $inicio = $this->momento($jornada->work_date, $inicioHora);
+            $fin = $this->momento($jornada->work_date, $finHora);
+            if ($fin->lessThanOrEqualTo($inicio)) {
+                throw new ReglaJornada('La hora de fin de la pausa tiene que ser posterior.');
+            }
+            if ($inicio->lessThan($fresco->started_at) || $fin->greaterThan($fresco->ended_at)) {
+                throw new ReglaJornada('La pausa tiene que estar dentro del tramo de trabajo.');
+            }
+
+            $finAnterior = $fresco->ended_at;
+            $fresco->update(['ended_at' => $inicio]);
+            Tramo::create([
+                'jornada_id' => $jornada->id,
+                'tipo' => Tramo::PAUSA,
+                'started_at' => $inicio,
+                'ended_at' => $fin,
+                'anotado_at' => now(),
+            ]);
+            Tramo::create([
+                'jornada_id' => $jornada->id,
+                'tipo' => Tramo::TRABAJO,
+                'started_at' => $fin,
+                'ended_at' => $finAnterior,
+                'anotado_at' => now(),
+                'cerrado_por' => $fresco->cerrado_por,
+                'cerrado_at' => $fresco->cerrado_at,
+            ]);
+            $this->anotar($actor, $fresco, 'ended_at', $finAnterior, $inicio, 'fichar_pausa', $nota);
+            $this->marcarExplicados($duena, $jornada->work_date->toDateString());
+            $texto = 'Guardado. Pausa de '.Tiempo::hora($inicio).' a '.Tiempo::hora($fin).'.';
+        });
+
+        return $texto;
+    }
+
     public function guardarHoras(User $actor, Tramo $tramo, ?string $inicioHora, ?string $finHora, string $motivo, ?string $nota): string
     {
         if (! array_key_exists($motivo, Correccion::MOTIVOS)) {
@@ -659,7 +729,7 @@ class JornadaService
         if ($actor->id !== $duena->id && ! $actor->esJefa()) {
             throw new ReglaJornada('Solo puedes ver tu registro.');
         }
-        if (! $actor->esJefa() && $jornada->work_date->lt(now()->subDays(7)->startOfDay())) {
+        if ($jornada->work_date->lt(now()->subDays(7)->startOfDay())) {
             throw new ReglaJornada('Para cambiar este día, habla con tu jefa.');
         }
 
@@ -859,7 +929,7 @@ class JornadaService
         $porDia = $avisos->groupBy(fn (Aviso $aviso) => $aviso->work_date->toDateString());
         $primero = $porDia->first();
         if ($porDia->count() === 1) {
-            return 'El '.Tiempo::fecha($primero->first()->work_date).' '.$this->queFalta($primero).'. Puedes explicarlo aquí.';
+            return 'El '.Tiempo::fecha($primero->first()->work_date).' '.$this->queFalta($primero).'.';
         }
 
         return 'Tienes '.$porDia->count().' días sin explicar. El más antiguo es el '.Tiempo::fecha($primero->first()->work_date).'.';
@@ -1071,7 +1141,7 @@ class JornadaService
             $ayer = $ahora->copy()->subDay();
 
             return [
-                'texto' => 'El '.Tiempo::fecha($ayer).' no quedó registrada la entrada. Puedes explicarlo aquí.',
+                'texto' => 'El '.Tiempo::fecha($ayer).' no quedó registrada la entrada.',
                 'accion' => 'registro',
                 'fecha' => $ayer->toDateString(),
                 'jornada' => Jornada::query()

@@ -13,10 +13,10 @@
         })();
     </script>
     <link rel="icon" href="{{ asset('marca/logos/abacoqd_isotipo.svg') }}" type="image/svg+xml">
-    <link rel="stylesheet" href="{{ asset('css/paleta.css') }}?v={{ filemtime(public_path('css/paleta.css')) }}">
-    <link rel="stylesheet" href="{{ asset('css/jornada.css') }}?v={{ filemtime(public_path('css/jornada.css')) }}">
+    <style>@layer reset, tokens, base, componentes, pantallas;</style>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body @if ($pendiente ?? false) data-pendiente="1" @endif>
+<body @class(['es-jefa' => auth()->check() && auth()->user()->esJefa()]) @if ($pendiente ?? false) data-pendiente="1" @endif>
     <a class="saltar" href="#contenido">Saltar al contenido</a>
 
     @auth
@@ -57,17 +57,14 @@
                     </a>
                 @endunless
                 @if (auth()->user()->esJefa())
+                    <p class="lateral-kicker">Equipo</p>
                     <a href="{{ route('equipo.index') }}" @if (request()->routeIs('equipo.*')) aria-current="page" @endif>
                         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="2.2" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="16" cy="9.2" r="1.7" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M4.2 18.2c.7-2.5 2.5-3.7 4.8-3.7s4.1 1.2 4.8 3.7M14.2 14.7c1.3-.3 2.6 0 3.5.9.9.8 1.4 1.9 1.6 3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-                        Equipo
+                        Personas
                     </a>
                     <a href="{{ route('jefe.index') }}" @if (request()->routeIs('jefe.index', 'jefe.persona', 'jefe.registro', 'jefe.dia')) aria-current="page" @endif>
                         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13h3.5l2.2-6 3.6 10 2.2-4H20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                        Estado
-                    </a>
-                    <a href="{{ route('jefe.consultas') }}" @if (request()->routeIs('jefe.consultas')) aria-current="page" @endif>
-                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6.5h14a1.5 1.5 0 0 1 1.5 1.5v7A1.5 1.5 0 0 1 19 16.5H9.5L5 20v-3.5H5A1.5 1.5 0 0 1 3.5 15V8A1.5 1.5 0 0 1 5 6.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
-                        Consultas
+                        Estado del equipo
                     </a>
                     <a href="{{ route('incidencias.index') }}" @if (request()->routeIs('incidencias.*')) aria-current="page" @endif @if (($incidenciasNuevas ?? 0) > 0) aria-label="Incidencias, {{ $incidenciasNuevas === 1 ? '1 nueva' : $incidenciasNuevas.' nuevas' }}" @endif>
                         <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="4" width="12" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M9 9h6M9 13h6M9 17h3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
@@ -75,6 +72,10 @@
                         @if (($incidenciasNuevas ?? 0) > 0)
                             <span class="aviso-ticket" aria-hidden="true">{{ $incidenciasNuevas }}</span>
                         @endif
+                    </a>
+                    <a href="{{ route('jefe.consultas') }}" @if (request()->routeIs('jefe.consultas')) aria-current="page" @endif>
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6.5h14a1.5 1.5 0 0 1 1.5 1.5v7A1.5 1.5 0 0 1 19 16.5H9.5L5 20v-3.5H5A1.5 1.5 0 0 1 3.5 15V8A1.5 1.5 0 0 1 5 6.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+                        Consultas
                     </a>
                 @endif
                 @if (auth()->user()->esTecnico())
@@ -90,7 +91,7 @@
                         @endif
                     </a>
                 @endif
-                @unless (auth()->user()->esJefa() || auth()->user()->esTecnico())
+                @unless (auth()->user()->esTecnico())
                     <div class="menu-pie">
                         <a href="{{ route('tickets.index', ['desde' => request()->routeIs('tickets.*') ? null : '/'.ltrim(request()->path(), '/')]) }}" @if (request()->routeIs('tickets.*')) aria-current="page" @endif>
                             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>

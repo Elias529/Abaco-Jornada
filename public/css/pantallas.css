@@ -1,0 +1,8 @@
+@import url("jornada.css") layer(pantallas);
+
+@layer pantallas {
+    /*
+     * Las reglas específicas de cada pantalla se añadirán aquí. Mientras
+     * tanto, jornada.css conserva el diseño existente dentro de esta capa.
+    */
+}
