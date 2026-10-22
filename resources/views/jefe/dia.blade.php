@@ -15,7 +15,6 @@
             <div>
                 <p class="espacio-sobre">{{ $persona->name }} · Registro</p>
                 <h1>{{ \App\Support\Tiempo::fecha($jornada->work_date) }}</h1>
-                <p class="secundario">Consulta de solo lectura</p>
             </div>
             <a class="detalle-volver" href="{{ route('jefe.registro', ['user' => $persona, 'mes' => $jornada->work_date->format('Y-m')]) }}">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>

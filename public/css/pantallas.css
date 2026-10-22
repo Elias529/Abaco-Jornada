@@ -308,6 +308,414 @@
         gap: var(--e4);
     }
 
+    .calendario-pagina {
+        display: flex;
+        flex-direction: column;
+        gap: var(--e4);
+    }
+
+    .calendario-cabecera {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: var(--e6);
+        margin-bottom: var(--e2);
+    }
+
+    .calendario-cabecera h1 {
+        margin: 0;
+        font-size: var(--texto-titulo);
+        font-weight: var(--peso-titulo);
+    }
+
+    .calendario-controles {
+        display: flex;
+        align-items: center;
+        gap: var(--e2);
+    }
+
+    .calendario-anio {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--e2);
+    }
+
+    .calendario-anio a,
+    .calendario-anio > span {
+        display: inline-grid;
+        width: 36px;
+        height: 36px;
+        place-items: center;
+        border: 1px solid var(--linea);
+        border-radius: var(--radio);
+        background: var(--superficie);
+        color: var(--enlace);
+        font-size: 20px;
+        line-height: 1;
+        text-decoration: none;
+    }
+
+    .calendario-anio strong {
+        min-width: 44px;
+        color: var(--texto);
+        font-size: var(--texto-lista);
+        font-weight: var(--peso-normal);
+        text-align: center;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .calendario-vistas {
+        display: inline-flex;
+        align-items: stretch;
+        min-height: 36px;
+        padding: var(--e1);
+        border-radius: var(--radio);
+        background: var(--superficie-2);
+        color: var(--texto-2);
+        font-size: var(--texto-secundario);
+        font-weight: var(--peso-boton);
+    }
+
+    .calendario-vistas span {
+        display: inline-flex;
+        align-items: center;
+        padding-inline: var(--e3);
+        border-radius: var(--radio-sm);
+    }
+
+    .calendario-vistas span[aria-current="page"] {
+        background: var(--superficie);
+        color: var(--texto);
+        box-shadow: 0 1px 3px rgba(7, 17, 26, 0.08);
+    }
+
+    .calendario-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 248px;
+        align-items: start;
+        gap: var(--e4);
+    }
+
+    .calendario-panel {
+        min-width: 0;
+        overflow: hidden;
+        border: 1px solid var(--linea);
+        border-radius: var(--radio);
+        background: var(--superficie);
+    }
+
+    .calendario-mes-card {
+        max-width: none;
+        margin: 0;
+        padding: var(--e4);
+        border: 0;
+        background: transparent;
+    }
+
+    .calendario-mes-card .mes-nav {
+        max-width: none;
+        margin: 0 0 var(--e4);
+        padding: 0;
+    }
+
+    .calendario-mes-card .mes-nav h2 {
+        font-size: var(--texto-ficha);
+    }
+
+    .calendario-mes-card .mes-flecha {
+        width: 36px;
+        min-height: 36px;
+        height: 36px;
+        border: 1px solid var(--linea);
+        border-radius: var(--radio);
+        background: var(--superficie);
+        font-size: 20px;
+    }
+
+    .calendario-mes-card .rejilla-mes {
+        gap: 0;
+        border-top: 1px solid var(--linea);
+        border-left: 1px solid var(--linea);
+    }
+
+    .calendario-mes-card .cabecera-dia {
+        min-height: 32px;
+        padding: var(--e2) var(--e1);
+        border-right: 1px solid var(--linea);
+        border-bottom: 1px solid var(--linea);
+        color: var(--texto-2);
+        font-size: var(--texto-secundario);
+        font-weight: var(--peso-boton);
+    }
+
+    .calendario-mes-card .casilla {
+        display: flex;
+        min-height: 76px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--e1);
+        padding: var(--e2);
+        border-right: 1px solid var(--linea);
+        border-bottom: 1px solid var(--linea);
+        border-radius: 0;
+        background: var(--superficie);
+        font-size: var(--texto-secundario);
+    }
+
+    .calendario-mes-card .casilla-finde,
+    .calendario-mes-card .casilla-vacia {
+        background: var(--fondo);
+        color: var(--texto-2);
+    }
+
+    .calendario-mes-card .casilla strong {
+        font-size: var(--texto-lista);
+        font-weight: var(--peso-normal);
+    }
+
+    .calendario-mes-card .casilla small {
+        max-width: 100%;
+        font-size: var(--texto-secundario);
+    }
+
+    .calendario-mes-card .casilla-estado,
+    .calendario-mes-card .casilla-comunidad,
+    .calendario-mes-card .casilla-pueblo,
+    .calendario-mes-card .casilla-vacaciones {
+        background: var(--superficie);
+        color: var(--texto);
+        outline: 0;
+    }
+
+    .calendario-mes-card .casilla-pendiente {
+        background-color: var(--superficie);
+    }
+
+    .calendario-mes-card .casilla-etiqueta {
+        display: block;
+        overflow: hidden;
+        width: 100%;
+        padding: var(--e1) var(--e2);
+        border-radius: var(--radio-sm);
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .calendario-mes-card .casilla-etiqueta-festivo {
+        background: var(--marca-suave);
+        color: var(--texto);
+    }
+
+    .calendario-mes-card .casilla-etiqueta-vacaciones {
+        background: var(--marca-lima);
+        color: var(--tinta);
+    }
+
+    .calendario-mes-card .casilla-etiqueta-permiso {
+        background: var(--marca-cian);
+        color: var(--tinta);
+    }
+
+    .calendario-mes-card .casilla-hoy {
+        outline: 2px solid var(--casilla-hoy);
+        outline-offset: -2px;
+    }
+
+    .calendario-aside {
+        display: grid;
+        gap: var(--e4);
+    }
+
+    .calendario-eventos,
+    .calendario-centro {
+        padding: var(--e4);
+    }
+
+    .calendario-eventos h2,
+    .calendario-centro h2 {
+        margin: 0 0 var(--e4);
+        font-size: var(--texto-ficha);
+        font-weight: var(--peso-titulo);
+    }
+
+    .calendario-evento {
+        display: grid;
+        grid-template-columns: 32px minmax(0, 1fr);
+        gap: var(--e3);
+        align-items: start;
+        padding: var(--e3) 0;
+        border-top: 1px solid var(--linea);
+    }
+
+    .calendario-evento:first-of-type {
+        padding-top: 0;
+        border-top: 0;
+    }
+
+    .calendario-evento time {
+        display: flex;
+        flex-direction: column;
+        color: var(--texto-2);
+        line-height: 1.15;
+        text-align: left;
+    }
+
+    .calendario-evento time strong {
+        color: var(--texto);
+        font-size: var(--texto-ficha);
+        font-weight: var(--peso-normal);
+        font-variant-numeric: tabular-nums;
+    }
+
+    .calendario-evento time span,
+    .calendario-evento > div span {
+        font-size: var(--texto-secundario);
+    }
+
+    .calendario-evento > div {
+        display: flex;
+        min-width: 0;
+        flex-direction: column;
+        gap: var(--e1);
+    }
+
+    .calendario-evento > div strong {
+        overflow: hidden;
+        font-size: var(--texto-lista);
+        font-weight: var(--peso-boton);
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .calendario-evento > div span {
+        color: var(--texto-2);
+    }
+
+    .calendario-evento-vacaciones time strong,
+    .calendario-evento-permiso time strong {
+        color: var(--enlace);
+    }
+
+    .calendario-centro dl {
+        display: grid;
+        gap: 0;
+        margin: 0;
+    }
+
+    .calendario-centro dl div {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: var(--e2);
+        padding: var(--e3) 0;
+        border-top: 1px solid var(--linea);
+    }
+
+    .calendario-centro dl div:first-child {
+        border-top: 0;
+    }
+
+    .calendario-centro dt,
+    .calendario-centro dd {
+        margin: 0;
+        font-size: var(--texto-lista);
+    }
+
+    .calendario-centro dt {
+        color: var(--texto-2);
+    }
+
+    .calendario-centro dd {
+        font-weight: var(--peso-boton);
+        text-align: right;
+    }
+
+    .calendario-centro-nota {
+        margin: var(--e4) 0 0;
+        line-height: 1.5;
+    }
+
+    .calendario-eventos-vacio {
+        margin: 0;
+    }
+
+    .calendario-pagina > .vacaciones-pedir {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--e4);
+        max-width: none;
+        margin: 0;
+        padding: var(--e4);
+        border: 1px solid var(--linea);
+        border-radius: var(--radio);
+        background: var(--superficie);
+    }
+
+    .calendario-pagina > .vacaciones-pedir > div:first-child {
+        display: flex;
+        flex-direction: column;
+        gap: var(--e1);
+    }
+
+    .calendario-pagina > .vacaciones-pedir .vacaciones-abre {
+        flex: 0 0 auto;
+        min-height: var(--alto-control);
+        border-radius: var(--radio);
+    }
+
+    .calendario-leyenda {
+        margin: 0;
+    }
+
+    @media (max-width: 900px) {
+        .calendario-layout {
+            grid-template-columns: 1fr;
+        }
+
+        .calendario-aside {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 640px) {
+        .calendario-cabecera {
+            align-items: stretch;
+            flex-direction: column;
+            gap: var(--e4);
+        }
+
+        .calendario-controles {
+            justify-content: space-between;
+        }
+
+        .calendario-aside {
+            grid-template-columns: 1fr;
+        }
+
+        .calendario-mes-card {
+            padding: var(--e3);
+        }
+
+        .calendario-mes-card .casilla {
+            min-height: 64px;
+            padding: var(--e1);
+        }
+
+        .calendario-mes-card .casilla-etiqueta {
+            padding-inline: var(--e1);
+        }
+
+        .calendario-pagina > .vacaciones-pedir {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .calendario-pagina > .vacaciones-pedir .vacaciones-abre {
+            width: 100%;
+        }
+    }
+
     .registro-filtros {
         gap: var(--e3);
     }
@@ -866,6 +1274,30 @@
 
         .historial-ventana .incidencia-tabla-fila > span:nth-child(4)::before {
             content: "Recibida: ";
+        }
+    }
+
+    body:has(.lateral) .pagina:not(.pagina-acceso) > main#contenido {
+        padding-inline: var(--e6);
+    }
+
+    body:has(.lateral) .pagina:not(.pagina-acceso) > main#contenido > .espacio-saludo,
+    body:has(.lateral) .pagina:not(.pagina-acceso) > main#contenido > .espacio {
+        width: 100%;
+    }
+
+    body:has(.lateral) .pagina-fichar > main#contenido > .franja,
+    body:has(.lateral) .pagina-fichar > main#contenido > form:has(> .franja) {
+        width: 100%;
+    }
+
+    @media (max-width: 800px) {
+        body:has(.lateral) .pagina {
+            width: 100%;
+        }
+
+        body:has(.lateral) .pagina:not(.pagina-acceso) > main#contenido {
+            padding-inline: var(--e4);
         }
     }
 

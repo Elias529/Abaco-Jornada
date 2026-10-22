@@ -6,7 +6,7 @@
             <div>
                 <p class="espacio-sobre">Registro del equipo</p>
                 <h1>Registro de {{ $persona->name }}</h1>
-                <p class="secundario">Solo lectura · {{ ucfirst($mesTexto) }}</p>
+                <p class="secundario">{{ ucfirst($mesTexto) }}</p>
             </div>
             <x-boton tipo="secundario" :href="route('jefe.csv', $persona)" class="registro-csv">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v10M8 10l4 4 4-4M5 19h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>

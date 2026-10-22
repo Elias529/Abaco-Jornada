@@ -101,9 +101,6 @@
                 @endunless
             </nav>
             <div class="lateral-cuenta">
-                @if (auth()->user()->esJefa() && request()->routeIs('jefe.*'))
-                    <span class="solo-lectura">Solo lectura</span>
-                @endif
                 <span class="lateral-inicial" aria-hidden="true">{{ $iniciales }}</span>
                 <span class="lateral-quien">
                     <span class="persona">{{ auth()->user()->name }}</span>

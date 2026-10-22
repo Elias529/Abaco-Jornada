@@ -9,10 +9,6 @@
                 <span class="sr">Registros consultados</span>
                 <p class="secundario">Últimas 100 consultas. Se conserva quién entró, cuándo y por qué.</p>
             </div>
-            <span class="equipo-solo-lectura">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12s3-5 8-5 8 5 8 5-3 5-8 5-8-5-8-5z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>
-                Solo lectura
-            </span>
         </header>
 
         <section class="consultas-tabla" aria-label="Registro de consultas">
