@@ -76,9 +76,9 @@ class RegistroController extends Controller
             'jornada' => $jornada,
             'persona' => $persona,
             'detalle' => $detalle,
-            'puedeCorregir' => $request->user()->esJefa()
-                || ($request->user()->id === $jornada->user_id && $jornada->work_date->gte(now()->subDays(7)->startOfDay())),
+            'puedeCorregir' => $jornada->work_date->gte(now()->subDays(7)->startOfDay()),
             'motivos' => Correccion::MOTIVOS,
+            'puedeFicharPausa' => $this->puedeFicharPausa($detalle),
             'esJefa' => $request->user()->esJefa(),
             'explicar' => $this->explicarDe($persona, $jornada->work_date->toDateString()),
             'puedeRegistrar' => $detalle['filas'] === [] && ($request->user()->esJefa() || $jornada->work_date->gte(now()->subDays(7)->startOfDay())),
@@ -162,8 +162,44 @@ class RegistroController extends Controller
         return null;
     }
 
+    private function puedeFicharPausa(array $detalle): bool
+    {
+        return collect($detalle['filas'])->contains(fn (array $fila) => $fila['puedeFicharPausa'] ?? false);
+    }
+
     public function corregir(Request $request, Tramo $tramo): RedirectResponse
     {
+        if ($request->input('motivo') === 'fichar_pausa') {
+            $this->normalizarHora($request, 'inicio');
+            $this->normalizarHora($request, 'fin');
+            $datos = $request->validate([
+                'motivo' => ['required', 'in:fichar_pausa'],
+                'inicio' => ['required', 'date_format:H:i'],
+                'fin' => ['required', 'date_format:H:i'],
+                'nota' => ['nullable', 'string', 'max:500'],
+            ], [
+                'inicio.required' => 'Elige la hora de inicio de la pausa.',
+                'inicio.date_format' => 'Elige una hora de inicio válida.',
+                'fin.required' => 'Elige la hora de fin de la pausa.',
+                'fin.date_format' => 'Elige una hora de fin válida.',
+                'nota.max' => 'La nota puede tener hasta 500 caracteres.',
+            ]);
+
+            try {
+                $mensaje = $this->jornada->ficharPausa(
+                    $request->user(),
+                    $tramo,
+                    $datos['inicio'],
+                    $datos['fin'],
+                    $datos['nota'] ?? null,
+                );
+            } catch (ReglaJornada $e) {
+                return back()->with('aviso', $e->getMessage());
+            }
+
+            return back()->with('ok', $mensaje);
+        }
+
         if (! $request->filled('campo')) {
             return $this->guardarHoras($request, $tramo);
         }
@@ -199,6 +235,14 @@ class RegistroController extends Controller
         }
 
         return back()->with('ok', $mensaje);
+    }
+
+    private function normalizarHora(Request $request, string $campo): void
+    {
+        $hora = $request->input($campo);
+        if (is_string($hora) && strlen($hora) >= 5) {
+            $request->merge([$campo => substr($hora, 0, 5)]);
+        }
     }
 
     private function guardarHoras(Request $request, Tramo $tramo): RedirectResponse
@@ -291,12 +335,19 @@ class RegistroController extends Controller
         foreach ($jornada->tramos as $tramo) {
             $fin = $this->finVisible($tramo, $jornada, $horario);
             $minutos = (int) round($tramo->started_at->diffInMinutes($fin));
+            $esPrimerTrabajo = $tramo->tipo === Tramo::TRABAJO && $tramo === $trabajos->first();
             $filas[] = [
                 'tramo' => $tramo,
                 'titulo' => $this->tituloTramo($tramo, $horario),
-                'horas' => Tiempo::hora($tramo->started_at).'–'.$this->textoFin($tramo, $jornada),
+                'horas' => $esPrimerTrabajo && $horario
+                    ? $this->horarioCompleto($horario)
+                    : Tiempo::hora($tramo->started_at).'–'.$this->textoFin($tramo, $jornada),
                 'duracion' => Tiempo::corto($minutos).' min',
                 'nota' => $this->notaTramo($tramo),
+                'visible' => $tramo->tipo !== Tramo::TRABAJO || $esPrimerTrabajo,
+                'puedeFicharPausa' => $esPrimerTrabajo
+                    && ! $jornada->tramos->contains('tipo', Tramo::PAUSA)
+                    && $tramo->ended_at !== null,
             ];
             if ($tramo->tipo === Tramo::TRABAJO) {
                 $barra = $this->ejeDetalle($tramo->started_at, $fin);
@@ -396,13 +447,18 @@ class RegistroController extends Controller
         if ($tramo->situacion === 'incidencia') {
             return 'Incidencia de conexión';
         }
-        if (! $horario || $horario->sinTarde()) {
-            return 'Trabajo';
-        }
 
-        return Tiempo::hora($tramo->started_at) >= $horario->corta($horario->afternoon_start)
-            ? 'Trabajo de tarde'
-            : 'Trabajo de mañana';
+        return 'Tramo del día';
+    }
+
+    private function horarioCompleto(Horario $horario): string
+    {
+        $inicio = $horario->corta($horario->morning_start);
+        $fin = $horario->sinTarde()
+            ? $horario->corta($horario->morning_end)
+            : $horario->corta($horario->afternoon_end);
+
+        return $inicio.'–'.$fin;
     }
 
     private function notaTramo(Tramo $tramo): string

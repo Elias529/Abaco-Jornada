@@ -188,7 +188,7 @@ class JornadaTest extends TestCase
             ->assertOk()
             ->assertSee('enero 2026', false)
             ->assertSee('casilla-estado', false)
-            ->assertDontSee('Año Nuevo', false)
+            ->assertSee('Año Nuevo', false)
             ->assertDontSee('Jueves Santo', false)
             ->assertDontSee('Permiso', false);
 
@@ -196,7 +196,7 @@ class JornadaTest extends TestCase
             ->get(route('calendario', ['mes' => 4]))
             ->assertOk()
             ->assertSee('casilla-comunidad', false)
-            ->assertDontSee('Jueves Santo', false);
+            ->assertSee('Jueves Santo', false);
 
         $this->actingAs($ana)
             ->get(route('calendario', ['mes' => 11, 'fragmento' => 1]))
@@ -639,7 +639,7 @@ class JornadaTest extends TestCase
             ->get(route('registro.show', $creada))
             ->assertSee('09:00–14:00', false)
             ->assertSee('Fichado fuera de plazo', false)
-            ->assertDontSee('Registrar las horas', false);
+            ->assertSee('Registrar las horas', false);
 
         $this->actingAs($ana)
             ->get(route('registro'))
@@ -1540,9 +1540,12 @@ class JornadaTest extends TestCase
         $this->actingAs($marta)->get(route('jefe.consultas', ['vista' => 'vacaciones']))
             ->assertOk()
             ->assertSee('Registros consultados', false)
-            ->assertDontSee('Solicitud de vacaciones', false)
-            ->assertDontSee('Aprobar', false)
-            ->assertDontSee('Viaje familiar', false);
+            ->assertSee('Solicitudes de vacaciones', false)
+            ->assertSee('Ana López', false)
+            ->assertSee('Del 20/10/2026 al 22/10/2026', false)
+            ->assertDontSee('Viaje familiar', false)
+            ->assertSee('Aprobar solicitud de Ana López', false)
+            ->assertSee('Rechazar solicitud de Ana López', false);
 
         $this->actingAs($marta)->post(route('jefe.vacaciones.decidir', $solicitud), [
             'decision' => 'aprobada',
@@ -1674,14 +1677,14 @@ class JornadaTest extends TestCase
         $this->actingAs($ana)
             ->get(route('calendario'))
             ->assertSee('casilla-estado', false)
-            ->assertDontSee('Día de todos los Santos', false)
+            ->assertSee('Día de todos los Santos', false)
             ->assertDontSee('Día de la Constitución', false)
             ->assertDontSee('Si cae en domingo, pasa al lunes.', false);
 
         $this->actingAs($ana)
             ->get(route('calendario', ['mes' => 12]))
             ->assertSee('casilla-estado', false)
-            ->assertDontSee('Día de la Constitución', false);
+            ->assertSee('Día de la Constitución', false);
     }
 
     public function test_ver_el_calendario_no_borra_la_jornada(): void
@@ -1694,7 +1697,7 @@ class JornadaTest extends TestCase
             ->get(route('calendario', ['mes' => 4]))
             ->assertOk()
             ->assertSee('casilla-comunidad', false)
-            ->assertDontSee('Jueves Santo', false);
+            ->assertSee('Jueves Santo', false);
 
         $this->assertNotNull(Jornada::query()->where('user_id', $ana->id)->whereDate('work_date', '2026-04-02')->first());
     }

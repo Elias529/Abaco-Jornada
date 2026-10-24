@@ -566,6 +566,46 @@
 })();
 
 (function () {
+    document.querySelectorAll("[data-motivo-correccion]").forEach(function (motivo) {
+        const formulario = motivo.form;
+        const inicio = formulario ? formulario.querySelector('[data-correccion-hora="inicio"]') : null;
+        const fin = formulario ? formulario.querySelector('[data-correccion-hora="fin"]') : null;
+        if (!inicio || !fin) {
+            return;
+        }
+
+        function limpiarHora(caja) {
+            caja.querySelectorAll("select").forEach(function (campo) {
+                campo.value = "";
+            });
+            const oculto = caja.querySelector("[data-hora-valor]");
+            if (oculto) {
+                oculto.value = "";
+            }
+        }
+
+        function actualizar() {
+            const esPausa = motivo.value === "fichar_pausa";
+            [inicio, fin].forEach(function (caja) {
+                caja.querySelectorAll("[data-etiqueta-normal]").forEach(function (etiqueta) {
+                    etiqueta.hidden = esPausa;
+                });
+                caja.querySelectorAll("[data-etiqueta-pausa]").forEach(function (etiqueta) {
+                    etiqueta.hidden = !esPausa;
+                });
+            });
+            if (esPausa) {
+                limpiarHora(inicio);
+                limpiarHora(fin);
+            }
+        }
+
+        motivo.addEventListener("change", actualizar);
+        actualizar();
+    });
+})();
+
+(function () {
     document.querySelectorAll("textarea[data-max]").forEach(function (campo) {
         var maximo = Number(campo.getAttribute("data-max")) || 500;
         if (!campo.form) {

@@ -10,9 +10,10 @@ class Correccion extends Model
     protected $table = 'correcciones';
 
     public const MOTIVOS = [
-        'hora' => 'La hora no es la real',
+        'hora' => 'Registrar las horas',
         'olvido' => 'Olvidé fichar',
         'pausa' => 'La pausa fue otra',
+        'fichar_pausa' => 'Fichar pausa',
         'antes' => 'Ya estaba trabajando',
     ];
 

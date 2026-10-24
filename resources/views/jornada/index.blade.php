@@ -315,7 +315,7 @@
                 @csrf
                 <fieldset>
                     <legend>Indica el motivo del inicio</legend>
-                    <label><input type="radio" name="modo" value="prevista" required> Ya estaba trabajando</label>
+                    <label><input type="radio" name="modo" value="prevista" required> Empecé a las {{ $horaInicioPrevista }}</label>
                     <label><input type="radio" name="modo" value="ahora"> Empiezo ahora</label>
                     <label><input type="radio" name="modo" value="otra" data-inicio-otra> Otra hora</label>
                 </fieldset>

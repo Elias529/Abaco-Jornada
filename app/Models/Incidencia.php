@@ -18,6 +18,8 @@ class Incidencia extends Model
 
     public const RESUELTA = 'resuelta';
 
+    public const ABIERTA = 'abierta';
+
     public const CUERPO_MINIMO = 10;
 
     public const CUERPO_MAXIMO = 500;
@@ -75,7 +77,7 @@ class Incidencia extends Model
 
     public function estaPendiente(): bool
     {
-        return $this->estado === self::PENDIENTE || $this->estado === 'abierta';
+        return $this->estado === self::PENDIENTE || $this->estado === self::ABIERTA;
     }
 
     public function estaEnCurso(): bool

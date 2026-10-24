@@ -6,6 +6,7 @@ use App\Models\Ausencia;
 use App\Models\FalloComun;
 use App\Models\Jornada;
 use App\Models\SolicitudVacaciones;
+use App\Sede;
 use App\Services\CupoVacaciones;
 use App\Services\JornadaService;
 use App\Services\NagerFestivos;
@@ -65,13 +66,20 @@ class CalendarioController extends Controller
             ->get()
             ->flatMap(fn (SolicitudVacaciones $solicitud) => $this->cupo->queCuentan($usuario, $solicitud->starts_on, $solicitud->ends_on))
             ->flip();
+        $meses = $this->meses($anio, $festivos, $propias, $jornadas, $faltas->groupBy(fn (Ausencia $ausencia) => $ausencia->absence_date->toDateString()), $pendientes);
+        $mesActual = $meses[$mes - 1];
+        $centro = Sede::tryFrom((string) $usuario->centro) ?? Sede::porDefecto();
 
         $datos = [
             'festivos' => $festivos,
-            'mes' => $this->meses($anio, $festivos, $propias, $jornadas, $faltas->groupBy(fn (Ausencia $ausencia) => $ausencia->absence_date->toDateString()), $pendientes)[$mes - 1],
+            'mes' => $mesActual,
+            'eventos' => $this->eventosDelMes($mesActual),
             'anio' => $anio,
             'mesAnterior' => $mesAnterior,
             'mesSiguiente' => $mesSiguiente,
+            'anioAnterior' => $anio > 2020 ? ['anio' => $anio - 1, 'mes' => $mes] : null,
+            'anioSiguiente' => $anio < now()->year + 1 ? ['anio' => $anio + 1, 'mes' => $mes] : null,
+            'centro' => $centro,
             'sinCalendario' => $festivos->isEmpty(),
             'faltas' => $faltas,
             'fallos' => FalloComun::query()->orderByDesc('falla_date')->limit(12)->get(),
@@ -80,7 +88,7 @@ class CalendarioController extends Controller
         ];
 
         if ($request->query('fragmento') === '1') {
-            return view('calendario.mes', $datos);
+            return view('calendario.contenido', $datos);
         }
 
         return view('calendario.index', $datos);
@@ -224,5 +232,48 @@ class CalendarioController extends Controller
         }
 
         return $meses;
+    }
+
+    /**
+     * @param  array{dias: list<array<string, mixed>|null>}  $mes
+     * @return list<array{fecha: string, dia: int, diaSemana: string, titulo: string, subtitulo: string, clase: string}>
+     */
+    private function eventosDelMes(array $mes): array
+    {
+        $eventos = [];
+
+        foreach ($mes['dias'] as $dia) {
+            if ($dia === null) {
+                continue;
+            }
+
+            $fecha = Carbon::parse($dia['fecha']);
+            $festivo = $dia['festivo'];
+            $ausencia = $dia['ausencia'];
+
+            if ($festivo instanceof DiaFestivo) {
+                $eventos[] = [
+                    'fecha' => $dia['fecha'],
+                    'dia' => $fecha->day,
+                    'diaSemana' => mb_strtoupper($fecha->locale('es')->isoFormat('ddd')),
+                    'titulo' => $festivo->name,
+                    'subtitulo' => $festivo->etiqueta(),
+                    'clase' => $festivo->ambito,
+                ];
+            }
+
+            if ($ausencia instanceof Ausencia) {
+                $eventos[] = [
+                    'fecha' => $dia['fecha'],
+                    'dia' => $fecha->day,
+                    'diaSemana' => mb_strtoupper($fecha->locale('es')->isoFormat('ddd')),
+                    'titulo' => $ausencia->tipoTexto(),
+                    'subtitulo' => 'Ausencia prevista',
+                    'clase' => $ausencia->tipo,
+                ];
+            }
+        }
+
+        return $eventos;
     }
 }

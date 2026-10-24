@@ -1,3 +1,4 @@
+<section class="mes-caja mes-unico calendario-mes-card">
 @if ($sinCalendario)
     <p class="franja" role="status">El calendario de {{ $anio }} no está cargado. No inventamos festivos. Los días ya trabajados se quedan como se registraron.</p>
 @endif
@@ -16,8 +17,7 @@
     @endif
 </div>
 
-<section class="mes-caja mes-unico">
-    <div class="rejilla-mes">
+<div class="rejilla-mes">
         @foreach (['L', 'M', 'X', 'J', 'V', 'S', 'D'] as $letra)
             <span class="cabecera-dia">{{ $letra }}</span>
         @endforeach
@@ -56,6 +56,11 @@
                     <span class="{{ $clases }}" data-fecha="{{ $dia['fecha'] }}" data-cuenta="{{ $dia['cuenta'] ? '1' : '0' }}" @if ($titulo !== '') title="{{ $titulo }}" @endif>
                 @endif
                     <strong>{{ $dia['numero'] }}</strong>
+                    @if ($festivo)
+                        <small class="casilla-etiqueta casilla-etiqueta-festivo">{{ $festivo->name }}</small>
+                    @elseif ($dia['ausencia'])
+                        <small class="casilla-etiqueta casilla-etiqueta-{{ $dia['ausencia']->tipo }}">{{ $dia['ausencia']->tipoTexto() }}</small>
+                    @endif
                     @if ($dia['hoy'])
                         <small>Hoy</small>
                     @endif

@@ -1,79 +1,3 @@
-@font-face {
-    font-family: "Poppins";
-    src: url("../fonts/poppins-400.woff2") format("woff2");
-    font-weight: 400;
-    font-style: normal;
-    font-display: swap;
-}
-
-@font-face {
-    font-family: "Poppins";
-    src: url("../fonts/poppins-500.woff2") format("woff2");
-    font-weight: 500;
-    font-style: normal;
-    font-display: swap;
-}
-
-@font-face {
-    font-family: "Poppins";
-    src: url("../fonts/poppins-600.woff2") format("woff2");
-    font-weight: 600;
-    font-style: normal;
-    font-display: swap;
-}
-
-@font-face {
-    font-family: "Poppins";
-    src: url("../fonts/poppins-700.woff2") format("woff2");
-    font-weight: 700;
-    font-style: normal;
-    font-display: swap;
-}
-
-:root {
-    color-scheme: light;
-    --fondo-pagina: var(--fondo);
-    --fondo-ventana: var(--superficie);
-    --texto-suave: var(--texto-2);
-    --boton-secundario-texto: var(--texto);
-    --casilla-hoy: var(--enlace);
-}
-
-html[data-tema="oscuro"] {
-    color-scheme: dark;
-    --fondo-pagina: var(--fondo);
-    --fondo-ventana: var(--superficie);
-    --texto-suave: var(--texto-2);
-    --boton-secundario-texto: var(--texto);
-    --casilla-hoy: var(--enlace);
-}
-
-* { box-sizing: border-box; }
-
-body {
-    margin: 0;
-    min-height: 100vh;
-    background: var(--fondo-pagina);
-    color: var(--texto);
-    font-family: var(--fuente);
-    font-size: 14px;
-    font-weight: 400;
-    line-height: 1.45;
-}
-
-.saltar {
-    position: absolute;
-    left: 8px;
-    top: -40px;
-    background: var(--marca-primario);
-    color: #fff;
-    padding: 8px 12px;
-    border-radius: 8px;
-    z-index: 10;
-}
-
-.saltar:focus { top: 8px; }
-
 .barra {
     display: flex;
     align-items: center;
@@ -377,9 +301,9 @@ body.nav-plegada .lateral {
 body.nav-plegada .cabecera-logo { display: flex; }
 
 body:has(.comunicar) .cuerpo {
-    min-height: 0;
-    height: 100%;
-    overflow: hidden;
+    min-height: 100dvh;
+    height: auto;
+    overflow: visible;
 }
 
 .lateral .marca-nombre {
@@ -431,6 +355,36 @@ body:has(.comunicar) .cuerpo {
     background: var(--seleccion);
     color: var(--texto);
     box-shadow: inset 3px 0 0 var(--enlace);
+}
+
+.es-jefa .lateral {
+    flex-basis: 280px;
+    width: 280px;
+    padding: 16px 16px 18px;
+}
+
+.es-jefa .lateral .marca-logo {
+    min-height: 80px;
+    margin: -16px -16px 8px;
+    padding: 0 28px;
+}
+
+.es-jefa .lateral .menu {
+    gap: 4px;
+}
+
+.es-jefa .lateral .menu a {
+    min-height: 48px;
+    padding: 10px 16px;
+}
+
+.es-jefa .lateral .lateral-kicker {
+    margin: 18px 16px 6px;
+}
+
+.es-jefa .lateral-cuenta {
+    margin-top: 18px;
+    padding: 18px 8px 0;
 }
 
 .menu-pie {
@@ -1386,6 +1340,159 @@ input, textarea { padding-left: 14px; padding-right: 14px; }
 
 .equipo-ver-registro svg { width: 16px; height: 16px; }
 
+.consultas-pagina {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    width: min(1120px, 100%);
+}
+
+.consultas-cabeza {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.consultas-cabeza > div {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.consultas-cabeza .espacio-sobre {
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+.consultas-cabeza h1 {
+    margin: 0;
+    font-size: 24px;
+}
+
+.consultas-cabeza .equipo-solo-lectura { margin-top: 10px; }
+
+.consultas-seccion {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.consultas-seccion-cabeza {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 16px;
+}
+
+.consultas-seccion-cabeza h2 {
+    margin: 0;
+    font-size: 20px;
+}
+
+.consultas-seccion-cabeza .pastilla {
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.consultas-tabla {
+    overflow: hidden;
+    border: 1px solid var(--linea);
+    border-radius: 8px;
+    background: var(--fondo-ventana);
+}
+
+.consultas-tabla-cabeza,
+.consultas-fila {
+    display: grid;
+    grid-template-columns: minmax(180px, 1fr) minmax(180px, 1.25fr) minmax(260px, 1.55fr) minmax(190px, 1.1fr);
+    align-items: center;
+    gap: 16px;
+    padding: 12px 16px;
+}
+
+.consultas-tabla-cabeza {
+    background: var(--superficie-2);
+    color: var(--texto-suave);
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.consultas-fila {
+    min-height: 56px;
+    border-top: 1px solid var(--linea);
+    font-size: 14px;
+    font-weight: 400;
+}
+
+.consultas-fila span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.consultas-fecha {
+    font-variant-numeric: tabular-nums;
+}
+
+.solicitudes-tabla-cabeza,
+.solicitud-fila {
+    grid-template-columns: minmax(180px, 1fr) minmax(220px, 1.4fr) minmax(110px, auto);
+}
+
+.solicitud-acciones {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.solicitud-acciones form { margin: 0; }
+
+.solicitud-accion {
+    width: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
+    border-radius: 8px;
+}
+
+.solicitud-accion svg { width: 18px; height: 18px; }
+
+.solicitud-aprobar {
+    background: var(--estado-aprobado);
+    color: #fff;
+}
+
+.solicitud-aprobar:hover,
+.solicitud-aprobar:focus-visible {
+    background: var(--estado-aprobado-oscuro);
+}
+
+.solicitud-rechazar {
+    background: var(--estado-error-tecnico);
+    color: #fff;
+    border-color: var(--estado-error-tecnico);
+}
+
+.solicitud-rechazar:hover,
+.solicitud-rechazar:focus-visible {
+    background: var(--estado-error-tecnico-oscuro);
+    border-color: var(--estado-error-tecnico-oscuro);
+}
+
+.consultas-pie {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--linea);
+    color: var(--texto-suave);
+    font-size: 12px;
+}
+
 .filtro-registro {
     display: flex;
     flex-wrap: wrap;
@@ -2048,6 +2155,9 @@ html[data-tema="oscuro"] {
 
 @media (max-width: 900px) {
     .anio { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .consultas-tabla { overflow-x: auto; }
+    .consultas-tabla-cabeza,
+    .consultas-fila { min-width: 900px; }
 }
 
 @media (max-width: 520px) {
@@ -2171,6 +2281,70 @@ form.bandeja-incidencias .campo-ancho select {
     background: var(--fondo-ventana);
     border: 1px dashed var(--marca-acento);
     border-radius: 16px;
+}
+
+.incidencia-tabla {
+    overflow: hidden;
+    margin-top: 16px;
+    border: 1px solid var(--linea);
+    border-radius: 12px;
+    background: var(--fondo-ventana);
+}
+
+.incidencia-tabla-cabeza,
+.incidencia-tabla-fila {
+    display: grid;
+    grid-template-columns: minmax(160px, 1fr) minmax(140px, .9fr) minmax(280px, 2fr) minmax(150px, 1fr);
+    align-items: center;
+    gap: 16px;
+    padding: 11px 16px;
+}
+
+.incidencia-tabla-cabeza {
+    background: var(--superficie-2);
+    color: var(--texto-suave);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+
+.incidencia-tabla-fila {
+    min-height: 56px;
+    border-top: 1px solid var(--linea);
+    color: var(--texto);
+    font-size: 13px;
+    text-decoration: none;
+}
+
+.incidencia-tabla-fila:hover,
+.incidencia-tabla-fila:focus-visible {
+    background: var(--fondo-pagina);
+}
+
+.incidencia-tabla-fila > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.incidencia-tabla-persona {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+}
+
+.incidencia-tabla-comunicacion { color: var(--texto); }
+
+.comunicar-nuevas .incidencia-tabla {
+    margin: 0 8px 8px;
+}
+
+.comunicar-nuevas .incidencia-tabla-cabeza,
+.comunicar-nuevas .incidencia-tabla-fila {
+    grid-template-columns: minmax(130px, 1fr) minmax(120px, .9fr) minmax(220px, 2fr) minmax(130px, 1fr);
 }
 
 .lista-incidencias { margin-top: 16px; }
@@ -2327,21 +2501,21 @@ form.bandeja-incidencias .campo-ancho select {
 
 .consulta-nota { color: var(--texto-suave); }
 
-.solicitud-acciones {
+.lista-consultas .solicitud-acciones {
     display: flex;
     flex-direction: column;
     gap: 8px;
     margin: 0;
 }
 
-.solicitud-acciones .boton { width: 148px; }
+.lista-consultas .solicitud-acciones .boton { width: 148px; }
 
 @media (max-width: 640px) {
     .lista-consultas li.solicitud-pendiente { grid-template-columns: 1fr; }
 
-    .solicitud-acciones { flex-direction: row; flex-wrap: wrap; }
+    .lista-consultas .solicitud-acciones { flex-direction: row; flex-wrap: wrap; }
 
-    .solicitud-acciones .boton { width: auto; min-width: 140px; }
+    .lista-consultas .solicitud-acciones .boton { width: auto; min-width: 140px; }
 }
 
 .pastilla-tardia { background: #d7ecec; }
@@ -2571,6 +2745,7 @@ html[data-tema="oscuro"] .ventana-incidencia-icono {
 
 @media (max-width: 640px) {
     h1 { font-size: 26px; }
+    .consultas-cabeza h1 { font-size: 22px; }
 
     .pagina { width: min(1120px, calc(100% - 24px)); padding: 20px 0 32px; }
 
@@ -2637,6 +2812,11 @@ html[data-tema="oscuro"] .ventana-incidencia-icono {
     .accion-principal { max-width: none; }
 
     .formulario-ticket .boton { width: 100%; min-width: 0; }
+
+    .incidencia-tabla { overflow-x: auto; }
+
+    .incidencia-tabla-cabeza,
+    .incidencia-tabla-fila { min-width: 760px; }
 
     .ventana-incidencia-cabeza,
     .ventana-incidencia .formulario,
@@ -2880,8 +3060,10 @@ html[data-tema="oscuro"] .casilla-laborable-intensiva { background: #5a7018; }
 body:has(.comunicar) {
     display: flex;
     flex-direction: row;
-    height: 100dvh;
-    overflow: hidden;
+    min-height: 100dvh;
+    height: auto;
+    overflow-x: hidden;
+    overflow-y: auto;
 }
 
 body:has(.comunicar):not(:has(.lateral)) { flex-direction: column; }
@@ -2890,12 +3072,12 @@ body:has(.comunicar) .barra { flex: none; }
 
 body:has(.comunicar) .pagina {
     flex: 1;
-    min-height: 0;
+    min-height: calc(100dvh - 64px);
     height: auto;
     padding: 12px 0 16px;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    overflow: visible;
 }
 
 body:has(.comunicar) .pagina > .guardado,
@@ -2903,15 +3085,11 @@ body:has(.comunicar) .pagina > .franja,
 body:has(.comunicar) .pagina > .sin-conexion { flex: none; }
 
 body:has(.comunicar) main {
-    flex: 1;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
+    flex: none;
 }
 
 .comunicar {
-    flex: 1;
-    min-height: 0;
+    flex: none;
     display: flex;
     flex-direction: column;
 }
@@ -2943,6 +3121,11 @@ body:has(.comunicar) main {
 
 .historial-abre:hover,
 .historial-abre:focus-visible { background: var(--fondo-pagina); }
+
+.comunicar-formulario > .historial-abre {
+    align-self: flex-start;
+    margin: 0;
+}
 
 .historial-ventana {
     width: min(640px, calc(100vw - 32px));
@@ -3040,6 +3223,15 @@ body:has(.comunicar) main {
     border: 1px solid var(--linea);
     border-radius: 20px;
     overflow: hidden;
+}
+
+.comunicar-nuevas {
+    flex: none;
+    max-height: none;
+}
+
+.comunicar-nuevas .comunicar-lista {
+    overflow: auto;
 }
 
 .comunicar-panel-cabeza {
