@@ -29,7 +29,7 @@
             <x-franja>
                 {{ $banner['texto'] }}
                 <x-slot:primero>
-                    <a class="franja-accion" href="{{ $banner['jornada'] ? route('registro.show', $banner['jornada']) : route('registro.dia', $banner['fecha']).'?abrir=registrar-horas' }}">Revisar</a>
+                    <a class="franja-accion" href="{{ $banner['jornada'] ? route('registro.show', $banner['jornada']).'?abrir=corregir' : route('registro.dia', $banner['fecha']).'?abrir=registrar-horas' }}">Revisar</a>
                 </x-slot:primero>
             </x-franja>
         @elseif (($banner['accion'] ?? null) === 'calendario')
@@ -249,9 +249,9 @@
                         @csrf
                         <button class="enlace-prueba" type="submit">Borrar fichaje de ayer</button>
                     </form>
-                    <form method="post" action="{{ route('jornada.borrar-anteayer') }}">
+                    <form method="post" action="{{ route('jornada.borrar-tres-dias') }}">
                         @csrf
-                        <button class="enlace-prueba" type="submit">Borrar fichaje de anteayer</button>
+                        <button class="enlace-prueba" type="submit">Borrar fichaje de hace 3 días</button>
                     </form>
                 @endif
             </section>

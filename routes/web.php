@@ -39,7 +39,7 @@ Route::middleware(['auth', 'activo'])->group(function () {
     Route::post('/jornada/completar', [JornadaController::class, 'completar'])->name('jornada.completar');
     Route::post('/jornada/borrar-prueba', [JornadaController::class, 'borrarPrueba'])->name('jornada.borrar-prueba');
     Route::post('/jornada/borrar-prueba-ayer', [JornadaController::class, 'borrarAyer'])->name('jornada.borrar-ayer');
-    Route::post('/jornada/borrar-prueba-anteayer', [JornadaController::class, 'borrarAnteayer'])->name('jornada.borrar-anteayer');
+    Route::post('/jornada/borrar-prueba-tres-dias', [JornadaController::class, 'borrarHaceTresDias'])->name('jornada.borrar-tres-dias');
 
     Route::get('/registro', [RegistroController::class, 'index'])->name('registro');
     Route::get('/registro/copia.csv', [RegistroController::class, 'csv'])->name('registro.csv');

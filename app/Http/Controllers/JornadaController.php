@@ -44,9 +44,9 @@ class JornadaController extends Controller
         return $this->borrarFichajeDePrueba($request, now()->subDay()->toDateString());
     }
 
-    public function borrarAnteayer(Request $request): RedirectResponse
+    public function borrarHaceTresDias(Request $request): RedirectResponse
     {
-        return $this->borrarFichajeDePrueba($request, now()->subDays(2)->toDateString());
+        return $this->borrarFichajeDePrueba($request, now()->subDays(3)->toDateString());
     }
 
     private function borrarFichajeDePrueba(Request $request, string $fecha): RedirectResponse

@@ -119,7 +119,7 @@ class JornadaService
             'pendiente' => $banner !== null,
             'inicioTarde' => $this->inicioTarde($user, $ahora),
             'inicioPrevisto' => $horario ? $horario->corta($horario->morning_start) : null,
-            'puedeEntrar' => $puedeAbrir && $puedePorFestivo && ! $pasada && (! $hoy || $this->soloFuera($hoy)) && ! $this->faltaExplicarAyer($user, $ahora),
+            'puedeEntrar' => $puedeAbrir && $puedePorFestivo && ! $pasada && (! $hoy || $this->soloFuera($hoy)) && ! $this->faltaExplicarAntesDeHoy($user, $ahora),
             'puedeSalir' => $abierto !== null && ! $pasada && ! $cierrePendiente,
             'puedePausar' => $abierto?->tipo === Tramo::TRABAJO && ! $cierrePendiente,
             'puedeVolver' => $abierto?->tipo === Tramo::PAUSA && ! $cierrePendiente,
@@ -1144,16 +1144,16 @@ class JornadaService
             ];
         }
 
-        if ((! $hoy || $this->soloFuera($hoy)) && $this->faltaExplicarAyer($user, $ahora)) {
-            $ayer = $ahora->copy()->subDay();
+        if ((! $hoy || $this->soloFuera($hoy)) && ($aviso = $this->faltaExplicarAntesDeHoy($user, $ahora))) {
+            $fecha = $aviso->work_date->toDateString();
 
             return [
-                'texto' => 'El '.Tiempo::fecha($ayer).' no quedó registrada la entrada.',
+                'texto' => 'El '.Tiempo::fecha($aviso->work_date).' no quedó registrada la entrada.',
                 'accion' => 'registro',
-                'fecha' => $ayer->toDateString(),
+                'fecha' => $fecha,
                 'jornada' => Jornada::query()
                     ->where('user_id', $user->id)
-                    ->whereDate('work_date', $ayer->toDateString())
+                    ->whereDate('work_date', $fecha)
                     ->value('id'),
             ];
         }
@@ -1190,8 +1190,8 @@ class JornadaService
         if ($pasada) {
             throw new ReglaJornada($this->textoOlvido($pasada));
         }
-        if ($this->faltaExplicarAyer($user, $ahora)) {
-            throw new ReglaJornada('Ayer no quedó registrada la entrada. Explícalo antes de empezar hoy.');
+        if ($aviso = $this->faltaExplicarAntesDeHoy($user, $ahora)) {
+            throw new ReglaJornada($this->textoBloqueoEntrada($aviso, $ahora).' Explícalo antes de empezar hoy.');
         }
         $hoy = $this->jornadaDe($user, $ahora);
         if ($hoy && ! $this->soloFuera($hoy)) {
@@ -1217,17 +1217,26 @@ class JornadaService
         $this->registrarAviso($user, 'inicio', $dia);
     }
 
-    private function faltaExplicarAyer(User $user, Carbon $ahora): bool
+    private function faltaExplicarAntesDeHoy(User $user, Carbon $ahora): ?Aviso
     {
-        $ayer = $ahora->copy()->subDay()->toDateString();
-
         return Aviso::query()
             ->where('user_id', $user->id)
             ->where('tipo', 'inicio')
             ->where('cuenta', true)
             ->whereNull('responded_at')
-            ->whereDate('work_date', $ayer)
-            ->exists();
+            ->whereDate('work_date', '>=', $ahora->copy()->startOfYear()->toDateString())
+            ->whereDate('work_date', '<', $ahora->toDateString())
+            ->orderBy('work_date')
+            ->first();
+    }
+
+    private function textoBloqueoEntrada(Aviso $aviso, Carbon $ahora): string
+    {
+        if ($aviso->work_date->isSameDay($ahora->copy()->subDay())) {
+            return 'Ayer no quedó registrada la entrada.';
+        }
+
+        return 'El '.Tiempo::fecha($aviso->work_date).' no quedó registrada la entrada.';
     }
 
     private function jornadaParaAbrir(User $user, Carbon $ahora): Jornada

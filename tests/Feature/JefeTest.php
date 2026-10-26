@@ -7,6 +7,7 @@ use App\Models\Consulta;
 use App\Models\Correccion;
 use App\Models\Horario;
 use App\Models\Jornada;
+use App\Models\SolicitudVacaciones;
 use App\Models\Tramo;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -88,6 +89,7 @@ class JefeTest extends TestCase
         $respuesta = $this->actingAs($jefa)
             ->get(route('jefe.index'))
             ->assertOk()
+            ->assertSee('Ana López', false)
             ->assertSee('1 persona tiene', false)
             ->assertSee('2 cierres sin resolver', false)
             ->assertSee('de hace más de 7 días', false);
@@ -276,6 +278,28 @@ class JefeTest extends TestCase
             ->assertSee('Tiene un día anterior sin cerrar');
     }
 
+    public function test_el_registro_de_la_jefa_muestra_los_dias_sin_fichaje(): void
+    {
+        $jefa = $this->jefa();
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test');
+        $this->horario($ana);
+        Aviso::create([
+            'user_id' => $ana->id,
+            'tipo' => 'inicio',
+            'work_date' => '2026-10-06',
+            'cuenta' => true,
+        ]);
+
+        $this->actingAs($jefa)->post(route('jefe.motivo', $ana), ['reason' => 'Revisión']);
+
+        $this->actingAs($jefa)
+            ->get(route('jefe.registro', $ana))
+            ->assertOk()
+            ->assertSee('Martes, 6 oct', false)
+            ->assertSee('Sin fichaje', false)
+            ->assertSee('Sin fichar', false);
+    }
+
     public function test_la_copia_csv_trae_el_historial_y_queda_tras_el_motivo(): void
     {
         $jefa = $this->jefa();
@@ -327,6 +351,58 @@ class JefeTest extends TestCase
             ->assertOk()
             ->assertSee('Marta Ruiz consultó el registro de Ana López')
             ->assertSee('Corregir un cierre');
+    }
+
+    public function test_consultas_muestra_tres_y_permite_ver_las_demas(): void
+    {
+        $jefa = $this->jefa();
+        $marta = $this->persona('Marta Ruiz', 'marta.ruiz@abaco.test', 'jefa');
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test');
+
+        foreach (range(1, 5) as $numero) {
+            Consulta::create([
+                'viewer_id' => $marta->id,
+                'subject_id' => $ana->id,
+                'reason' => 'Consulta '.$numero,
+            ]);
+        }
+
+        $this->actingAs($jefa)
+            ->get(route('jefe.consultas'))
+            ->assertSee('Consulta 5', false)
+            ->assertDontSee('Consulta 1', false)
+            ->assertSee('Ver todo', false);
+
+        $this->actingAs($jefa)
+            ->get(route('jefe.consultas', ['todas' => 1]))
+            ->assertSee('Consulta 1', false)
+            ->assertSee('Volver', false);
+    }
+
+    public function test_solicitudes_de_vacaciones_muestra_tres_y_permite_ver_las_demas(): void
+    {
+        $jefa = $this->jefa();
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test');
+
+        foreach (range(1, 4) as $numero) {
+            SolicitudVacaciones::create([
+                'user_id' => $ana->id,
+                'starts_on' => Carbon::parse('2026-11-'.$numero),
+                'ends_on' => Carbon::parse('2026-11-'.$numero),
+                'estado' => SolicitudVacaciones::PENDIENTE,
+            ]);
+        }
+
+        $this->actingAs($jefa)
+            ->get(route('jefe.consultas'))
+            ->assertSee('El 04/11/2026', false)
+            ->assertDontSee('El 01/11/2026', false)
+            ->assertSee('Ver todo', false);
+
+        $this->actingAs($jefa)
+            ->get(route('jefe.consultas', ['todas_vacaciones' => 1]))
+            ->assertSee('El 01/11/2026', false)
+            ->assertSee('Volver', false);
     }
 
     private function jefa(): User

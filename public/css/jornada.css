@@ -1074,27 +1074,33 @@ a.boton, .fila .boton { width: auto; }
 
 .campo-clave { position: relative; }
 
-.campo-clave input { padding-right: 48px; }
+.campo-clave input { padding-right: 52px; }
 
 .ver-clave {
     position: absolute;
     top: 50%;
-    right: 6px;
+    right: 4px;
     transform: translateY(-50%);
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 36px;
-    height: 36px;
+    width: 44px;
+    height: 44px;
     padding: 0;
     border: 0;
-    border-radius: 6px;
+    border-radius: 8px;
     background: transparent;
     color: var(--marca-primario);
     cursor: pointer;
 }
 
-.ver-clave .ojo { display: block; }
+.ver-clave .ojo,
+.ver-clave svg {
+    display: block;
+    width: 25px;
+    height: 25px;
+    flex: none;
+}
 
 .ver-clave .ojo[hidden] { display: none; }
 

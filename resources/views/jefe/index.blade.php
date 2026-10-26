@@ -10,10 +10,16 @@
     </header>
 
     @if ($conCierresAntiguos > 0)
+        @php
+            $personasConCierresAntiguos = $personas
+                ->filter(fn (array $fila) => $fila['antiguos'] > 0)
+                ->pluck('persona.name')
+                ->join(', ');
+        @endphp
         <div class="equipo-aviso" role="status">
             <span class="equipo-aviso-icono" aria-hidden="true">!</span>
             <span class="franja-texto">
-                <strong>{{ $conCierresAntiguos === 1 ? '1 persona tiene' : $conCierresAntiguos.' personas tienen' }} cierres sin resolver de hace más de {{ $diasHastaAvisar }} días.</strong>
+                <strong>{{ $personasConCierresAntiguos }} · {{ $conCierresAntiguos === 1 ? '1 persona tiene' : $conCierresAntiguos.' personas tienen' }} cierres sin resolver de hace más de {{ $diasHastaAvisar }} días.</strong>
                 <span>Abre su registro indicando el motivo de consulta.</span>
             </span>
         </div>
