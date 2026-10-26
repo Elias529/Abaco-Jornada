@@ -29,7 +29,7 @@
             <x-franja>
                 {{ $banner['texto'] }}
                 <x-slot:primero>
-                    <a class="franja-accion" href="{{ $banner['jornada'] ? route('registro.show', $banner['jornada']) : route('registro.dia', $banner['fecha']).'?abrir=registrar-horas' }}">Revisar</a>
+                    <a class="franja-accion" href="{{ $banner['jornada'] ? route('registro.show', $banner['jornada']).'?abrir=corregir' : route('registro.dia', $banner['fecha']).'?abrir=registrar-horas' }}">Revisar</a>
                 </x-slot:primero>
             </x-franja>
         @elseif (($banner['accion'] ?? null) === 'calendario')

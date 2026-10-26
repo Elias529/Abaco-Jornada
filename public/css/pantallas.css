@@ -825,7 +825,7 @@
         padding: var(--e4);
     }
 
-    :is(.registro-csv, .detalle-registrar-boton, .detalle-volver, .comunicar-cabecera .volver, .ver-clave, .rango-mes button, .rango-dias button) {
+    :is(.registro-csv, .detalle-registrar-boton, .detalle-volver, .comunicar-cabecera .volver, .rango-mes button, .rango-dias button) {
         min-height: var(--alto-control);
         padding: var(--e3) var(--e4);
         border-radius: var(--radio);
