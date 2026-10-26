@@ -249,9 +249,9 @@
                         @csrf
                         <button class="enlace-prueba" type="submit">Borrar fichaje de ayer</button>
                     </form>
-                    <form method="post" action="{{ route('jornada.borrar-anteayer') }}">
+                    <form method="post" action="{{ route('jornada.borrar-tres-dias') }}">
                         @csrf
-                        <button class="enlace-prueba" type="submit">Borrar fichaje de anteayer</button>
+                        <button class="enlace-prueba" type="submit">Borrar fichaje de hace 3 días</button>
                     </form>
                 @endif
             </section>

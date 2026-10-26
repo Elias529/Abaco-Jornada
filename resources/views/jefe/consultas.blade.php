@@ -7,7 +7,7 @@
                 <p class="espacio-sobre">Equipo</p>
                 <h1>Consultas a registros</h1>
                 <span class="sr">Registros consultados</span>
-                <p class="secundario">Últimas 100 consultas. Se conserva quién entró, cuándo y por qué.</p>
+                <p class="secundario">Se conserva quién entró, cuándo y por qué.</p>
             </div>
         </header>
 
@@ -32,8 +32,17 @@
                 @endforeach
             @endif
             <div class="consultas-pie">
-                <span>{{ $consultas->count() }} {{ $consultas->count() === 1 ? 'consulta' : 'consultas' }} de muestra</span>
+                <span>{{ $consultas->count() }} {{ $consultas->count() === 1 ? 'consulta' : 'consultas' }}</span>
                 <span>Registro de acceso</span>
+                @if ($hayMasConsultas)
+                    <x-boton
+                        tipo="secundario"
+                        :href="route('jefe.consultas', $mostrarTodas ? [] : ['todas' => 1])"
+                        class="consultas-filtro"
+                    >
+                        {{ $mostrarTodas ? 'Volver' : 'Ver todo' }}
+                    </x-boton>
+                @endif
             </div>
         </section>
 
@@ -43,8 +52,8 @@
                     <h2 id="titulo-solicitudes-vacaciones">Solicitudes de vacaciones</h2>
                     <p class="secundario">Revisa y decide las solicitudes pendientes del equipo.</p>
                 </div>
-                @if ($solicitudesVacaciones->isNotEmpty())
-                    <span class="pastilla pastilla-pendiente">{{ $solicitudesVacaciones->count() }}</span>
+                @if ($solicitudesVacacionesPendientes > 0)
+                    <span class="pastilla pastilla-pendiente">{{ $solicitudesVacacionesPendientes }}</span>
                 @endif
             </header>
 
@@ -92,6 +101,18 @@
                         </div>
                     @endforeach
                 @endif
+                <div class="consultas-pie">
+                    <span>{{ $solicitudesVacaciones->count() }} {{ $solicitudesVacaciones->count() === 1 ? 'solicitud' : 'solicitudes' }}</span>
+                    @if ($hayMasSolicitudesVacaciones)
+                        <x-boton
+                            tipo="secundario"
+                            :href="route('jefe.consultas', $mostrarTodasVacaciones ? [] : ['todas_vacaciones' => 1])"
+                            class="consultas-filtro"
+                        >
+                            {{ $mostrarTodasVacaciones ? 'Volver' : 'Ver todo' }}
+                        </x-boton>
+                    @endif
+                </div>
             </section>
         </section>
     </div>

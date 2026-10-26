@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Ausencia;
+use App\Models\Aviso;
 use App\Models\Consulta;
 use App\Models\Jornada;
 use App\Models\SolicitudVacaciones;
@@ -111,6 +112,34 @@ class JefeController extends Controller
             ->whereDate('work_date', '<=', $mes->copy()->endOfMonth()->toDateString())
             ->orderByDesc('work_date')
             ->get();
+        $fechasConTrabajo = $jornadas
+            ->filter(fn (Jornada $jornada) => $jornada->tramos->contains('tipo', 'trabajo'))
+            ->mapWithKeys(fn (Jornada $jornada) => [$jornada->work_date->toDateString() => true]);
+        $diasSinFichar = Aviso::query()
+            ->where('user_id', $user->id)
+            ->where('tipo', 'inicio')
+            ->whereDate('work_date', '>=', $mes->toDateString())
+            ->whereDate('work_date', '<=', $mes->copy()->endOfMonth()->toDateString())
+            ->orderByDesc('work_date')
+            ->get()
+            ->filter(fn (Aviso $aviso) => ! $fechasConTrabajo->has($aviso->work_date->toDateString()))
+            ->unique(fn (Aviso $aviso) => $aviso->work_date->toDateString())
+            ->values();
+        $filas = $jornadas->map(fn (Jornada $jornada) => $this->csv->presentacion($user, $jornada));
+        $registros = $jornadas
+            ->values()
+            ->map(fn (Jornada $jornada, int $indice) => [
+                'jornada' => $jornada,
+                'fila' => $filas[$indice],
+                'fecha' => $jornada->work_date,
+            ])
+            ->concat($diasSinFichar->map(fn (Aviso $aviso) => [
+                'jornada' => null,
+                'fila' => null,
+                'fecha' => $aviso->work_date,
+            ]))
+            ->sortByDesc('fecha')
+            ->values();
 
         return view('jefe.registro', [
             'persona' => $user,
@@ -120,7 +149,8 @@ class JefeController extends Controller
             'jornadas' => $jornadas,
             'resumen' => $this->jornada->resumenDelMes($user, $mes, $jornadas, $ahora),
             'semanas' => $this->porSemanas($user, $jornadas, $ahora),
-            'filas' => $jornadas->map(fn (Jornada $jornada) => $this->csv->presentacion($user, $jornada)),
+            'filas' => $filas,
+            'registros' => $registros,
             'servicio' => $this->jornada,
             'explicaciones' => $user->explicaciones()->latest()->limit(10)->get(),
             'consultas' => $this->consultasDe($user, 10),
@@ -179,19 +209,34 @@ class JefeController extends Controller
         return $this->csv->descargar($user);
     }
 
-    public function consultas(): View
+    public function consultas(Request $request): View
     {
+        $mostrarTodas = $request->boolean('todas');
+        $limite = $mostrarTodas ? 100 : 3;
+        $consulta = Consulta::query()
+            ->with('viewer', 'subject')
+            ->latest('id')
+            ->limit($limite)
+            ->get();
+        $mostrarTodasVacaciones = $request->boolean('todas_vacaciones');
+        $solicitudesVacacionesPendientes = SolicitudVacaciones::query()
+            ->where('estado', SolicitudVacaciones::PENDIENTE)
+            ->count();
+        $limiteSolicitudesVacaciones = $mostrarTodasVacaciones ? 100 : 3;
+
         return view('jefe.consultas', [
-            'consultas' => Consulta::query()
-                ->with('viewer', 'subject')
-                ->latest()
-                ->limit(100)
-                ->get(),
+            'consultas' => $consulta,
+            'mostrarTodas' => $mostrarTodas,
+            'hayMasConsultas' => $mostrarTodas || Consulta::query()->count() > 3,
             'solicitudesVacaciones' => SolicitudVacaciones::query()
                 ->with('autor')
                 ->where('estado', SolicitudVacaciones::PENDIENTE)
                 ->latest('id')
+                ->limit($limiteSolicitudesVacaciones)
                 ->get(),
+            'solicitudesVacacionesPendientes' => $solicitudesVacacionesPendientes,
+            'mostrarTodasVacaciones' => $mostrarTodasVacaciones,
+            'hayMasSolicitudesVacaciones' => $mostrarTodasVacaciones || $solicitudesVacacionesPendientes > 3,
         ]);
     }
 

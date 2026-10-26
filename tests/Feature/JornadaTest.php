@@ -533,6 +533,18 @@ class JornadaTest extends TestCase
         $this->assertDatabaseCount('avisos', 1);
     }
 
+    public function test_mi_registro_abre_esta_semana_por_defecto(): void
+    {
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
+        Carbon::setTestNow(Carbon::parse('2026-10-20 13:00:00', 'Europe/Madrid'));
+
+        $this->actingAs($ana)
+            ->get(route('registro'))
+            ->assertOk()
+            ->assertSee('aria-current="page" >Esta semana', false)
+            ->assertSee('19–25 de octubre', false);
+    }
+
     public function test_el_registro_muestra_el_dia_sin_fichaje_para_explicarlo(): void
     {
         $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
@@ -975,7 +987,7 @@ class JornadaTest extends TestCase
             ->get(route('jornada'))
             ->assertDontSee('Borrar fichaje de hoy', false)
             ->assertDontSee('Borrar fichaje de ayer', false)
-            ->assertDontSee('Borrar fichaje de anteayer', false);
+            ->assertDontSee('Borrar fichaje de hace 3 días', false);
 
         $this->actingAs($ana)
             ->post(route('jornada.borrar-prueba'))
@@ -986,7 +998,7 @@ class JornadaTest extends TestCase
             ->assertForbidden();
 
         $this->actingAs($ana)
-            ->post(route('jornada.borrar-anteayer'))
+            ->post(route('jornada.borrar-tres-dias'))
             ->assertForbidden();
 
         $this->assertSame(1, Jornada::query()->count());
@@ -1022,24 +1034,25 @@ class JornadaTest extends TestCase
         $this->assertDatabaseHas('jornadas', ['id' => $hoy->id]);
     }
 
-    public function test_borrar_el_fichaje_de_anteayer_deja_los_dias_posteriores(): void
+    public function test_borrar_el_fichaje_de_hace_tres_dias_deja_los_dias_posteriores(): void
     {
         $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
-        $anteayer = Jornada::create(['user_id' => $ana->id, 'work_date' => '2026-10-05']);
+        $haceTresDias = Jornada::create(['user_id' => $ana->id, 'work_date' => '2026-10-05']);
         Tramo::create([
-            'jornada_id' => $anteayer->id,
+            'jornada_id' => $haceTresDias->id,
             'tipo' => Tramo::TRABAJO,
             'started_at' => '2026-10-05 09:00:00',
             'ended_at' => '2026-10-05 18:00:00',
         ]);
         $ayer = Jornada::create(['user_id' => $ana->id, 'work_date' => '2026-10-06']);
         $hoy = Jornada::create(['user_id' => $ana->id, 'work_date' => '2026-10-07']);
+        Carbon::setTestNow(Carbon::parse('2026-10-08 10:45:00', 'Europe/Madrid'));
 
         $this->actingAs($ana)
-            ->post(route('jornada.borrar-anteayer'))
+            ->post(route('jornada.borrar-tres-dias'))
             ->assertRedirect();
 
-        $this->assertDatabaseMissing('jornadas', ['id' => $anteayer->id]);
+        $this->assertDatabaseMissing('jornadas', ['id' => $haceTresDias->id]);
         $this->assertDatabaseHas('jornadas', ['id' => $ayer->id]);
         $this->assertDatabaseHas('jornadas', ['id' => $hoy->id]);
         $this->assertTrue(
@@ -1076,6 +1089,29 @@ class JornadaTest extends TestCase
         $this->actingAs($ana)
             ->post(route('jornada.entrada'))
             ->assertSessionHas('aviso', 'Ayer no quedó registrada la entrada. Explícalo antes de empezar hoy.');
+        $this->assertDatabaseCount('jornadas', 0);
+    }
+
+    public function test_sin_el_fichaje_del_viernes_no_puede_empezar_el_lunes(): void
+    {
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
+        $this->horario($ana);
+        Carbon::setTestNow(Carbon::parse('2026-10-26 10:45:00', 'Europe/Madrid'));
+        Aviso::create([
+            'user_id' => $ana->id,
+            'tipo' => 'inicio',
+            'work_date' => '2026-10-23',
+            'cuenta' => true,
+        ]);
+
+        $this->actingAs($ana)
+            ->get(route('jornada'))
+            ->assertSee('El viernes 23 de octubre no quedó registrada la entrada', false)
+            ->assertDontSee('Empezar jornada', false);
+
+        $this->actingAs($ana)
+            ->post(route('jornada.entrada'))
+            ->assertSessionHas('aviso', 'El viernes 23 de octubre no quedó registrada la entrada. Explícalo antes de empezar hoy.');
         $this->assertDatabaseCount('jornadas', 0);
     }
 
