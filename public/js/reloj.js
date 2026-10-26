@@ -344,6 +344,35 @@
     let desde = "";
     let hasta = "";
 
+    function limpiarCalendarioAuxiliar() {
+        caja.querySelectorAll(".casilla").forEach(function (dia) {
+            const esHoy = dia.classList.contains("casilla-hoy");
+            const esFinDeSemana = dia.classList.contains("casilla-finde");
+            dia.className = "casilla" + (esHoy ? " casilla-hoy" : "") + (esFinDeSemana ? " casilla-finde" : "");
+            dia.querySelectorAll("small").forEach(function (etiqueta) {
+                etiqueta.remove();
+            });
+            if (dia.tagName === "A") {
+                const casilla = document.createElement("span");
+                casilla.className = dia.className;
+                casilla.dataset.fecha = dia.dataset.fecha;
+                casilla.dataset.cuenta = dia.dataset.cuenta;
+                casilla.innerHTML = dia.innerHTML;
+                dia.replaceWith(casilla);
+            }
+        });
+    }
+
+    function pintarRango() {
+        caja.querySelectorAll("[data-fecha]").forEach(function (dia) {
+            const fecha = dia.dataset.fecha;
+            const dentro = desde && (hasta
+                ? fecha >= desde && fecha <= hasta
+                : fecha === desde);
+            dia.classList.toggle("casilla-rango", Boolean(dentro));
+        });
+    }
+
     function cargar(url, guardar) {
         const id = ++pedido;
         const destino = new URL(url, window.location.origin);
@@ -361,21 +390,16 @@
                     return;
                 }
                 caja.innerHTML = html;
+                if (eligiendo) {
+                    limpiarCalendarioAuxiliar();
+                }
+                pintarRango();
                 if (guardar) {
                     const visible = new URL(url, window.location.origin);
                     visible.searchParams.delete("fragmento");
                     history.pushState({}, "", visible.pathname + visible.search);
                 }
-                pintarRango();
             });
-    }
-
-    function pintarRango() {
-        caja.querySelectorAll("[data-fecha]").forEach(function (dia) {
-            const fecha = dia.dataset.fecha;
-            const dentro = desde && fecha >= desde && (!hasta || fecha <= hasta);
-            dia.classList.toggle("casilla-rango", Boolean(dentro));
-        });
     }
 
     function abrirEleccion() {
@@ -383,16 +407,11 @@
         desde = "";
         hasta = "";
         caja.dataset.vacacionesEligiendo = "1";
-        if (pedir) {
-            pedir.hidden = true;
-        }
-        if (texto) {
-            texto.hidden = false;
-            texto.textContent = "Elige un rango de fechas";
-        }
-        if (acciones) {
-            acciones.hidden = false;
-        }
+        limpiarCalendarioAuxiliar();
+        pedir.hidden = true;
+        texto.hidden = false;
+        texto.textContent = "Elige un rango de fechas";
+        acciones.hidden = false;
         pintarRango();
     }
 
@@ -401,16 +420,12 @@
         desde = "";
         hasta = "";
         delete caja.dataset.vacacionesEligiendo;
-        if (pedir) {
-            pedir.hidden = false;
-        }
-        if (texto) {
-            texto.hidden = true;
-        }
-        if (acciones) {
-            acciones.hidden = true;
-        }
-        pintarRango();
+        pedir.hidden = false;
+        texto.hidden = true;
+        acciones.hidden = true;
+        cargar(window.location.href, false).catch(function () {
+            window.location.reload();
+        });
     }
 
     function marcar(fecha) {
@@ -424,7 +439,9 @@
             hasta = fecha;
         }
         if (texto) {
-            texto.textContent = hasta ? "Elige un rango de fechas" : "Elige un rango de fechas";
+            texto.textContent = hasta
+                ? "Rango seleccionado. Puedes aceptar la solicitud."
+                : "Elige el último día";
         }
         pintarRango();
     }
@@ -441,7 +458,6 @@
         aceptar.addEventListener("click", function () {
             if (!desde || !hasta) {
                 if (texto) {
-                    texto.hidden = false;
                     texto.textContent = "Elige un rango de fechas";
                 }
                 return;

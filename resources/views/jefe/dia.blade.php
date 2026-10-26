@@ -17,7 +17,7 @@
                 <h1>{{ \App\Support\Tiempo::fecha($jornada->work_date) }}</h1>
             </div>
             <a class="detalle-volver" href="{{ route('jefe.registro', ['user' => $persona, 'mes' => $jornada->work_date->format('Y-m')]) }}">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <x-icono nombre="arrow-left" />
                 Volver al registro
             </a>
         </header>
@@ -25,7 +25,7 @@
         <div class="detalle-resumen">
             <article class="detalle-dato">
                 <p class="detalle-dato-etiqueta">
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 8v5l3 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                    <x-icono nombre="clock" />
                     Trabajo registrado
                 </p>
                 <p class="detalle-dato-valor">{{ $total }}</p>
@@ -33,7 +33,7 @@
             </article>
             <article class="detalle-dato">
                 <p class="detalle-dato-etiqueta">
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M10 9l6 3-6 3z" fill="currentColor"/></svg>
+                    <x-icono nombre="play" />
                     Inicio
                 </p>
                 <p class="detalle-dato-valor">{{ $primero ? \App\Support\Tiempo::hora($primero->started_at) : '—' }}</p>
@@ -41,7 +41,7 @@
             </article>
             <article class="detalle-dato">
                 <p class="detalle-dato-etiqueta">
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+                    <x-icono nombre="square" />
                     Salida
                 </p>
                 <p class="detalle-dato-valor">{{ $ultimo ? \App\Support\Tiempo::hora($ultimo->ended_at) : '—' }}</p>
@@ -87,9 +87,9 @@
                     <article class="detalle-tramo">
                         <span class="detalle-tramo-icono" aria-hidden="true">
                             @if ($tramo->tipo === 'pausa')
-                                <svg viewBox="0 0 24 24"><path d="M9 7v10M15 7v10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                                <x-icono nombre="pause" />
                             @else
-                                <svg viewBox="0 0 24 24"><path d="M9 7l8 5-8 5z" fill="currentColor"/></svg>
+                                <x-icono nombre="play" />
                             @endif
                         </span>
                         <div>
@@ -110,7 +110,7 @@
                 @endforelse
 
                 <p class="detalle-nota">
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 11v5M12 8h.01" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                    <x-icono nombre="info" />
                     Si una hora cambia, se conserva la anterior, con quién la cambió y cuándo.
                 </p>
             </section>

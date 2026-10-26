@@ -104,11 +104,25 @@
                 </div>
 
                 <div class="jornada-estado">
+                    @php
+                        $iconoJornada = match ($estado) {
+                            'fuera' => 'play',
+                            'trabajando' => 'pause',
+                            'pausa' => 'pause',
+                            'cerrada' => 'check',
+                            default => null,
+                        };
+                        $assetJornada = match ($estado) {
+                            'trabajando' => 'trabajando.svg',
+                            'pendiente' => 'pendiente.svg',
+                            default => 'fuera_de_jornada.svg',
+                        };
+                    @endphp
                     <span class="jornada-marca marca-{{ $estado }}" aria-hidden="true">
-                        @if ($estado === 'pausa')
-                            <svg viewBox="0 0 24 24"><path d="M8 5h3.2v14H8zM12.8 5H16v14h-3.2z" fill="currentColor"/></svg>
+                        @if ($iconoJornada)
+                            <x-icono :nombre="$iconoJornada" />
                         @else
-                            <svg viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg>
+                            <img src="{{ asset('marca/iconos/'.$assetJornada) }}" alt="">
                         @endif
                     </span>
                     <div>
@@ -141,7 +155,7 @@
                             <form method="post" action="{{ route('jornada.salida') }}">
                                 @csrf
                                 <button class="boton-hoy boton-hoy-principal" type="submit">
-                                    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+                                    <x-icono nombre="square" />
                                     Terminar jornada
                                 </button>
                             </form>
@@ -149,7 +163,7 @@
                                 <form method="post" action="{{ route('jornada.pausa') }}">
                                     @csrf
                                     <button class="boton-hoy boton-hoy-linea" type="submit">
-                                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5h3.2v14H8zM12.8 5H16v14h-3.2z" fill="currentColor"/></svg>
+                                        <x-icono nombre="pause" />
                                         Pausa
                                     </button>
                                 </form>
@@ -269,9 +283,9 @@
                             <li>
                                 <span class="jornada-marca marca-{{ $tramo['tipo'] === 'pausa' ? 'pausa' : 'trabajando' }}" aria-hidden="true">
                                     @if ($tramo['tipo'] === 'pausa')
-                                        <svg viewBox="0 0 24 24"><path d="M8 5h3.2v14H8zM12.8 5H16v14h-3.2z" fill="currentColor"/></svg>
+                                        <x-icono nombre="pause" />
                                     @else
-                                        <svg viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg>
+                                        <x-icono nombre="play" />
                                     @endif
                                 </span>
                                 <span>

@@ -98,6 +98,7 @@ Route::middleware(['auth', 'activo'])->group(function () {
     Route::middleware('tecnico')->prefix('tecnico')->name('tecnico.')->group(function () {
         Route::get('/', [TecnicoController::class, 'index'])->name('index');
         Route::post('/copia', [TecnicoController::class, 'copia'])->name('copia');
+        Route::post('/exportar', [TecnicoController::class, 'exportar'])->name('exportar');
         Route::post('/actualizar', [TecnicoController::class, 'actualizar'])->name('actualizar');
         Route::get('/tickets', [TecnicoController::class, 'tickets'])->name('tickets');
         Route::post('/tickets/{ticket}/estado', [TicketController::class, 'estado'])->name('tickets.estado');

@@ -14,7 +14,7 @@
                 <p class="secundario">{{ $consulta ? 'Revisa los días de '.$persona->name.' y abre uno para consultar sus tramos.' : 'Revisa los días y abre uno para consultar sus tramos.' }}</p>
             </div>
             <a class="registro-csv" data-registro-csv href="{{ $copia }}">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v10M8 10l4 4 4-4M5 19h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <x-icono nombre="download" />
                 Descargar CSV
             </a>
         </header>
@@ -30,7 +30,7 @@
 
         <details class="registro-filtrar" @if ($buscado && $periodo !== 'semana' && $periodo !== 'mes' && $periodo !== 'anterior') open @endif>
             <summary>
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h5M15 6h5M4 12h7M17 12h3M4 18h2M10 18h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="6" r="2.1" fill="currentColor"/><circle cx="14.5" cy="12" r="2.1" fill="currentColor"/><circle cx="7.5" cy="18" r="2.1" fill="currentColor"/></svg>
+                <x-icono nombre="filter" />
                 Filtrar
             </summary>
             <form method="get" action="{{ $lista }}" class="registro-filtros">

@@ -64,6 +64,26 @@ class SistemaEnArchivoTest extends TestCase
         ]);
     }
 
+    public function test_exportar_la_copia_devuelve_un_archivo_sqlite_descargable(): void
+    {
+        $tecnico = User::factory()->tecnico()->create();
+
+        $respuesta = $this->actingAs($tecnico)
+            ->post(route('tecnico.exportar'));
+
+        $respuesta
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/x-sqlite3');
+        $this->assertStringContainsString(
+            'attachment; filename=jornada-',
+            (string) $respuesta->headers->get('Content-Disposition'),
+        );
+        $this->assertDatabaseHas('acciones_tecnicas', [
+            'user_id' => $tecnico->id,
+            'accion' => AccionTecnica::COPIA,
+        ]);
+    }
+
     public function test_actualizar_hace_la_copia_antes_de_aplicar_los_cambios(): void
     {
         $tecnico = User::factory()->tecnico()->create();

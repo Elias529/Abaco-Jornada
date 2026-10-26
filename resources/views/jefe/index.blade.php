@@ -41,7 +41,7 @@
             @foreach ($personas as $fila)
                 @php
                     $tipoChip = match ($fila['estado']['estado']) {
-                        'trabajando' => 'en-curso',
+                        'trabajando' => 'abierta',
                         'pausa' => 'en-pausa',
                         'pendiente' => 'tardia',
                         default => 'fuera',
@@ -59,13 +59,13 @@
                         </span>
                     </div>
                     <span class="equipo-horario">{{ $fila['horario'] ? $fila['horario']->texto() : 'Sin horario asignado' }}</span>
-                    <span><x-chip :tipo="$tipoChip">{{ $fila['estado']['texto'] }}</x-chip></span>
+                    <span><x-chip :tipo="$tipoChip">{{ $fila['estado']['estado'] === 'trabajando' ? 'Abierta' : $fila['estado']['texto'] }}</x-chip></span>
                     <span class="equipo-desde">{{ $fila['desde'] ?? '—' }}</span>
                     <a class="equipo-ver-registro" href="{{ route('jefe.registro', $fila['persona']) }}"
                         data-consulta-abre
                         data-consulta-action="{{ route('jefe.motivo', $fila['persona']) }}"
                         data-consulta-destino="{{ route('jefe.registro', $fila['persona']) }}">
-                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 7h10M8 12h10M8 17h7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                        <x-icono nombre="list" />
                         Ver registro
                     </a>
                 </div>
