@@ -18,10 +18,7 @@
         <div class="campo-clave">
             <input id="password" name="password" type="password" autocomplete="new-password" required minlength="8">
             <button type="button" class="ver-clave" data-ver-clave aria-controls="password" aria-pressed="false" aria-label="Ver contraseña">
-                <svg class="ojo ojo-abierto" xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" hidden>
-                    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/>
-                    <circle cx="12" cy="12" r="3"/>
-                </svg>
+                <x-icono nombre="eye" class="ojo ojo-abierto" hidden />
                 <svg class="ojo ojo-cerrado" xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M3 3l18 18"/>
                     <path d="M10.6 6.1A10.7 10.7 0 0 1 12 6c6.5 0 10 6 10 6a18.5 18.5 0 0 1-4.1 4.6"/>

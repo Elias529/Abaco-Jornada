@@ -72,9 +72,7 @@
                                         aria-label="Aprobar solicitud de {{ $solicitud->autor->name }}"
                                         title="Aprobar"
                                     >
-                                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                                            <path d="m5 12 4.5 4.5L19 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                        </svg>
+                                        <x-icono nombre="circle-check" />
                                     </x-boton>
                                 </form>
                                 <form method="post" action="{{ route('jefe.vacaciones.decidir', $solicitud) }}">
@@ -87,9 +85,7 @@
                                         aria-label="Rechazar solicitud de {{ $solicitud->autor->name }}"
                                         title="Rechazar"
                                     >
-                                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                                            <path d="m7 7 10 10M17 7 7 17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                                        </svg>
+                                        <x-icono nombre="triangle-alert" />
                                     </x-boton>
                                 </form>
                             </span>

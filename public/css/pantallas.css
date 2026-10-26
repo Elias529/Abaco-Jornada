@@ -488,7 +488,14 @@
     }
 
     .calendario-mes-card .casilla-pendiente {
-        background-color: var(--superficie);
+        background: var(--superficie);
+        background-image: none;
+        color: var(--texto);
+    }
+
+    [data-vacaciones-eligiendo] .calendario-mes-card .casilla-rango {
+        background: #c2b0ff;
+        color: #07111a;
     }
 
     .calendario-mes-card .casilla-etiqueta {
@@ -507,8 +514,18 @@
     }
 
     .calendario-mes-card .casilla-etiqueta-vacaciones {
-        background: var(--marca-lima);
-        color: var(--tinta);
+        background: #c2b0ff;
+        color: #07111a;
+    }
+
+    .calendario-mes-card .casilla-etiqueta-vacaciones-pendiente {
+        background: #c2b0ff;
+        color: #07111a;
+        background-image: repeating-linear-gradient(
+            135deg,
+            #fff 0 1px,
+            transparent 1px 5px
+        );
     }
 
     .calendario-mes-card .casilla-etiqueta-permiso {

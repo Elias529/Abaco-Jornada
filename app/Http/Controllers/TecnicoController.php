@@ -9,6 +9,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 use RuntimeException;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class TecnicoController extends Controller
 {
@@ -57,6 +58,20 @@ class TecnicoController extends Controller
         }
 
         return back()->with('ok', 'Guardado. Copia '.$nombre.'.');
+    }
+
+    public function exportar(Request $request): BinaryFileResponse|RedirectResponse
+    {
+        try {
+            $nombre = $this->sistema->hacerCopia($request->user());
+            $ruta = $this->sistema->rutaDeCopia($nombre);
+        } catch (RuntimeException $error) {
+            return back()->with('aviso', $error->getMessage());
+        }
+
+        return response()->download($ruta, $nombre, [
+            'Content-Type' => 'application/x-sqlite3',
+        ]);
     }
 
     public function actualizar(Request $request): RedirectResponse

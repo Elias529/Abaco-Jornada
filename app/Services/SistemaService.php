@@ -133,6 +133,24 @@ class SistemaService
     }
 
     /**
+     * @throws RuntimeException si la copia no existe o el nombre no es válido
+     */
+    public function rutaDeCopia(string $nombre): string
+    {
+        if ($nombre === '' || basename($nombre) !== $nombre) {
+            throw new RuntimeException('El nombre de la copia no es válido.');
+        }
+
+        $ruta = $this->carpetaDeCopias().DIRECTORY_SEPARATOR.$nombre;
+
+        if (! File::isFile($ruta)) {
+            throw new RuntimeException('La copia no está disponible para exportarla.');
+        }
+
+        return $ruta;
+    }
+
+    /**
      * Aplica los cambios pendientes de la base de datos. Antes hace una copia:
      * si no puede hacerla, no toca nada.
      *
