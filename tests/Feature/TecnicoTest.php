@@ -34,6 +34,17 @@ class TecnicoTest extends TestCase
         $this->assertDatabaseHas('jornadas', ['user_id' => $tecnico->id]);
     }
 
+    public function test_sistema_ofrece_elegir_una_base_guardada_o_un_archivo(): void
+    {
+        $this->actingAs(User::factory()->tecnico()->create())
+            ->get(route('tecnico.index'))
+            ->assertOk()
+            ->assertSee('Elegir la base de datos', false)
+            ->assertSee('Un archivo nuevo', false)
+            ->assertSee('Quiero sustituir la base actual por esta.', false)
+            ->assertDontSee('Esta acción de muestra no modifica la base de datos real.', false);
+    }
+
     public function test_solo_el_tecnico_entra_en_sistema(): void
     {
         foreach ([User::factory()->create(), User::factory()->jefa()->create()] as $persona) {
@@ -42,6 +53,7 @@ class TecnicoTest extends TestCase
                 ->assertSessionHas('aviso');
             $this->actingAs($persona)->post(route('tecnico.copia'))->assertRedirect(route('jornada'));
             $this->actingAs($persona)->post(route('tecnico.actualizar'), ['confirmo' => '1'])->assertRedirect(route('jornada'));
+            $this->actingAs($persona)->post(route('tecnico.restaurar'), ['confirmo' => '1'])->assertRedirect(route('jornada'));
 
             $this->assertDatabaseCount('acciones_tecnicas', 0);
         }
