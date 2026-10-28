@@ -17,7 +17,7 @@
             </div>
             <form method="post" action="{{ route('tecnico.exportar') }}" data-exportar-bbdd>
                 @csrf
-                <x-boton tipo="principal" tipoHtml="submit" class="sistema-copia" title="Crear una copia y elegir dónde guardarla">
+                <x-boton tipo="principal" tipoHtml="button" class="sistema-copia" title="Crear una copia y descargarla" data-exportar-abre>
                     <x-icono nombre="archive" />
                     Hacer una copia ahora
                 </x-boton>
@@ -94,7 +94,7 @@
                         @foreach ($acciones as $accion)
                             <div class="sistema-tabla-fila" role="row">
                                 <span>{{ $accion->created_at->locale('es')->isoFormat('D MMM, HH:mm') }}</span>
-                                <span>{{ $accion->accion === 'copia' ? 'Copia' : 'Actualización' }}</span>
+                                <span>{{ $accion->accion === 'copia' ? 'Copia' : ($accion->accion === 'restauracion' ? 'Restauración' : 'Actualización') }}</span>
                                 <span>{{ $accion->autor->name }}</span>
                                 <span>{{ $accion->detalle }}</span>
                             </div>
@@ -105,21 +105,17 @@
 
             <aside class="sistema-lateral">
                 <article class="sistema-panel">
-                    <h2>Actualización de la base de datos</h2>
-                    <p class="secundario">Antes de aplicar cambios se hace una copia de seguridad.</p>
+                    <h2>Base de datos en uso</h2>
+                    <p class="secundario">Sustitúyela por una copia guardada o por un archivo. Antes se guarda la que está ahora.</p>
                     @if ($base['pendientes'] !== [])
                         <p>Hay {{ count($base['pendientes']) }} cambios sin aplicar.</p>
                     @else
                         <p>Todo está al día.</p>
                     @endif
-                    <form method="post" action="{{ route('tecnico.actualizar') }}" class="sistema-actualizar" data-actualizar-form>
-                        @csrf
-                        <input type="hidden" name="confirmo" value="1">
-                        <x-boton tipo="secundario" tipoHtml="button" data-actualizar-abre>
-                            <x-icono nombre="refresh" />
-                            Actualizar
-                        </x-boton>
-                    </form>
+                    <x-boton tipo="secundario" tipoHtml="button" data-actualizar-abre>
+                        <x-icono nombre="refresh" />
+                        Actualizar
+                    </x-boton>
                 </article>
 
                 <article class="sistema-panel">
@@ -143,22 +139,41 @@
         </div>
     </div>
 
-    <dialog class="sistema-dialogo" data-actualizar-dialogo aria-labelledby="sistema-dialogo-titulo">
+    <dialog class="sistema-dialogo" data-actualizar-dialogo @if (session('restaurar') || $errors->hasAny(['confirmo', 'copia', 'archivo'])) data-abierto @endif aria-labelledby="sistema-dialogo-titulo">
         <div class="sistema-dialogo-cabeza">
-            <h2 id="sistema-dialogo-titulo">Actualizar la base de datos</h2>
+            <h2 id="sistema-dialogo-titulo">Elegir la base de datos</h2>
             <button class="sistema-dialogo-cerrar" type="button" data-actualizar-cerrar aria-label="Cerrar">
                 <x-icono nombre="x" />
             </button>
         </div>
-        <p>Antes de aplicar los cambios se realiza una copia. Esta acción de muestra no modifica la base de datos real.</p>
-        <label class="sistema-confirmacion">
-            <input type="checkbox" data-actualizar-confirmo>
-            <span>Quiero actualizar. Antes se hace una copia.</span>
-        </label>
-        <div class="sistema-dialogo-acciones">
-            <button class="boton boton-secundario" type="button" data-actualizar-cancelar>Cancelar</button>
-            <button class="boton boton-principal" type="button" data-actualizar-confirmar disabled>Actualizar</button>
-        </div>
+        <form method="post" action="{{ route('tecnico.restaurar') }}" enctype="multipart/form-data" data-actualizar-form>
+            @csrf
+            <p>Elige una copia de las que ya están guardadas, o un archivo nuevo. La base actual se copia antes de sustituirla. Después hay que entrar otra vez.</p>
+            @if ($copiasRestauracion === [])
+                <p>Todavía no hay copias guardadas.</p>
+            @else
+                <div class="sistema-elegir">
+                    @foreach ($copiasRestauracion as $copia)
+                        <label>
+                            <input type="radio" name="copia" value="{{ $copia['nombre'] }}" @checked(old('copia') === $copia['nombre'])>
+                            <span>{{ $copia['fecha'] }} · {{ $kb($copia['bytes']) }}</span>
+                        </label>
+                    @endforeach
+                </div>
+            @endif
+            <label class="sistema-archivo">
+                <span>Un archivo nuevo</span>
+                <input type="file" name="archivo" accept=".sqlite,application/x-sqlite3,application/vnd.sqlite3">
+            </label>
+            <label class="sistema-confirmacion">
+                <input type="checkbox" name="confirmo" value="1" data-actualizar-confirmo>
+                <span>Quiero sustituir la base actual por esta.</span>
+            </label>
+            <div class="sistema-dialogo-acciones">
+                <button class="boton boton-secundario" type="button" data-actualizar-cancelar>Cancelar</button>
+                <button class="boton boton-principal" type="submit" data-actualizar-confirmar disabled>Usar esta base</button>
+            </div>
+        </form>
     </dialog>
 
     <script>
@@ -192,57 +207,74 @@
             document.querySelector('[data-actualizar-cancelar]').addEventListener('click', function () {
                 cerrarDialogo();
             });
-            confirmar.addEventListener('click', function () {
-                formulario.submit();
+            formulario.querySelectorAll('input[name="copia"]').forEach(function (opcion) {
+                opcion.addEventListener('change', function () {
+                    var archivo = formulario.querySelector('input[name="archivo"]');
+                    if (archivo) {
+                        archivo.value = '';
+                    }
+                });
             });
+            var archivo = formulario.querySelector('input[name="archivo"]');
+            if (archivo) {
+                archivo.addEventListener('change', function () {
+                    if (!archivo.files || archivo.files.length === 0) {
+                        return;
+                    }
+                    formulario.querySelectorAll('input[name="copia"]').forEach(function (opcion) {
+                        opcion.checked = false;
+                    });
+                });
+            }
             dialogo.addEventListener('click', function (evento) {
                 if (evento.target === dialogo) {
                     cerrarDialogo();
                 }
             });
+            if (dialogo.hasAttribute('data-abierto')) {
+                dialogo.showModal();
+            }
         })();
 
         (function () {
             var formulario = document.querySelector('[data-exportar-bbdd]');
-            if (!formulario || typeof window.showSaveFilePicker !== 'function') {
+            var boton = formulario && formulario.querySelector('[data-exportar-abre]');
+            if (!formulario || !boton) {
                 return;
             }
 
-            formulario.addEventListener('submit', async function (evento) {
-                evento.preventDefault();
+            var marcoAnterior = null;
 
-                try {
-                    var archivo = await window.showSaveFilePicker({
-                        suggestedName: 'jornada-copia.sqlite',
-                        types: [{
-                            description: 'Copia de base de datos SQLite',
-                            accept: { 'application/x-sqlite3': ['.sqlite'] },
-                        }],
-                    });
-                    var respuesta = await fetch(formulario.action, {
-                        method: 'POST',
-                        body: new FormData(formulario),
-                        headers: { Accept: 'application/x-sqlite3' },
-                    });
-                    var tipo = respuesta.headers.get('content-type') || '';
-
-                    if (!respuesta.ok || !tipo.includes('application/x-sqlite3')) {
-                        window.location.href = respuesta.url;
-                        return;
-                    }
-
-                    var contenido = await respuesta.blob();
-                    var escritor = await archivo.createWritable();
-                    await escritor.write(contenido);
-                    await escritor.close();
-                    window.location.reload();
-                } catch (error) {
-                    if (error && error.name === 'AbortError') {
-                        return;
-                    }
-
-                    formulario.submit();
+            boton.addEventListener('click', function () {
+                if (marcoAnterior) {
+                    marcoAnterior.remove();
                 }
+
+                var marco = document.createElement('iframe');
+                marco.name = 'descarga-copia-' + Date.now();
+                marco.hidden = true;
+                marco.setAttribute('aria-hidden', 'true');
+                document.body.appendChild(marco);
+                marcoAnterior = marco;
+
+                var envio = document.createElement('form');
+                envio.method = 'post';
+                envio.action = formulario.action;
+                envio.target = marco.name;
+                envio.hidden = true;
+
+                var token = formulario.querySelector('input[name="_token"]');
+                if (token) {
+                    var campo = document.createElement('input');
+                    campo.type = 'hidden';
+                    campo.name = '_token';
+                    campo.value = token.value;
+                    envio.appendChild(campo);
+                }
+
+                document.body.appendChild(envio);
+                envio.submit();
+                envio.remove();
             });
         })();
     </script>

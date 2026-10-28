@@ -20,6 +20,8 @@ class AccionTecnica extends Model
 
     public const ACTUALIZACION = 'actualizacion';
 
+    public const RESTAURACION = 'restauracion';
+
     protected $table = 'acciones_tecnicas';
 
     protected $fillable = [

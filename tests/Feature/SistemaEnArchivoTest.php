@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\AccionTecnica;
 use App\Models\User;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
@@ -122,6 +123,115 @@ class SistemaEnArchivoTest extends TestCase
             'Falló',
             AccionTecnica::where('accion', AccionTecnica::ACTUALIZACION)->firstOrFail()->detalle,
         );
+    }
+
+    public function test_restaurar_una_copia_guardada_deja_esa_base_y_conserva_la_anterior(): void
+    {
+        $tecnico = User::factory()->tecnico()->create();
+        $this->actingAs($tecnico)->post(route('tecnico.copia'))->assertSessionHas('ok');
+
+        $nombre = File::files($this->carpetaDeCopias())[0]->getFilename();
+        User::factory()->create();
+
+        $this->actingAs($tecnico)
+            ->post(route('tecnico.restaurar'), [
+                'copia' => $nombre,
+                'confirmo' => '1',
+            ])
+            ->assertRedirect(route('login'))
+            ->assertSessionHas('ok');
+
+        $this->assertSame(1, DB::table('users')->count());
+        $this->assertDatabaseHas('acciones_tecnicas', [
+            'accion' => AccionTecnica::RESTAURACION,
+        ]);
+
+        $anterior = collect(File::files($this->carpetaDeCopias()))
+            ->first(fn ($archivo) => $archivo->getFilename() !== $nombre);
+        $this->assertNotNull($anterior);
+        $copia = new \PDO('sqlite:'.$anterior->getPathname());
+        $this->assertSame(2, (int) $copia->query('select count(*) from users')->fetchColumn());
+    }
+
+    public function test_restaurar_un_archivo_sqlite_sustituye_la_base(): void
+    {
+        $tecnico = User::factory()->tecnico()->create();
+        $this->actingAs($tecnico)->post(route('tecnico.copia'))->assertSessionHas('ok');
+
+        $subida = $this->carpeta.DIRECTORY_SEPARATOR.'traida.sqlite';
+        File::copy(File::files($this->carpetaDeCopias())[0]->getPathname(), $subida);
+        User::factory()->create();
+
+        $this->actingAs($tecnico)
+            ->post(route('tecnico.restaurar'), [
+                'confirmo' => '1',
+                'archivo' => new UploadedFile($subida, 'traida.sqlite', 'application/x-sqlite3', null, true),
+            ])
+            ->assertRedirect(route('login'))
+            ->assertSessionHas('ok');
+
+        $this->assertSame(1, DB::table('users')->count());
+    }
+
+    public function test_un_archivo_que_no_es_sqlite_no_cambia_la_base(): void
+    {
+        $tecnico = User::factory()->tecnico()->create();
+        User::factory()->create();
+        $ruta = $this->carpeta.DIRECTORY_SEPARATOR.'no-sqlite.txt';
+        file_put_contents($ruta, 'esto no es una base');
+
+        $this->actingAs($tecnico)
+            ->post(route('tecnico.restaurar'), [
+                'confirmo' => '1',
+                'archivo' => new UploadedFile($ruta, 'no-sqlite.sqlite', 'text/plain', null, true),
+            ])
+            ->assertSessionHas('aviso', 'Ese archivo no es una base SQLite.');
+
+        $this->assertSame(2, DB::table('users')->count());
+        $this->assertDatabaseMissing('acciones_tecnicas', [
+            'accion' => AccionTecnica::RESTAURACION,
+        ]);
+    }
+
+    public function test_restaurar_exige_confirmacion_y_una_sola_base(): void
+    {
+        $tecnico = User::factory()->tecnico()->create();
+
+        $this->actingAs($tecnico)
+            ->post(route('tecnico.restaurar'), ['copia' => 'jornada-20261028-120000.sqlite'])
+            ->assertSessionHasErrors('confirmo');
+
+        $this->actingAs($tecnico)
+            ->post(route('tecnico.restaurar'), ['confirmo' => '1'])
+            ->assertSessionHas('aviso', 'Elige la base que quieres usar.');
+
+        $ruta = $this->carpeta.DIRECTORY_SEPARATOR.'otra.sqlite';
+        file_put_contents($ruta, 'sqlite');
+
+        $this->actingAs($tecnico)
+            ->post(route('tecnico.restaurar'), [
+                'confirmo' => '1',
+                'copia' => 'jornada-20261028-120000.sqlite',
+                'archivo' => new UploadedFile($ruta, 'otra.sqlite', 'application/x-sqlite3', null, true),
+            ])
+            ->assertSessionHas('aviso', 'Elige una copia guardada o un archivo, no las dos.');
+
+        $this->actingAs($tecnico)
+            ->post(route('tecnico.restaurar'), [
+                'confirmo' => '1',
+                'copia' => '../base.sqlite',
+            ])
+            ->assertSessionHas('aviso', 'El nombre de la copia no es válido.');
+
+        $this->assertSame(1, DB::table('users')->count());
+        $this->assertDatabaseMissing('acciones_tecnicas', [
+            'accion' => AccionTecnica::RESTAURACION,
+        ]);
+    }
+
+    private function carpetaDeCopias(): string
+    {
+        return $this->carpeta.DIRECTORY_SEPARATOR.'almacen'.DIRECTORY_SEPARATOR.'app'.DIRECTORY_SEPARATOR.'copias';
     }
 
     private function migracionNueva(string $nombre, string $codigo): void
