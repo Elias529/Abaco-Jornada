@@ -11,6 +11,45 @@
             </div>
         </header>
 
+        <details class="registro-filtrar" @if ($filtrosConsultas['persona'] !== '' || $filtrosConsultas['desde'] !== '' || $filtrosConsultas['hasta'] !== '' || $filtrosConsultas['mes'] !== '') open @endif>
+            <summary>
+                <x-icono nombre="filter" />
+                Filtrar consultas
+            </summary>
+            <form method="get" action="{{ route('jefe.consultas') }}" class="registro-filtros">
+                <div>
+                    <label for="consulta-persona">Trabajador</label>
+                    <select id="consulta-persona" name="persona">
+                        <option value="">Todos los trabajadores</option>
+                        @foreach ($trabajadores as $trabajador)
+                            <option value="{{ $trabajador->name }}" @selected($filtrosConsultas['persona'] === $trabajador->name)>{{ $trabajador->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label for="consulta-desde">Desde</label>
+                    <input id="consulta-desde" name="desde" type="date" value="{{ $filtrosConsultas['desde'] }}">
+                </div>
+                <div>
+                    <label for="consulta-hasta">Hasta</label>
+                    <input id="consulta-hasta" name="hasta" type="date" value="{{ $filtrosConsultas['hasta'] }}">
+                </div>
+                <div>
+                    <label for="consulta-mes">Mes</label>
+                    <select id="consulta-mes" name="mes">
+                        <option value="">Todos los meses</option>
+                        @foreach ($mesesConsultas as $valor => $texto)
+                            <option value="{{ $valor }}" @selected($filtrosConsultas['mes'] === $valor)>{{ ucfirst($texto) }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <button class="boton boton-secundario" type="submit">Ver</button>
+                @if ($filtrosConsultas['persona'] !== '' || $filtrosConsultas['desde'] !== '' || $filtrosConsultas['hasta'] !== '' || $filtrosConsultas['mes'] !== '')
+                    <x-boton tipo="secundario" :href="route('jefe.consultas')">Limpiar</x-boton>
+                @endif
+            </form>
+        </details>
+
         <section class="consultas-tabla" aria-label="Registro de consultas">
             @if ($consultas->isEmpty())
                 <p class="registro-vacio">Todavía no hay consultas.</p>
@@ -37,7 +76,7 @@
                 @if ($hayMasConsultas)
                     <x-boton
                         tipo="secundario"
-                        :href="route('jefe.consultas', $mostrarTodas ? [] : ['todas' => 1])"
+                        :href="route('jefe.consultas', array_merge($filtrosConsultas, $mostrarTodas ? [] : ['todas' => 1]))"
                         class="consultas-filtro"
                     >
                         {{ $mostrarTodas ? 'Volver' : 'Ver todo' }}

@@ -2,6 +2,8 @@
 
 namespace Tests;
 
+use App\Models\Festivo;
+use App\Sede;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Facades\Http;
 
@@ -29,6 +31,22 @@ abstract class TestCase extends BaseTestCase
     protected function festivosPublicos(array $dias): void
     {
         $this->festivosNager = $dias;
+        foreach ($dias as $dia) {
+            if (($dia['types'] ?? []) === ['Observance']) {
+                continue;
+            }
+
+            $municipio = ($dia['global'] ?? false)
+                ? ''
+                : Sede::tryFrom((string) ($dia['counties'][0] ?? ''))?->municipio() ?? '';
+
+            Festivo::create([
+                'holiday_date' => $dia['date'],
+                'municipality' => $municipio,
+                'name' => $dia['localName'],
+                'ambito' => ($dia['global'] ?? false) ? 'estado' : 'comunidad',
+            ]);
+        }
         cache()->flush();
     }
 }

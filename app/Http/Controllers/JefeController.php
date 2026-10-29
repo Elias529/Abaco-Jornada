@@ -211,13 +211,47 @@ class JefeController extends Controller
 
     public function consultas(Request $request): View
     {
+        $persona = $request->query('persona');
+        $persona = is_string($persona) ? trim($persona) : '';
+        $desde = $request->query('desde');
+        $desde = is_string($desde) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $desde) === 1 ? $desde : '';
+        $hasta = $request->query('hasta');
+        $hasta = is_string($hasta) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $hasta) === 1 ? $hasta : '';
+        $mes = $request->query('mes');
+        $mes = is_string($mes) && preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $mes) === 1 ? $mes : '';
         $mostrarTodas = $request->boolean('todas');
         $limite = $mostrarTodas ? 100 : 3;
-        $consulta = Consulta::query()
+        $consultasQuery = Consulta::query()
             ->with('viewer', 'subject')
+            ->when($persona !== '', fn ($query) => $query->whereHas('subject', fn ($subject) => $subject->where('name', 'like', '%'.$persona.'%')))
+            ->when($desde !== '', fn ($query) => $query->whereDate('created_at', '>=', $desde))
+            ->when($hasta !== '', fn ($query) => $query->whereDate('created_at', '<=', $hasta))
+            ->when($mes !== '', function ($query) use ($mes): void {
+                $inicio = Carbon::createFromFormat('!Y-m', $mes);
+
+                $query->whereBetween('created_at', [
+                    $inicio->copy()->startOfMonth(),
+                    $inicio->copy()->endOfMonth(),
+                ]);
+            });
+        $consulta = (clone $consultasQuery)
             ->latest('id')
             ->limit($limite)
             ->get();
+        $primeraConsulta = Consulta::query()->min('created_at');
+        $primerMesConsulta = $primeraConsulta
+            ? Carbon::parse($primeraConsulta)->startOfYear()
+            : now()->copy()->startOfYear();
+        $ultimoMesConsulta = now()->copy()->endOfYear()->startOfMonth();
+        $mesesConsultas = collect();
+        for ($mesConsulta = $primerMesConsulta->copy(); $mesConsulta->lte($ultimoMesConsulta); $mesConsulta->addMonth()) {
+            $mesesConsultas[$mesConsulta->format('Y-m')] = $mesConsulta->copy()->locale('es')->isoFormat('MMMM [de] YYYY');
+        }
+        $trabajadores = User::query()
+            ->where('active', true)
+            ->where('role', '!=', 'jefa')
+            ->orderBy('name')
+            ->get(['name']);
         $mostrarTodasVacaciones = $request->boolean('todas_vacaciones');
         $solicitudesVacacionesPendientes = SolicitudVacaciones::query()
             ->where('estado', SolicitudVacaciones::PENDIENTE)
@@ -227,7 +261,10 @@ class JefeController extends Controller
         return view('jefe.consultas', [
             'consultas' => $consulta,
             'mostrarTodas' => $mostrarTodas,
-            'hayMasConsultas' => $mostrarTodas || Consulta::query()->count() > 3,
+            'hayMasConsultas' => $mostrarTodas || (clone $consultasQuery)->count() > 3,
+            'filtrosConsultas' => compact('persona', 'desde', 'hasta', 'mes'),
+            'mesesConsultas' => $mesesConsultas,
+            'trabajadores' => $trabajadores,
             'solicitudesVacaciones' => SolicitudVacaciones::query()
                 ->with('autor')
                 ->where('estado', SolicitudVacaciones::PENDIENTE)

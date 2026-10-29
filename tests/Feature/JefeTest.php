@@ -46,6 +46,27 @@ class JefeTest extends TestCase
         $this->assertDatabaseHas('jornadas', ['user_id' => $jefa->id]);
     }
 
+    public function test_el_equipo_muestra_ocho_personas_y_permite_ver_todas(): void
+    {
+        $jefa = $this->jefa();
+        foreach (range(1, 8) as $numero) {
+            $this->persona('Trabajador '.$numero, 'trabajador'.$numero.'@abaco.test');
+        }
+
+        $this->actingAs($jefa)
+            ->get(route('equipo.index'))
+            ->assertOk()
+            ->assertSee('Trabajador 5', false)
+            ->assertSee('Trabajador 6', false)
+            ->assertDontSee('Trabajador 8', false)
+            ->assertSee('Todos los trabajadores', false);
+
+        $this->actingAs($jefa)
+            ->get(route('equipo.index', ['todas_personas' => 1]))
+            ->assertSee('Trabajador 6', false)
+            ->assertSee('Volver', false);
+    }
+
     public function test_el_panel_enseña_estado_y_horario_sin_crear_avisos(): void
     {
         $ana = $this->persona('Ana López', 'ana.lopez@abaco.test');
@@ -397,12 +418,50 @@ class JefeTest extends TestCase
             ->get(route('jefe.consultas'))
             ->assertSee('El 04/11/2026', false)
             ->assertDontSee('El 01/11/2026', false)
-            ->assertSee('Ver todo', false);
+            ->assertSee('Ver todo', false)
+            ->assertSee('4 solicitudes de vacaciones pendientes', false);
 
         $this->actingAs($jefa)
             ->get(route('jefe.consultas', ['todas_vacaciones' => 1]))
             ->assertSee('El 01/11/2026', false)
             ->assertSee('Volver', false);
+    }
+
+    public function test_consultas_se_pueden_filtrar_por_persona_fecha_y_mes(): void
+    {
+        $jefa = $this->jefa();
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test');
+        $carmen = $this->persona('Carmen Ortega', 'carmen.ortega@abaco.test');
+        $consultaAna = Consulta::create([
+            'viewer_id' => $jefa->id,
+            'subject_id' => $ana->id,
+            'reason' => 'Consulta de Ana',
+        ]);
+        $consultaCarmen = Consulta::create([
+            'viewer_id' => $jefa->id,
+            'subject_id' => $carmen->id,
+            'reason' => 'Consulta de Carmen',
+        ]);
+        $consultaAna->forceFill(['created_at' => '2026-09-15 10:00:00'])->save();
+        $consultaCarmen->forceFill(['created_at' => '2026-10-02 10:00:00'])->save();
+
+        $this->actingAs($jefa)
+            ->get(route('jefe.consultas', ['persona' => 'Carmen']))
+            ->assertSee('Consulta de Carmen', false)
+            ->assertDontSee('Consulta de Ana', false)
+            ->assertSee('Enero de 2026', false)
+            ->assertSee('Noviembre de 2026', false)
+            ->assertSee('Diciembre de 2026', false);
+
+        $this->actingAs($jefa)
+            ->get(route('jefe.consultas', ['desde' => '2026-10-02', 'hasta' => '2026-10-02']))
+            ->assertSee('Consulta de Carmen', false)
+            ->assertDontSee('Consulta de Ana', false);
+
+        $this->actingAs($jefa)
+            ->get(route('jefe.consultas', ['mes' => '2026-09']))
+            ->assertSee('Consulta de Ana', false)
+            ->assertDontSee('Consulta de Carmen', false);
     }
 
     private function jefa(): User

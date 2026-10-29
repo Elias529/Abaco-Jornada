@@ -123,7 +123,7 @@ class JornadaService
             'puedeSalir' => $abierto !== null && ! $pasada && ! $cierrePendiente,
             'puedePausar' => $abierto?->tipo === Tramo::TRABAJO && ! $cierrePendiente,
             'puedeVolver' => $abierto?->tipo === Tramo::PAUSA && ! $cierrePendiente,
-            'puedeYaEstaba' => $puedeAbrir && $puedePorFestivo && ! $pasada && (! $hoy || $this->soloFuera($hoy)),
+            'puedeYaEstaba' => $puedeAbrir && $puedePorFestivo && ! $pasada && (! $hoy || $this->soloFuera($hoy)) && ! $this->faltaExplicarAntesDeHoy($user, $ahora),
             'hoyTexto' => Tiempo::corto($minutosHoy),
             'hoyLargo' => Tiempo::corto($minutosHoy),
             'semanaTexto' => Tiempo::corto($minutosSemana),
@@ -241,7 +241,7 @@ class JornadaService
 
                 $hoy = $this->jornadaDe($user, $ahora);
                 if (! $hoy || $this->soloFuera($hoy)) {
-                    $this->asegurarFechaDeAlta($user, $ahora);
+                    $this->asegurarPuedeAbrir($user, $ahora);
                     $jornada = $hoy ?? Jornada::create([
                         'user_id' => $user->id,
                         'work_date' => $ahora->toDateString(),
@@ -632,12 +632,6 @@ class JornadaService
                 throw new ReglaJornada('La salida tiene que ser después de la entrada.');
             }
 
-            $jornada->unsetRelation('tramos');
-            $jornada->load('tramos');
-            if ($this->solapa($jornada, $inicio, $fin, $fresco->id)) {
-                throw new ReglaJornada('Esa hora se cruza con un tramo que ya está guardado.');
-            }
-
             $this->anotar($actor, $fresco, $campo, $anterior, $nueva, $motivo, $nota);
             $fresco->update([$campo => $nueva]);
             $this->marcarExplicados($duena, $jornada->work_date->toDateString());
@@ -665,18 +659,67 @@ class JornadaService
             $nota = null;
         }
 
+        $inicio = $this->momento($jornada->work_date, $inicioHora);
+        $fin = $this->momento($jornada->work_date, $finHora);
         $texto = '';
-        DB::transaction(function () use ($actor, $tramo, $jornada, $duena, $inicioHora, $finHora, $nota, &$texto) {
+        DB::transaction(function () use ($actor, $tramo, $jornada, $duena, $inicioHora, $finHora, $inicio, $fin, $nota, &$texto) {
             $this->bloquear($duena);
             $fresco = Tramo::query()->whereKey($tramo->id)->lockForUpdate()->first();
-            if (! $fresco || $fresco->tipo !== Tramo::TRABAJO) {
-                throw new ReglaJornada('Selecciona un tramo de trabajo.');
+            if (! $fresco) {
+                throw new ReglaJornada('Ese tramo ya no está.');
             }
 
             $jornada->unsetRelation('tramos');
             $jornada->load('tramos');
             if ($jornada->tramos->contains('tipo', Tramo::PAUSA)) {
-                throw new ReglaJornada('Ese día ya tiene una pausa fichada.');
+                if ($fresco->tipo !== Tramo::PAUSA) {
+                    throw new ReglaJornada('Ese día ya tiene una pausa fichada.');
+                }
+
+                $inicioAnterior = $fresco->started_at;
+                $finAnterior = $fresco->ended_at;
+                if ($finAnterior && $inicioAnterior->equalTo($inicio) && $finAnterior->equalTo($fin)) {
+                    $texto = 'La pausa ya está registrada de '.Tiempo::hora($inicio).' a '.Tiempo::hora($fin).'.';
+
+                    return;
+                }
+
+                $trabajoInicio = $jornada->tramos
+                    ->where('tipo', Tramo::TRABAJO)
+                    ->min('started_at');
+                $trabajoFin = $jornada->tramos
+                    ->where('tipo', Tramo::TRABAJO)
+                    ->filter(fn (Tramo $trabajo) => $trabajo->ended_at !== null)
+                    ->max('ended_at');
+
+                if ($fin->lessThanOrEqualTo($inicio)) {
+                    throw new ReglaJornada('La hora de fin de la pausa tiene que ser posterior.');
+                }
+                if ($inicio->greaterThan(now()) || $fin->greaterThan(now())) {
+                    throw new ReglaJornada('Esa hora todavía no ha llegado.');
+                }
+                if (! $trabajoInicio || ! $trabajoFin || $inicio->lt($trabajoInicio) || $fin->gt($trabajoFin)) {
+                    throw new ReglaJornada('La pausa tiene que estar dentro del tramo de trabajo.');
+                }
+
+                if ($inicioAnterior) {
+                    $this->anotar($actor, $fresco, 'started_at', $inicioAnterior, $inicio, 'fichar_pausa', $nota);
+                }
+                if ($finAnterior) {
+                    $this->anotar($actor, $fresco, 'ended_at', $finAnterior, $fin, 'fichar_pausa', $nota);
+                }
+                $fresco->update([
+                    'started_at' => $inicio,
+                    'ended_at' => $fin,
+                    'anotado_at' => now(),
+                ]);
+                $this->marcarExplicados($duena, $jornada->work_date->toDateString());
+                $texto = 'Guardado. Pausa de '.Tiempo::hora($inicio).' a '.Tiempo::hora($fin).'.';
+
+                return;
+            }
+            if ($fresco->tipo !== Tramo::TRABAJO) {
+                throw new ReglaJornada('Selecciona un tramo de trabajo.');
             }
             if (! $fresco->ended_at) {
                 throw new ReglaJornada('La pausa se puede fichar cuando el tramo está cerrado.');
@@ -780,12 +823,6 @@ class JornadaService
                 throw new ReglaJornada('La salida tiene que ser después de la entrada.');
             }
 
-            $jornada->unsetRelation('tramos');
-            $jornada->load('tramos');
-            if ($this->solapa($jornada, $nuevoInicio, $nuevoFin ?? now(), $fresco->id)) {
-                throw new ReglaJornada('Esa hora se cruza con un tramo que ya está guardado.');
-            }
-
             $teniaFin = $fresco->ended_at !== null;
             if ($cambiaInicio) {
                 $this->anotar($actor, $fresco, 'started_at', $fresco->started_at, $nuevoInicio, $motivo, $nota);
@@ -825,20 +862,8 @@ class JornadaService
     public function minutosDeJornada(Jornada $jornada, ?Carbon $hasta = null): int
     {
         $hasta ??= now();
-        $total = 0;
 
-        foreach ($jornada->tramos as $tramo) {
-            if ($tramo->tipo !== Tramo::TRABAJO) {
-                continue;
-            }
-            $fin = $tramo->ended_at ?? $hasta;
-            if ($fin->lessThan($tramo->started_at)) {
-                continue;
-            }
-            $total += (int) round($tramo->started_at->diffInMinutes($fin, true));
-        }
-
-        return $total;
+        return $this->minutosTrabajoSinPausas($jornada, $hasta);
     }
 
     public function porEncima(User $user, Jornada $jornada, ?Carbon $hasta = null): ?int
@@ -1115,6 +1140,8 @@ class JornadaService
         ?string $respuestaFestivo,
         bool $cierrePendiente,
     ): ?array {
+        $this->avisarHuecosSinEntrada($user, $ahora);
+
         if ($pasada) {
             $this->registrarAviso($user, 'olvido', $pasada->work_date);
 
@@ -1185,6 +1212,7 @@ class JornadaService
 
     private function asegurarPuedeAbrir(User $user, Carbon $ahora): void
     {
+        $this->avisarHuecosSinEntrada($user, $ahora);
         $this->asegurarFechaDeAlta($user, $ahora);
         $pasada = $this->jornadaAbiertaAnterior($user, $ahora);
         if ($pasada) {
@@ -1215,6 +1243,31 @@ class JornadaService
         }
 
         $this->registrarAviso($user, 'inicio', $dia);
+    }
+
+    /**
+     * Días de trabajo entre el último fichaje y hoy, sin entrada.
+     * Hay que explicarlos antes de empezar un día posterior.
+     */
+    private function avisarHuecosSinEntrada(User $user, Carbon $ahora): void
+    {
+        $ultimo = Jornada::query()
+            ->where('user_id', $user->id)
+            ->whereDate('work_date', '<', $ahora->toDateString())
+            ->whereHas('tramos', fn ($consulta) => $consulta->where('tipo', Tramo::TRABAJO))
+            ->max('work_date');
+
+        if ($ultimo === null) {
+            return;
+        }
+
+        $dia = Carbon::parse($ultimo, config('app.timezone'))->startOfDay()->addDay();
+        $hoy = $ahora->copy()->startOfDay();
+
+        while ($dia->lt($hoy)) {
+            $this->avisarSiFaltaEntrada($user, $dia->toDateString());
+            $dia->addDay();
+        }
     }
 
     private function faltaExplicarAntesDeHoy(User $user, Carbon $ahora): ?Aviso
@@ -1386,12 +1439,46 @@ class JornadaService
 
     private function minutosCerrados(Jornada $jornada): int
     {
+        return $this->minutosTrabajoSinPausas($jornada, now(), true);
+    }
+
+    private function minutosTrabajoSinPausas(Jornada $jornada, Carbon $hasta, bool $soloCerrados = false): int
+    {
+        $pausas = $jornada->tramos
+            ->where('tipo', Tramo::PAUSA)
+            ->filter(fn (Tramo $pausa) => $pausa->ended_at !== null)
+            ->sortBy('started_at');
         $total = 0;
-        foreach ($jornada->tramos as $tramo) {
-            if ($tramo->tipo !== Tramo::TRABAJO || $tramo->ended_at === null) {
+
+        foreach ($jornada->tramos->where('tipo', Tramo::TRABAJO) as $trabajo) {
+            if ($soloCerrados && $trabajo->ended_at === null) {
                 continue;
             }
-            $total += (int) round($tramo->started_at->diffInMinutes($tramo->ended_at, true));
+
+            $fin = $trabajo->ended_at ?? $hasta;
+            if ($fin->lessThanOrEqualTo($trabajo->started_at)) {
+                continue;
+            }
+
+            $cursor = $trabajo->started_at;
+            foreach ($pausas as $pausa) {
+                if ($pausa->ended_at->lessThanOrEqualTo($cursor) || $pausa->started_at->greaterThanOrEqualTo($fin)) {
+                    continue;
+                }
+
+                $pausaInicio = $pausa->started_at->greaterThan($cursor) ? $pausa->started_at : $cursor;
+                if ($pausaInicio->greaterThan($cursor)) {
+                    $total += (int) round($cursor->diffInMinutes($pausaInicio, true));
+                }
+                $cursor = $pausa->ended_at->greaterThan($cursor) ? $pausa->ended_at : $cursor;
+                if ($cursor->greaterThanOrEqualTo($fin)) {
+                    break;
+                }
+            }
+
+            if ($cursor->lessThan($fin)) {
+                $total += (int) round($cursor->diffInMinutes($fin, true));
+            }
         }
 
         return $total;
@@ -1479,19 +1566,56 @@ class JornadaService
         }
 
         $hecho = [];
+        $pausas = ($hoy?->tramos ?? collect())
+            ->where('tipo', Tramo::PAUSA)
+            ->filter(fn (Tramo $pausa) => $pausa->ended_at !== null)
+            ->sortBy('started_at');
         foreach ($hoy?->tramos ?? [] as $tramo) {
             if ($tramo->tipo !== Tramo::TRABAJO) {
                 continue;
             }
             $fin = $tramo->ended_at ?? $hasta;
-            $trozo = $this->tramoEje($this->minutosDelDia($tramo->started_at), $this->minutosDelDia($fin));
-            if ($trozo) {
-                $trozo['abierto'] = $tramo->ended_at === null;
-                $hecho[] = $trozo;
+            foreach ($this->segmentosSinPausas($tramo->started_at, $fin, $pausas) as [$inicio, $segmentoFin]) {
+                $trozo = $this->tramoEje($this->minutosDelDia($inicio), $this->minutosDelDia($segmentoFin));
+                if ($trozo) {
+                    $trozo['abierto'] = $tramo->ended_at === null;
+                    $hecho[] = $trozo;
+                }
             }
         }
 
         return ['previsto' => $previsto, 'hecho' => $hecho];
+    }
+
+    /**
+     * @param  Collection<int, Tramo>  $pausas
+     * @return list<array{0: Carbon, 1: Carbon}>
+     */
+    private function segmentosSinPausas(Carbon $inicio, Carbon $fin, Collection $pausas): array
+    {
+        $segmentos = [];
+        $cursor = $inicio;
+
+        foreach ($pausas as $pausa) {
+            if ($pausa->ended_at->lessThanOrEqualTo($cursor) || $pausa->started_at->greaterThanOrEqualTo($fin)) {
+                continue;
+            }
+
+            $pausaInicio = $pausa->started_at->greaterThan($cursor) ? $pausa->started_at : $cursor;
+            if ($pausaInicio->greaterThan($cursor)) {
+                $segmentos[] = [$cursor, $pausaInicio];
+            }
+            $cursor = $pausa->ended_at->greaterThan($cursor) ? $pausa->ended_at : $cursor;
+            if ($cursor->greaterThanOrEqualTo($fin)) {
+                break;
+            }
+        }
+
+        if ($cursor->lessThan($fin)) {
+            $segmentos[] = [$cursor, $fin];
+        }
+
+        return $segmentos;
     }
 
     /**

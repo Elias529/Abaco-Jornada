@@ -344,25 +344,6 @@
     let desde = "";
     let hasta = "";
 
-    function limpiarCalendarioAuxiliar() {
-        caja.querySelectorAll(".casilla").forEach(function (dia) {
-            const esHoy = dia.classList.contains("casilla-hoy");
-            const esFinDeSemana = dia.classList.contains("casilla-finde");
-            dia.className = "casilla" + (esHoy ? " casilla-hoy" : "") + (esFinDeSemana ? " casilla-finde" : "");
-            dia.querySelectorAll("small").forEach(function (etiqueta) {
-                etiqueta.remove();
-            });
-            if (dia.tagName === "A") {
-                const casilla = document.createElement("span");
-                casilla.className = dia.className;
-                casilla.dataset.fecha = dia.dataset.fecha;
-                casilla.dataset.cuenta = dia.dataset.cuenta;
-                casilla.innerHTML = dia.innerHTML;
-                dia.replaceWith(casilla);
-            }
-        });
-    }
-
     function pintarRango() {
         caja.querySelectorAll("[data-fecha]").forEach(function (dia) {
             const fecha = dia.dataset.fecha;
@@ -390,9 +371,6 @@
                     return;
                 }
                 caja.innerHTML = html;
-                if (eligiendo) {
-                    limpiarCalendarioAuxiliar();
-                }
                 pintarRango();
                 if (guardar) {
                     const visible = new URL(url, window.location.origin);
@@ -407,7 +385,6 @@
         desde = "";
         hasta = "";
         caja.dataset.vacacionesEligiendo = "1";
-        limpiarCalendarioAuxiliar();
         pedir.hidden = true;
         texto.hidden = false;
         texto.textContent = "Elige un rango de fechas";
