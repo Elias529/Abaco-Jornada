@@ -99,6 +99,12 @@
                     </div>
                 @endif
 
+                @if ($puedeExplicar ?? false)
+                    <div class="detalle-registrar">
+                        <button class="detalle-registrar-boton" type="button" data-dialogo-abre="explicar-dia">Explicar este día</button>
+                    </div>
+                @endif
+
                 @if (! $puedeCorregir && $detalle['filas'] !== [])
                     <p class="secundario">Para cambiar este día, habla con tu jefa.</p>
                 @endif
@@ -131,7 +137,7 @@
 
     @if ($puedeCorregir)
         @foreach (collect($detalle['filas'])->where('visible', true) as $fila)
-            <dialog class="dialogo-hoy" data-dialogo="corregir-{{ $fila['tramo']->id }}" aria-labelledby="titulo-corregir-{{ $fila['tramo']->id }}">
+            <dialog class="dialogo-hoy" data-dialogo="corregir-{{ $fila['tramo']->id }}" @if (($abrirCorregir ?? false) && $loop->first) data-abierto @endif aria-labelledby="titulo-corregir-{{ $fila['tramo']->id }}">
                 <div class="dialogo-cabecera">
                     <h2 id="titulo-corregir-{{ $fila['tramo']->id }}">Corregir horas</h2>
                     <form method="dialog">
@@ -195,6 +201,26 @@
                     </div>
                 </div>
                 <button class="boton boton-principal" type="submit">Registrar las horas</button>
+            </form>
+        </dialog>
+    @endif
+
+    @if ($puedeExplicar ?? false)
+        <dialog class="dialogo-hoy" data-dialogo="explicar-dia" @if ($abrirExplicar ?? false) data-abierto @endif aria-labelledby="titulo-explicar-dia">
+            <div class="dialogo-cabecera">
+                <h2 id="titulo-explicar-dia">Explica este día</h2>
+                <form method="dialog">
+                    <button class="dialogo-cerrar" type="submit">Cerrar</button>
+                </form>
+            </div>
+            <form method="post" action="{{ route('registro.explicar') }}" class="formulario">
+                @csrf
+                <input type="hidden" name="work_date" value="{{ $detalle['fecha'] }}">
+                <p class="secundario">Este día ya no se puede corregir. La explicación queda en tu registro.</p>
+                <label for="explicar-cuerpo">Explicación</label>
+                <textarea id="explicar-cuerpo" name="body" maxlength="500" required></textarea>
+                <p class="secundario">No pongas datos de salud ni de clientes.</p>
+                <button class="boton boton-principal" type="submit">Guardar</button>
             </form>
         </dialog>
     @endif

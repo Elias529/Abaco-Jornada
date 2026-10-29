@@ -590,6 +590,50 @@ class JornadaTest extends TestCase
         $this->actingAs($ana)->get(route('jornada'))->assertDontSee('lunes 19 de octubre', false);
     }
 
+    public function test_revisar_un_dia_antiguo_sin_fichaje_abre_la_explicacion(): void
+    {
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
+        $this->horario($ana);
+        Carbon::setTestNow(Carbon::parse('2026-10-26 13:00:00', 'Europe/Madrid'));
+        Aviso::create(['user_id' => $ana->id, 'tipo' => 'inicio', 'work_date' => '2026-10-08', 'cuenta' => true]);
+
+        $this->actingAs($ana)
+            ->get(route('jornada'))
+            ->assertSee(route('registro.dia', '2026-10-08').'?abrir=registrar-horas', false);
+
+        $this->actingAs($ana)
+            ->get(route('registro.dia', ['fecha' => '2026-10-08', 'abrir' => 'registrar-horas']))
+            ->assertOk()
+            ->assertSee('Explica este día', false)
+            ->assertSee('data-abierto', false)
+            ->assertSee(route('registro.explicar'), false)
+            ->assertDontSee('Registrar las horas', false);
+
+        $this->actingAs($ana)
+            ->post(route('registro.explicar'), [
+                'work_date' => '2026-10-08',
+                'body' => 'Ese jueves no fui a la oficina.',
+            ])
+            ->assertSessionHas('ok');
+
+        $this->actingAs($ana)->get(route('jornada'))->assertDontSee('8 de octubre', false);
+    }
+
+    public function test_la_jefa_revisa_un_dia_antiguo_sin_fichaje_y_registra_las_horas(): void
+    {
+        $marta = $this->persona('Marta Ruiz', 'marta.ruiz@abaco.test', 'Madrid', 'jefa');
+        $this->horario($marta);
+        Carbon::setTestNow(Carbon::parse('2026-10-26 13:00:00', 'Europe/Madrid'));
+        Aviso::create(['user_id' => $marta->id, 'tipo' => 'inicio', 'work_date' => '2026-10-08', 'cuenta' => true]);
+
+        $this->actingAs($marta)
+            ->get(route('registro.dia', ['fecha' => '2026-10-08', 'abrir' => 'registrar-horas']))
+            ->assertOk()
+            ->assertSee('Registrar las horas', false)
+            ->assertSee('data-abierto', false)
+            ->assertDontSee('Explica este día', false);
+    }
+
     public function test_revisar_abre_ese_dia_en_mi_registro_y_la_nota_va_en_corregir(): void
     {
         $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
@@ -606,15 +650,16 @@ class JornadaTest extends TestCase
 
         $this->actingAs($ana)
             ->get(route('jornada'))
-            ->assertSee(route('registro.show', $jornada), false)
+            ->assertSee(route('registro.show', $jornada).'?abrir=corregir', false)
             ->assertDontSee('Qué pasó', false);
 
         $this->actingAs($ana)
-            ->get(route('registro.show', $jornada))
+            ->get(route('registro.show', ['jornada' => $jornada, 'abrir' => 'corregir']))
             ->assertOk()
             ->assertSee('Mi registro', false)
             ->assertSee('Lunes, 19 de octubre', false)
-            ->assertSee('Corregir', false)
+            ->assertSee('Corregir horas', false)
+            ->assertSee('data-abierto', false)
             ->assertDontSee('Qué pasó', false)
             ->assertSee(route('registro', ['periodo' => 'semana']).'#dia-2026-10-19', false);
 

@@ -99,6 +99,7 @@ Route::middleware(['auth', 'activo'])->group(function () {
         Route::post('/copia', [TecnicoController::class, 'copia'])->name('copia');
         Route::post('/exportar', [TecnicoController::class, 'exportar'])->name('exportar');
         Route::post('/actualizar', [TecnicoController::class, 'actualizar'])->name('actualizar');
+        Route::post('/restaurar', [TecnicoController::class, 'restaurar'])->name('restaurar');
         Route::get('/tickets', [TecnicoController::class, 'tickets'])->name('tickets');
         Route::post('/tickets/{ticket}/estado', [TicketController::class, 'estado'])->name('tickets.estado');
     });

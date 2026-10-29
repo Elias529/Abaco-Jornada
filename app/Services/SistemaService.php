@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use PDO;
 use RuntimeException;
 use Throwable;
 
@@ -103,15 +104,20 @@ class SistemaService
     /**
      * @return list<array{nombre: string, bytes: int, fecha: string}>
      */
-    public function copias(): array
+    public function copias(bool $todas = false): array
     {
         if (! File::isDirectory($this->carpetaDeCopias())) {
             return [];
         }
 
-        return collect(File::files($this->carpetaDeCopias()))
-            ->sortByDesc(fn ($archivo) => $archivo->getMTime())
-            ->take(self::COPIAS_QUE_SE_MUESTRAN)
+        $archivos = collect(File::files($this->carpetaDeCopias()))
+            ->sortByDesc(fn ($archivo) => $archivo->getMTime());
+
+        if (! $todas) {
+            $archivos = $archivos->take(self::COPIAS_QUE_SE_MUESTRAN);
+        }
+
+        return $archivos
             ->map(fn ($archivo) => [
                 'nombre' => $archivo->getFilename(),
                 'bytes' => $archivo->getSize(),
@@ -183,6 +189,60 @@ class SistemaService
         );
 
         return 'Guardado. Se aplicaron '.count($pendientes).' cambios. Copia previa: '.$copia.'.';
+    }
+
+    /**
+     * Sustituye la base en uso por una copia guardada o por un archivo.
+     * Antes guarda la base actual. Si la elegida no es una SQLite íntegra, no toca nada.
+     *
+     * @throws RuntimeException si no hay origen, no se puede copiar o no se puede sustituir
+     */
+    public function restaurar(User $tecnico, ?string $nombreCopia, ?string $rutaSubida): string
+    {
+        $hayCopia = is_string($nombreCopia) && $nombreCopia !== '';
+        $hayArchivo = is_string($rutaSubida) && $rutaSubida !== '';
+
+        if ($hayCopia && $hayArchivo) {
+            throw new RuntimeException('Elige una copia guardada o un archivo, no las dos.');
+        }
+
+        if (! $hayCopia && ! $hayArchivo) {
+            throw new RuntimeException('Elige la base que quieres usar.');
+        }
+
+        $origen = $hayCopia ? $this->rutaDeCopia($nombreCopia) : $rutaSubida;
+        $this->comprobarSqlite($origen);
+
+        $destino = $this->archivoDeLaBase();
+        if ($destino === null) {
+            throw new RuntimeException('Solo se puede sustituir una base SQLite en archivo.');
+        }
+
+        $copiaPrevia = $this->crearCopia();
+        $conexion = DB::connection()->getName();
+
+        DB::disconnect($conexion);
+        DB::purge($conexion);
+
+        foreach ([$destino.'-wal', $destino.'-shm'] as $auxiliar) {
+            if (is_file($auxiliar)) {
+                File::delete($auxiliar);
+            }
+        }
+
+        $this->sustituirArchivo($origen, $destino);
+
+        try {
+            $this->anotar(
+                $tecnico,
+                AccionTecnica::RESTAURACION,
+                'Base en uso: '.basename($origen).'. Copia previa: '.$copiaPrevia.'.',
+            );
+        } catch (Throwable) {
+            // La base restaurada puede no tener a esta persona o esta tabla.
+        }
+
+        return 'Guardado. La base en uso es '.basename($origen).'. Copia previa: '.$copiaPrevia.'. Entra otra vez.';
     }
 
     private function crearCopia(): string
@@ -270,6 +330,61 @@ class SistemaService
             ->map(fn (string $nombre) => ['nombre' => $nombre, 'filas' => DB::table($nombre)->count()])
             ->values()
             ->all();
+    }
+
+    private function comprobarSqlite(string $ruta): void
+    {
+        $cabecera = file_get_contents($ruta, false, null, 0, 16);
+
+        if ($cabecera !== "SQLite format 3\x00") {
+            throw new RuntimeException('Ese archivo no es una base SQLite.');
+        }
+
+        try {
+            $pdo = new PDO('sqlite:'.$ruta, null, null, [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            ]);
+            $resultado = $pdo->query('PRAGMA integrity_check')->fetchColumn();
+            $pdo = null;
+        } catch (Throwable $fallo) {
+            throw new RuntimeException('No se pudo leer esa base: '.$fallo->getMessage());
+        }
+
+        if ($resultado !== 'ok') {
+            throw new RuntimeException('Esa base no está íntegra. No se ha cambiado la que está en uso.');
+        }
+    }
+
+    private function sustituirArchivo(string $origen, string $destino): void
+    {
+        $nueva = $destino.'.nueva';
+        $apartada = $destino.'.apartada';
+
+        if (! File::copy($origen, $nueva)) {
+            throw new RuntimeException('No se pudo preparar la base elegida.');
+        }
+
+        try {
+            if (is_file($destino) && ! File::move($destino, $apartada)) {
+                throw new RuntimeException('No se pudo apartar la base que está en uso.');
+            }
+
+            if (! File::move($nueva, $destino)) {
+                if (is_file($apartada)) {
+                    File::move($apartada, $destino);
+                }
+
+                throw new RuntimeException('No se pudo colocar la base elegida.');
+            }
+        } finally {
+            if (is_file($nueva)) {
+                File::delete($nueva);
+            }
+        }
+
+        if (is_file($apartada)) {
+            File::delete($apartada);
+        }
     }
 
     private function anotar(User $tecnico, string $accion, string $detalle): void

@@ -1074,27 +1074,33 @@ a.boton, .fila .boton { width: auto; }
 
 .campo-clave { position: relative; }
 
-.campo-clave input { padding-right: 48px; }
+.campo-clave input { padding-right: 52px; }
 
 .ver-clave {
     position: absolute;
     top: 50%;
-    right: 6px;
+    right: 4px;
     transform: translateY(-50%);
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 36px;
-    height: 36px;
+    width: 44px;
+    height: 44px;
     padding: 0;
     border: 0;
-    border-radius: 6px;
+    border-radius: 8px;
     background: transparent;
     color: var(--marca-primario);
     cursor: pointer;
 }
 
-.ver-clave .ojo { display: block; }
+.ver-clave .ojo,
+.ver-clave svg {
+    display: block;
+    width: 25px;
+    height: 25px;
+    flex: none;
+}
 
 .ver-clave .ojo[hidden] { display: none; }
 
@@ -2459,11 +2465,64 @@ label.casilla input { width: 20px; min-height: 20px; flex: 0 0 auto; accent-colo
     font-size: var(--texto-titulo);
 }
 
-.sistema-dialogo > p {
+.sistema-dialogo p {
     max-width: 620px;
     margin: 24px 0;
     color: var(--texto-suave);
     font-size: var(--texto-ficha);
+}
+
+.sistema-elegir {
+    display: grid;
+    gap: 8px;
+    max-height: 220px;
+    overflow: auto;
+}
+
+.sistema-elegir label,
+.sistema-archivo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.sistema-elegir label {
+    min-height: var(--alto-control);
+    margin: 0;
+    padding: 10px 12px;
+    border: 1px solid var(--linea);
+    border-radius: var(--radio);
+    background: var(--fondo-ventana);
+    cursor: pointer;
+}
+
+.sistema-elegir label:has(input:checked) {
+    border-color: var(--marca-primario);
+    background: var(--fondo-niebla);
+}
+
+.sistema-elegir input[type="radio"] {
+    width: 18px;
+    min-height: 18px;
+    margin: 0;
+    padding: 0;
+    flex: 0 0 auto;
+    border: 0;
+    accent-color: var(--marca-primario);
+}
+
+.sistema-elegir span {
+    font-variant-numeric: tabular-nums;
+}
+
+.sistema-archivo {
+    margin: 16px 0;
+}
+
+.sistema-archivo input[type="file"] {
+    width: auto;
+    flex: 1 1 auto;
+    min-width: 0;
 }
 
 .sistema-dialogo-cerrar {

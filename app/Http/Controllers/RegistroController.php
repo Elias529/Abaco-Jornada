@@ -72,18 +72,22 @@ class RegistroController extends Controller
 
         $persona = $jornada->user;
         $detalle = $this->detalle($jornada, $persona);
+        $puedeCorregir = $jornada->work_date->gte(now()->subDays(7)->startOfDay());
+        $puedeRegistrar = $detalle['filas'] === [] && ($request->user()->esJefa() || $puedeCorregir);
+        $explicar = $this->explicarDe($persona, $jornada->work_date->toDateString());
 
         return view('registro.show', [
             'jornada' => $jornada,
             'persona' => $persona,
             'detalle' => $detalle,
-            'puedeCorregir' => $jornada->work_date->gte(now()->subDays(7)->startOfDay()),
+            'puedeCorregir' => $puedeCorregir,
             'motivos' => Correccion::MOTIVOS,
             'puedeFicharPausa' => $this->puedeFicharPausa($detalle),
             'esJefa' => $request->user()->esJefa(),
-            'explicar' => $this->explicarDe($persona, $jornada->work_date->toDateString()),
-            'puedeRegistrar' => $detalle['filas'] === [] && ($request->user()->esJefa() || $jornada->work_date->gte(now()->subDays(7)->startOfDay())),
+            'explicar' => $explicar,
+            'puedeRegistrar' => $puedeRegistrar,
             'crumb' => $this->volverAlRegistro($request->user(), $persona, $jornada->work_date->toDateString()),
+            ...$this->revisionDelDia($request, $puedeCorregir, $puedeRegistrar, $explicar),
         ]);
     }
 
@@ -101,8 +105,13 @@ class RegistroController extends Controller
             ->whereDate('work_date', $fecha)
             ->first();
         if ($jornada) {
-            return redirect()->route('registro.show', $jornada);
+            return redirect()->route('registro.show', array_filter([
+                'jornada' => $jornada,
+                'abrir' => $request->query('abrir'),
+            ]));
         }
+
+        $puedeRegistrar = $dia->gte(now()->subDays(7)->startOfDay()) || $persona->esJefa();
 
         return view('registro.show', [
             'jornada' => null,
@@ -112,9 +121,9 @@ class RegistroController extends Controller
             'motivos' => Correccion::MOTIVOS,
             'esJefa' => $persona->esJefa(),
             'explicar' => $explicar,
-            'puedeRegistrar' => $dia->gte(now()->subDays(7)->startOfDay()) || $persona->esJefa(),
+            'puedeRegistrar' => $puedeRegistrar,
             'crumb' => $this->volverAlRegistro($persona, $persona, $fecha),
-            'abrirRegistrar' => $request->query('abrir') === 'registrar-horas',
+            ...$this->revisionDelDia($request, false, $puedeRegistrar, $explicar),
         ]);
     }
 
@@ -147,6 +156,23 @@ class RegistroController extends Controller
         }
 
         return redirect()->route('registro.show', $jornada)->with('ok', 'Guardado. Horas registradas de las '.$datos['inicio'].' a las '.$datos['fin'].'.');
+    }
+
+    /**
+     * @param  array{fecha: string, dia: string, texto: string}|null  $explicar
+     * @return array{abrirRegistrar: bool, abrirCorregir: bool, puedeExplicar: bool, abrirExplicar: bool}
+     */
+    private function revisionDelDia(Request $request, bool $puedeCorregir, bool $puedeRegistrar, ?array $explicar): array
+    {
+        $abrir = $request->query('abrir');
+        $puedeExplicar = $explicar !== null && ! $puedeCorregir && ! $puedeRegistrar;
+
+        return [
+            'abrirRegistrar' => $puedeRegistrar && $abrir === 'registrar-horas',
+            'abrirCorregir' => $puedeCorregir && $abrir === 'corregir',
+            'puedeExplicar' => $puedeExplicar,
+            'abrirExplicar' => $puedeExplicar && in_array($abrir, ['registrar-horas', 'corregir', 'explicar'], true),
+        ];
     }
 
     /**

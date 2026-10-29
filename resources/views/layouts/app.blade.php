@@ -82,7 +82,7 @@
                     </a>
                 @endif
                 @if (auth()->user()->esTecnico())
-                    <a href="{{ route('tecnico.index') }}" @if (request()->routeIs('tecnico.index', 'tecnico.copia', 'tecnico.actualizar')) aria-current="page" @endif>
+                    <a href="{{ route('tecnico.index') }}" @if (request()->routeIs('tecnico.index', 'tecnico.copia', 'tecnico.actualizar', 'tecnico.restaurar')) aria-current="page" @endif>
                         <x-icono nombre="sliders" />
                         Sistema
                     </a>
