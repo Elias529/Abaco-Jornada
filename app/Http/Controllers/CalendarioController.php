@@ -364,6 +364,15 @@ class CalendarioController extends Controller
                     'subtitulo' => 'Ausencia prevista',
                     'clase' => $ausencia->tipo,
                 ];
+            } elseif ($dia['pendiente']) {
+                $eventos[] = [
+                    'fecha' => $dia['fecha'],
+                    'dia' => $fecha->day,
+                    'diaSemana' => mb_strtoupper($fecha->locale('es')->isoFormat('ddd')),
+                    'titulo' => 'Vacaciones',
+                    'subtitulo' => 'Pendiente de decidir',
+                    'clase' => 'pendiente',
+                ];
             }
         }
 

@@ -52,11 +52,12 @@
                 <span class="{{ $clases }}" data-fecha="{{ $dia['fecha'] }}" data-cuenta="{{ $dia['cuenta'] ? '1' : '0' }}" @if ($titulo !== '') title="{{ $titulo }}" @endif>
                     <strong>{{ $dia['numero'] }}</strong>
                     @if ($festivo)
-                        <small class="casilla-etiqueta casilla-etiqueta-festivo">{{ $festivo->name }}</small>
-                    @elseif ($dia['ausencia'])
-                        <small class="casilla-etiqueta casilla-etiqueta-{{ $dia['ausencia']->tipo }}">{{ $dia['ausencia']->tipoTexto() }}</small>
+                        <small class="casilla-etiqueta casilla-etiqueta-festivo" title="{{ $festivo->name }}">{{ $festivo->name }}</small>
+                    @endif
+                    @if ($dia['ausencia'])
+                        <small class="casilla-etiqueta casilla-etiqueta-{{ $dia['ausencia']->tipo }}" title="{{ $dia['ausencia']->tipoTexto() }}">{{ $dia['ausencia']->tipoTexto() }}</small>
                     @elseif ($dia['pendiente'])
-                        <small class="casilla-etiqueta casilla-etiqueta-vacaciones-pendiente">Vacaciones</small>
+                        <small class="casilla-etiqueta casilla-etiqueta-vacaciones-pendiente" title="Vacaciones">Vacaciones</small>
                     @endif
                     @if ($dia['hoy'])
                         <small>Hoy</small>

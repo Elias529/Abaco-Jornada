@@ -215,6 +215,42 @@ class JornadaTest extends TestCase
             ->assertStatus(405);
     }
 
+    public function test_el_calendario_lista_festivos_y_vacaciones_del_mes(): void
+    {
+        $this->festivosPublicos([
+            [
+                'date' => '2026-10-12',
+                'localName' => 'Fiesta Nacional de España',
+                'global' => true,
+                'counties' => null,
+                'types' => ['Public'],
+            ],
+        ]);
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
+        Ausencia::create([
+            'user_id' => $ana->id,
+            'absence_date' => '2026-10-20',
+            'tipo' => 'vacaciones',
+        ]);
+
+        $this->actingAs($ana)->post(route('calendario.vacaciones'), [
+            'desde' => '2026-10-21',
+            'hasta' => '2026-10-21',
+        ])->assertSessionHas('ok');
+
+        $this->actingAs($ana)
+            ->get(route('calendario', ['mes' => 10]))
+            ->assertOk()
+            ->assertSee('Fiesta Nacional de España', false)
+            ->assertSee('Festivo Nacional', false)
+            ->assertSee('Vacaciones', false)
+            ->assertSee('Ausencia prevista', false)
+            ->assertSee('Pendiente de decidir', false)
+            ->assertSee('casilla-etiqueta-festivo', false)
+            ->assertSee('casilla-etiqueta-vacaciones', false)
+            ->assertSee('casilla-etiqueta-vacaciones-pendiente', false);
+    }
+
     public function test_la_baja_conserva_la_jornada(): void
     {
         $marta = $this->persona('Marta Ruiz', 'marta.ruiz@abaco.test', 'Madrid', 'jefa');
