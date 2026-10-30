@@ -730,7 +730,7 @@
 
     .calendario-layout {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) 248px;
+        grid-template-columns: minmax(0, 1fr) minmax(220px, 280px);
         align-items: start;
         gap: var(--e4);
     }
@@ -789,9 +789,9 @@
 
     .calendario-mes-card .casilla {
         display: flex;
-        min-height: 76px;
+        min-height: 112px;
         flex-direction: column;
-        align-items: flex-start;
+        align-items: stretch;
         gap: var(--e1);
         padding: var(--e2);
         border-right: 1px solid var(--linea);
@@ -813,8 +813,8 @@
     }
 
     .calendario-mes-card .casilla small {
-        max-width: 100%;
-        font-size: var(--texto-secundario);
+        max-width: none;
+        font-size: 11px;
     }
 
     .calendario-mes-card .casilla-estado,
@@ -850,17 +850,29 @@
 
     .calendario-mes-card .casilla-etiqueta {
         display: block;
-        overflow: hidden;
-        width: 100%;
-        padding: var(--e1) var(--e2);
+        overflow: visible;
+        width: auto;
+        padding: 2px 5px;
         border-radius: var(--radio-sm);
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        line-height: 1.2;
+        overflow-wrap: break-word;
+        word-break: normal;
+        hyphens: auto;
+        text-overflow: clip;
+        white-space: normal;
     }
 
     .calendario-mes-card .casilla-etiqueta-festivo {
         background: var(--marca-suave);
         color: var(--texto);
+    }
+
+    html[data-tema="oscuro"] .calendario-mes-card .casilla-etiqueta-festivo {
+        align-self: start;
+        width: fit-content;
+        max-width: 100%;
+        background: color-mix(in srgb, var(--marca-turquesa) 22%, var(--superficie));
+        color: var(--marca-turquesa);
     }
 
     .calendario-mes-card .casilla-etiqueta-vacaciones {
@@ -896,6 +908,11 @@
     .calendario-eventos,
     .calendario-centro {
         padding: var(--e4);
+    }
+
+    .calendario-eventos {
+        max-height: min(70vh, 640px);
+        overflow: auto;
     }
 
     .calendario-eventos h2,
@@ -947,11 +964,13 @@
     }
 
     .calendario-evento > div strong {
-        overflow: hidden;
         font-size: var(--texto-lista);
         font-weight: var(--peso-boton);
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        overflow-wrap: anywhere;
+    }
+
+    .calendario-evento-pendiente time strong {
+        color: var(--estado-pendiente);
     }
 
     .calendario-evento > div span {
