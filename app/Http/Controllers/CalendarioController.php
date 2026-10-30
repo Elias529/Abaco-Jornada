@@ -2,12 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\FestivosCsvService;
 use App\Models\Ausencia;
+use App\Models\Centro;
 use App\Models\FalloComun;
 use App\Models\Festivo;
 use App\Models\Jornada;
 use App\Models\SolicitudVacaciones;
-use App\Sede;
 use App\Services\CupoVacaciones;
 use App\Services\JornadaService;
 use App\Services\NagerFestivos;
@@ -17,6 +18,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class CalendarioController extends Controller
 {
@@ -51,7 +53,8 @@ class CalendarioController extends Controller
             : null;
 
         $usuario = $request->user();
-        $festivos = $this->festivos->delAnio((string) $usuario->centro, $anio);
+        $centro = $usuario->sede ?? Centro::query()->orderBy('name')->firstOrFail();
+        $festivos = $this->festivos->delAnio($centro, $anio);
         $propias = $usuario->ausencias()->whereYear('absence_date', $anio)->get()
             ->keyBy(fn (Ausencia $ausencia) => $ausencia->absence_date->toDateString());
         $jornadas = Jornada::query()
@@ -67,8 +70,6 @@ class CalendarioController extends Controller
         $meses = $this->meses($anio, $festivos, $propias, $jornadas, $pendientes);
         $mesActual = $meses[$mes - 1];
         $vistaAnio = $request->query('vista') === 'anio';
-        $centro = Sede::tryFrom((string) $usuario->centro) ?? Sede::porDefecto();
-
         $datos = [
             'festivos' => $festivos,
             'mes' => $mesActual,
@@ -91,6 +92,101 @@ class CalendarioController extends Controller
         }
 
         return view('calendario.index', $datos);
+    }
+
+    public function plantillaFestivos(): StreamedResponse
+    {
+        $ruta = database_path('seeders/data/festivos-madrid-valencia-2027.csv');
+
+        return response()->streamDownload(static function () use ($ruta): void {
+            echo (string) file_get_contents($ruta);
+        }, 'plantilla-festivos.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    public function previsualizarFestivos(Request $request, FestivosCsvService $csv): RedirectResponse
+    {
+        $datos = $request->validate([
+            'archivo' => ['required', 'file', 'mimes:csv,txt', 'max:2048'],
+        ], [
+            'archivo.required' => 'Selecciona un CSV.',
+            'archivo.mimes' => 'El fichero debe ser CSV.',
+            'archivo.max' => 'El CSV no puede superar 2 MB.',
+        ]);
+
+        try {
+            $resultado = $csv->leer($datos['archivo']);
+        } catch (\RuntimeException $error) {
+            return back()->with('aviso', $error->getMessage());
+        }
+
+        if ($resultado['filas'] === []) {
+            $request->session()->put('festivos_preview', []);
+            $request->session()->put('festivos_errores', $resultado['errores']);
+
+            return back()->with('aviso', 'El CSV no contiene filas válidas para importar.');
+        }
+
+        $request->session()->put('festivos_preview', $resultado['filas']);
+        $request->session()->put('festivos_errores', $resultado['errores']);
+
+        return back();
+    }
+
+    public function cerrarPrevisualizacionFestivos(Request $request): RedirectResponse
+    {
+        $request->session()->forget(['festivos_preview', 'festivos_errores']);
+
+        return back();
+    }
+
+    public function importarFestivos(Request $request, FestivosCsvService $csv): RedirectResponse
+    {
+        $filas = $request->session()->get('festivos_preview', []);
+        if (! is_array($filas) || $filas === []) {
+            return back()->with('aviso', 'Primero prepara un CSV para importar.');
+        }
+
+        $cantidad = $csv->importar($filas);
+        $request->session()->forget(['festivos_preview', 'festivos_errores']);
+
+        return back()->with('ok', 'Se han guardado '.$cantidad.' festivos.');
+    }
+
+    public function actualizarFestivo(Request $request, Festivo $festivo): RedirectResponse
+    {
+        $datos = $request->validate([
+            'holiday_date' => ['required', 'date'],
+            'name' => ['required', 'string', 'max:120'],
+            'ambito' => ['required', 'in:estado,comunidad,pueblo'],
+            'community' => ['nullable', 'string', 'max:120'],
+            'centro' => ['nullable', 'string', 'exists:centros,name'],
+        ]);
+
+        $centro = $datos['centro'] ? Centro::query()->where('name', $datos['centro'])->firstOrFail() : null;
+        if ($datos['ambito'] === 'pueblo' && $centro === null) {
+            return back()->with('aviso', 'Un festivo local necesita un centro.');
+        }
+        if ($datos['ambito'] === 'comunidad' && trim((string) ($datos['community'] ?? '')) === '') {
+            return back()->with('aviso', 'Un festivo autonómico necesita una autonomía.');
+        }
+
+        $festivo->update([
+            'holiday_date' => $datos['holiday_date'],
+            'name' => $datos['name'],
+            'ambito' => $datos['ambito'],
+            'community' => $datos['ambito'] === 'comunidad' ? trim((string) $datos['community']) : null,
+            'centro_id' => $datos['ambito'] === 'pueblo' ? $centro?->id : null,
+            'municipality' => $datos['ambito'] === 'pueblo' ? $centro?->municipality : '',
+        ]);
+
+        return back()->with('ok', 'Festivo actualizado.');
+    }
+
+    public function eliminarFestivo(Festivo $festivo): RedirectResponse
+    {
+        $festivo->delete();
+
+        return back()->with('ok', 'Festivo eliminado.');
     }
 
     public function solicitar(Request $request): RedirectResponse

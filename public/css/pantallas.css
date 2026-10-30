@@ -66,6 +66,36 @@
         font-weight: var(--peso-titulo);
     }
 
+    .personas-sedes {
+        border: 1px solid var(--linea);
+        border-radius: var(--radio);
+        background: var(--superficie);
+    }
+
+    .personas-sedes > summary {
+        display: inline-flex;
+        cursor: pointer;
+        list-style: none;
+    }
+
+    .personas-sedes > summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .personas-sedes-contenido {
+        display: grid;
+        gap: var(--e3);
+        padding: 0 var(--e4) var(--e4);
+    }
+
+    .personas-sedes-contenido .formulario {
+        max-width: 560px;
+    }
+
+    .personas-sedes-contenido .lista {
+        margin: 0;
+    }
+
     .personas-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -247,6 +277,7 @@
 
     .pagina-fichar .tarjeta-jornada {
         box-shadow: var(--sombra-ficha);
+        border-top: 3px solid var(--marca-primario);
     }
 
     :is(a, button, input, select, textarea):focus-visible {
@@ -795,6 +826,17 @@
         outline: 0;
     }
 
+    html[data-tema="oscuro"] .calendario-mes-card :is(.casilla-estado, .casilla-comunidad, .casilla-pueblo, .casilla-vacaciones, .casilla-hoy.casilla-vacaciones, .casilla-pendiente) {
+        background: var(--superficie);
+        background-image: none;
+        color: var(--texto);
+        outline: 0;
+    }
+
+    html[data-tema="oscuro"] .calendario-mes-card :is(.casilla-finde.casilla-estado, .casilla-finde.casilla-comunidad, .casilla-finde.casilla-pueblo, .casilla-finde.casilla-vacaciones, .casilla-finde.casilla-pendiente) {
+        background: var(--fondo);
+    }
+
     .calendario-mes-card .casilla-pendiente {
         background: var(--superficie);
         background-image: none;
@@ -960,6 +1002,419 @@
         line-height: 1.5;
     }
 
+    .calendario-gestion-festivos {
+        display: grid;
+        gap: var(--e3);
+        padding: var(--e4);
+    }
+
+    .calendario-gestion-festivos h2,
+    .calendario-gestion-festivos h3 {
+        margin: 0;
+    }
+
+    .calendario-gestion-festivos .formulario {
+        gap: var(--e2);
+    }
+
+    .calendario-archivo-titulo {
+        display: flex;
+        align-items: center;
+        gap: var(--e2);
+    }
+
+    .calendario-archivo-titulo label {
+        margin: 0;
+    }
+
+    .calendario-plantilla {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border: 1px solid var(--linea);
+        border-radius: 50%;
+        color: var(--enlace);
+    }
+
+    .calendario-plantilla:hover {
+        background: var(--superficie-hover);
+        color: var(--texto);
+    }
+
+    .calendario-plantilla .icono {
+        width: 17px;
+        height: 17px;
+    }
+
+    .calendario-archivo {
+        display: flex;
+        align-items: stretch;
+        flex-direction: column;
+        gap: var(--e2);
+        min-height: 88px;
+        padding: var(--e1);
+        border: 1px solid var(--borde-campo);
+        border-radius: var(--radio);
+        background: var(--superficie);
+    }
+
+    .calendario-archivo input[type="file"] {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+        clip-path: inset(50%);
+    }
+
+    .calendario-archivo-boton {
+        display: inline-flex;
+        align-self: flex-start;
+        align-items: center;
+        min-height: 36px;
+        padding: 0 var(--e3);
+        border: 1px solid var(--linea);
+        border-radius: var(--radio-sm);
+        background: var(--superficie-2);
+        color: var(--texto);
+        cursor: pointer;
+        font-size: var(--texto-secundario);
+        font-weight: var(--peso-boton);
+    }
+
+    .calendario-archivo-boton:hover {
+        background: var(--superficie-hover);
+    }
+
+    .calendario-archivo-boton:focus-visible {
+        outline: 3px solid var(--foco);
+        outline-offset: 2px;
+    }
+
+    .calendario-archivo-nombre {
+        min-width: 0;
+        overflow: hidden;
+        color: var(--texto-2);
+        font-size: var(--texto-secundario);
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .calendario-archivo-error {
+        margin: 0;
+        color: var(--estado-error-tecnico);
+        font-size: var(--texto-secundario);
+    }
+
+    .calendario-festivos-preview,
+    .calendario-festivos-lista {
+        display: grid;
+        gap: var(--e2);
+    }
+
+    .calendario-festivos-dialogo.calendario-festivos-preview-dialogo {
+        width: min(560px, calc(100vw - 32px));
+        max-height: min(80vh, 720px);
+        padding: 0;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        outline: none;
+    }
+
+    .calendario-festivos-preview-dialogo .dialogo-cabecera {
+        align-items: flex-start;
+        margin: 0;
+        padding: 20px 20px 12px;
+        border: 0;
+        background: var(--fondo-ventana);
+    }
+
+    .calendario-festivos-preview-dialogo .dialogo-cabecera > div {
+        min-width: 0;
+        flex: 1 1 auto;
+    }
+
+    .calendario-festivos-preview-dialogo .dialogo-cabecera p {
+        margin: 4px 0 0;
+        color: var(--texto-suave);
+        font-size: 13px;
+        font-weight: 500;
+        line-height: 1.35;
+    }
+
+    .calendario-festivos-resumen {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 0;
+        padding: 4px 20px 12px;
+        border: 0;
+        background: var(--fondo-ventana);
+        color: var(--texto-2);
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .calendario-festivos-resumen span {
+        display: inline-flex;
+        align-items: center;
+        min-height: 24px;
+        padding: 0 10px;
+        border-radius: 999px;
+        background: var(--superficie-2);
+    }
+
+    .calendario-festivos-preview-dialogo .franja {
+        margin: 12px 20px 0;
+    }
+
+    .calendario-festivos-preview-dialogo .calendario-festivos-preview {
+        flex: 1 1 auto;
+        gap: 16px;
+        min-height: 0;
+        margin: 0;
+        padding: 14px 20px;
+        overflow: auto;
+        overflow-x: hidden;
+        border: 0;
+        outline: none;
+        box-shadow: none;
+        appearance: none;
+        background: var(--fondo-ventana);
+        scrollbar-width: thin;
+        scrollbar-color: color-mix(in srgb, var(--texto-2) 45%, transparent) transparent;
+    }
+
+    .calendario-festivos-preview-dialogo .calendario-festivos-preview::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .calendario-festivos-preview-dialogo .calendario-festivos-preview::-webkit-scrollbar-track {
+        margin: 0;
+        border: 0;
+        background: transparent;
+        box-shadow: none;
+    }
+
+    .calendario-festivos-preview-dialogo .calendario-festivos-preview::-webkit-scrollbar-thumb {
+        border: 0;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--texto-2) 45%, transparent);
+    }
+
+    .calendario-festivos-mes {
+        display: grid;
+        gap: 8px;
+    }
+
+    .calendario-festivos-mes h3 {
+        margin: 0;
+        color: var(--texto-2);
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+
+    .calendario-festivos-mes ul {
+        display: grid;
+        gap: 8px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .calendario-festivo-fila {
+        display: grid;
+        grid-template-columns: 48px minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 12px;
+        border: 1px solid var(--linea);
+        border-radius: 12px;
+        background: var(--superficie);
+    }
+
+    .calendario-festivo-dia {
+        display: grid;
+        place-items: center;
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        background: color-mix(in srgb, var(--marca-primario) 12%, var(--superficie));
+        color: var(--marca-primario);
+        line-height: 1;
+        text-align: center;
+    }
+
+    .calendario-festivo-dia strong {
+        font-size: 18px;
+        font-weight: 700;
+    }
+
+    .calendario-festivo-dia span {
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+
+    .calendario-festivo-datos {
+        display: grid;
+        gap: 2px;
+        min-width: 0;
+    }
+
+    .calendario-festivo-datos strong {
+        font-size: 14px;
+        font-weight: 650;
+        overflow-wrap: anywhere;
+    }
+
+    .calendario-festivo-datos span {
+        color: var(--texto-suave);
+        font-size: 12px;
+        font-weight: 500;
+    }
+
+    .festivo-ambito {
+        display: inline-flex;
+        align-items: center;
+        min-height: 24px;
+        padding: 0 10px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+        line-height: 1;
+        white-space: nowrap;
+    }
+
+    .festivo-ambito-estado {
+        background: var(--superficie-2);
+        color: var(--texto-2);
+    }
+
+    .festivo-ambito-comunidad {
+        background: #e5f7fb;
+        color: #087f8c;
+    }
+
+    .festivo-ambito-pueblo {
+        background: #fff4d6;
+        color: #8a5a00;
+    }
+
+    .calendario-festivos-acciones {
+        display: flex;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 0;
+        padding: 12px 20px 16px;
+        border: 0;
+        background: var(--fondo-ventana);
+    }
+
+    .calendario-festivos-acciones .boton {
+        width: auto;
+        min-height: 40px;
+    }
+
+    .calendario-festivos-dialogo {
+        max-height: min(720px, calc(100vh - 32px));
+        overflow: auto;
+    }
+
+    .calendario-festivos-dialogo .dialogo-cabecera {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--e3);
+        margin-bottom: var(--e3);
+    }
+
+    .calendario-festivos-dialogo h2 {
+        margin: 0;
+    }
+
+    .calendario-dialogo-cerrar {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        padding: 0;
+        border: 1px solid var(--linea);
+        border-radius: 50%;
+        color: var(--texto);
+        background: var(--superficie);
+    }
+
+    .calendario-dialogo-cerrar:hover {
+        color: var(--superficie);
+        background: var(--marca-primario-oscuro);
+    }
+
+    .calendario-dialogo-cerrar:focus-visible {
+        outline: 3px solid var(--foco);
+        outline-offset: 2px;
+    }
+
+    .calendario-dialogo-cerrar .icono {
+        width: 17px;
+        height: 17px;
+    }
+
+    .calendario-festivos-cargados {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--e2);
+    }
+
+    .calendario-festivos-cargados .icono {
+        width: 18px;
+        height: 18px;
+    }
+
+    .calendario-festivos-dialogo .franja {
+        margin-bottom: var(--e3);
+    }
+
+    .calendario-confirmar {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: var(--alto-control);
+        min-width: var(--alto-control);
+        padding: 0;
+    }
+
+    .calendario-festivos-preview form {
+        display: flex;
+        justify-content: center;
+        margin-top: var(--e3);
+    }
+
+    .calendario-confirmar .icono {
+        width: 19px;
+        height: 19px;
+    }
+
+    .calendario-festivos-lista details {
+        padding: var(--e2) var(--e3);
+        border: 1px solid var(--linea);
+        border-radius: var(--radio-sm);
+    }
+
+    .calendario-festivos-lista summary {
+        cursor: pointer;
+        font-weight: var(--peso-boton);
+    }
+
     .calendario-eventos-vacio {
         margin: 0;
     }
@@ -1115,12 +1570,26 @@
     }
 
     :is(.lateral-kicker, .es-jefa .lateral-kicker) {
-        margin-block: var(--e4) var(--e2);
+        margin-block: var(--e3) var(--e1);
     }
 
     :is(.lateral-cuenta, .es-jefa .lateral-cuenta) {
-        margin-top: var(--e4);
-        padding-top: var(--e4);
+        margin-top: var(--e3);
+        padding-top: var(--e3);
+    }
+
+    .es-jefa .lateral {
+        padding: var(--e3);
+    }
+
+    .es-jefa .lateral .marca-logo {
+        min-height: 64px;
+        margin: calc(var(--e3) * -1) calc(var(--e3) * -1) var(--e1);
+    }
+
+    .es-jefa .lateral .menu a {
+        min-height: var(--alto-control);
+        padding: var(--e2) 14px;
     }
 
     :is(.tabla-registro .registro-cabecera, .registro-tabla .registro-cabecera, .incidencia-tabla-cabeza) {
@@ -1161,6 +1630,23 @@
         width: var(--alto-control);
         min-width: var(--alto-control);
         height: var(--alto-control);
+    }
+
+    .vacaciones-abre {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: var(--alto-control);
+        min-width: var(--alto-control);
+        padding: 0;
+    }
+
+    .vacaciones-abre .icono {
+        display: block;
+        width: 19px;
+        height: 19px;
+        color: currentColor;
+        stroke: currentColor;
     }
 
     .solicitud-accion {
@@ -1801,6 +2287,1028 @@
         pointer-events: none;
         border: 1px solid var(--linea);
         border-radius: var(--radio);
+    }
+
+    .cuerpo:has(.gestion-pagina) {
+        height: 100dvh;
+        min-height: 100dvh;
+        overflow: hidden;
+    }
+
+    .pagina:has(.gestion-pagina) {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        width: min(1280px, calc(100% - 48px));
+        min-height: 0;
+        padding-top: 20px;
+        padding-bottom: var(--e4);
+        overflow: hidden;
+    }
+
+    .pagina:has(.gestion-pagina) main {
+        display: flex;
+        flex: 1 1 auto;
+        min-height: 0;
+    }
+
+    .gestion-pagina {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        gap: var(--e4);
+        width: 100%;
+        min-height: 0;
+    }
+
+    .gestion-cabeza {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .gestion-cabeza h1 {
+        margin: 0;
+        font-size: 28px;
+    }
+
+    .gestion-tablero {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: var(--e4);
+        flex: 1 1 auto;
+        align-items: stretch;
+        min-height: 0;
+    }
+
+    .gestion-tarjeta {
+        display: flex;
+        flex-direction: column;
+        gap: var(--e3);
+        min-width: 0;
+        min-height: 0;
+        padding: 18px 18px 16px;
+        border: 1px solid var(--linea);
+        border-top: 3px solid var(--marca-primario);
+        border-radius: 16px;
+        background: var(--fondo-ventana);
+        box-shadow: 0 10px 28px rgba(7, 17, 26, 0.05);
+    }
+
+    .gestion-tarjeta-cabeza {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .gestion-tarjeta-cabeza > div {
+        flex: 1 1 12rem;
+        min-width: 0;
+    }
+
+    .gestion-tarjeta-cabeza h2 {
+        margin: 0;
+        font-size: 18px;
+        line-height: 1.2;
+        overflow-wrap: break-word;
+        word-break: normal;
+    }
+
+    .gestion-tarjeta-cabeza p {
+        margin: 2px 0 0;
+        color: var(--texto-suave);
+        font-size: 12px;
+        font-weight: 500;
+    }
+
+    .gestion-tarjeta-cabeza .pastilla,
+    .gestion-tarjeta-cabeza .calendario-plantilla {
+        flex: 0 0 auto;
+        margin-left: auto;
+    }
+
+    .gestion-marca {
+        display: grid;
+        place-items: center;
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        flex: 0 0 auto;
+    }
+
+    .gestion-marca .icono {
+        width: 20px;
+        height: 20px;
+    }
+
+    .gestion-marca-vacaciones {
+        background: color-mix(in srgb, var(--estado-pendiente) 22%, var(--superficie));
+        color: #8a5a10;
+    }
+
+    .gestion-tarjeta-vacaciones:not(:has(.gestion-solicitud)) .gestion-marca-vacaciones {
+        background: color-mix(in srgb, var(--marca-primario) 14%, var(--superficie));
+        color: var(--marca-primario);
+    }
+
+    .gestion-marca-sedes {
+        background: color-mix(in srgb, var(--marca-primario) 14%, var(--superficie));
+        color: var(--marca-primario);
+    }
+
+    .gestion-marca-festivos {
+        background: color-mix(in srgb, var(--marca-turquesa) 18%, var(--superficie));
+        color: var(--marca-primario-oscuro);
+    }
+
+    .gestion-tarjeta-cuerpo {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: auto;
+    }
+
+    .gestion-tarjeta-pie {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--e2);
+        padding-top: var(--e2);
+        border-top: 1px solid var(--linea);
+        color: var(--texto-suave);
+        font-size: 12px;
+    }
+
+    .gestion-tarjeta-pie .boton {
+        width: auto;
+        min-height: 40px;
+        margin-left: auto;
+    }
+
+    .gestion-tarjeta-pie .calendario-festivos-cargados {
+        width: 100%;
+        justify-content: center;
+        margin-left: 0;
+    }
+
+    .gestion-vacio {
+        display: grid;
+        place-items: center;
+        gap: var(--e2);
+        min-height: 140px;
+        margin: 0;
+        padding: var(--e4);
+        color: var(--texto-suave);
+        text-align: center;
+        font-size: 14px;
+    }
+
+    .gestion-vacio .icono {
+        width: 28px;
+        height: 28px;
+        color: var(--marca-acento);
+    }
+
+    .gestion-solicitudes {
+        display: grid;
+        gap: var(--e2);
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .gestion-solicitud {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border: 1px solid var(--linea);
+        border-radius: 12px;
+        background: var(--fondo);
+        overflow-wrap: normal;
+    }
+
+    .gestion-avatar {
+        display: grid;
+        place-items: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: var(--seleccion);
+        color: var(--enlace);
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .gestion-solicitud-datos {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        gap: 2px;
+    }
+
+    .gestion-solicitud-datos strong,
+    .gestion-solicitud-datos .consultas-fecha {
+        overflow: hidden;
+        overflow-wrap: normal;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .gestion-solicitud-datos strong {
+        font-size: 14px;
+        font-weight: 600;
+    }
+
+    .gestion-solicitud-datos .consultas-fecha {
+        color: var(--texto-suave);
+        font-size: 12px;
+        white-space: normal;
+    }
+
+    .gestion-solicitud .solicitud-acciones {
+        gap: 6px;
+    }
+
+    .gestion-solicitud .solicitud-accion {
+        width: 40px;
+        min-width: 40px;
+        min-height: 40px;
+    }
+
+    .gestion-sede-alta {
+        display: grid;
+        gap: var(--e2);
+        margin: 0;
+    }
+
+    .gestion-sede-alta label {
+        display: block;
+        margin-bottom: 4px;
+        color: var(--texto-suave);
+        font-size: 12px;
+        font-weight: 500;
+    }
+
+    .gestion-sede-alta-par {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--e2);
+    }
+
+    .gestion-sede-alta .boton {
+        width: 100%;
+        min-height: 40px;
+    }
+
+    .gestion-sedes-lista {
+        display: grid;
+        gap: var(--e2);
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .gestion-sedes-lista li {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 10px 12px;
+        border: 1px solid var(--linea);
+        border-radius: 12px;
+        background: var(--fondo);
+        overflow-wrap: normal;
+    }
+
+    .gestion-sede {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        align-items: center;
+        gap: 10px;
+    }
+
+    .gestion-sede-pin {
+        display: grid;
+        place-items: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        background: color-mix(in srgb, var(--marca-primario) 12%, var(--superficie));
+        color: var(--marca-primario);
+    }
+
+    .gestion-sede-pin .icono {
+        width: 14px;
+        height: 14px;
+    }
+
+    .gestion-sede strong,
+    .gestion-sede small {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .gestion-sede strong {
+        font-size: 14px;
+        font-weight: 600;
+    }
+
+    .gestion-sede small {
+        color: var(--texto-suave);
+        font-size: 12px;
+    }
+
+    .gestion-sedes-lista summary {
+        color: var(--enlace);
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .gestion-sedes-lista .formulario {
+        margin-top: 8px;
+        max-width: none;
+    }
+
+    .gestion-festivos-form {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        min-height: 0;
+        margin: 0;
+        gap: var(--e2);
+    }
+
+    .gestion-festivos-form input[type="file"] {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+        clip-path: inset(50%);
+    }
+
+    .gestion-festivos-zona {
+        display: grid;
+        place-items: center;
+        gap: 6px;
+        flex: 1 1 auto;
+        min-height: 160px;
+        padding: var(--e4);
+        border: 1.5px dashed var(--marca-acento);
+        border-radius: 14px;
+        background: color-mix(in srgb, var(--marca-suave) 28%, var(--superficie));
+        color: var(--texto);
+        text-align: center;
+        cursor: pointer;
+    }
+
+    .gestion-festivos-zona:hover,
+    .gestion-festivos-zona:focus-visible {
+        border-color: var(--marca-primario);
+        background: color-mix(in srgb, var(--marca-suave) 42%, var(--superficie));
+    }
+
+    .gestion-festivos-zona .icono {
+        width: 28px;
+        height: 28px;
+        color: var(--marca-primario);
+    }
+
+    .gestion-festivos-zona strong {
+        font-size: 15px;
+        font-weight: 600;
+        overflow-wrap: break-word;
+    }
+
+    .gestion-festivos-zona span {
+        color: var(--texto-suave);
+        font-size: 12px;
+        font-weight: 500;
+        overflow-wrap: break-word;
+    }
+
+    .calendario-festivos-dialogo .dialogo-cabecera h2 {
+        min-width: 0;
+        line-height: 1.2;
+    }
+
+    html[data-tema="oscuro"] .gestion-tarjeta {
+        box-shadow: none;
+    }
+
+    html[data-tema="oscuro"] .gestion-solicitud,
+    html[data-tema="oscuro"] .gestion-sedes-lista li {
+        background: var(--superficie-2);
+    }
+
+    html[data-tema="oscuro"] .gestion-festivos-zona {
+        background: color-mix(in srgb, var(--marca-turquesa) 12%, var(--superficie));
+    }
+
+    html[data-tema="oscuro"] .gestion-marca-vacaciones {
+        color: var(--estado-pendiente);
+    }
+
+    html[data-tema="oscuro"] .gestion-marca-festivos {
+        color: var(--marca-turquesa);
+    }
+
+    html[data-tema="oscuro"] .festivo-ambito-comunidad {
+        background: color-mix(in srgb, var(--marca-turquesa) 18%, var(--superficie));
+        color: var(--marca-turquesa);
+    }
+
+    html[data-tema="oscuro"] .festivo-ambito-pueblo {
+        background: color-mix(in srgb, var(--estado-pendiente) 22%, var(--superficie));
+        color: var(--estado-pendiente);
+    }
+
+    @media (max-width: 1100px) {
+        .cuerpo:has(.gestion-pagina) {
+            height: auto;
+            min-height: 100dvh;
+            overflow: visible;
+        }
+
+        .pagina:has(.gestion-pagina) {
+            overflow: visible;
+        }
+
+        .gestion-tablero {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .gestion-tarjeta-vacaciones {
+            grid-column: 1 / -1;
+        }
+    }
+
+    @media (max-width: 720px) {
+        .pagina:has(.gestion-pagina) {
+            width: min(1120px, calc(100% - 32px));
+        }
+
+        .gestion-tablero {
+            grid-template-columns: 1fr;
+        }
+
+        .gestion-tarjeta-vacaciones {
+            grid-column: auto;
+        }
+
+        .gestion-tarjeta-cabeza h2 {
+            font-size: 16px;
+        }
+
+        .gestion-solicitud {
+            grid-template-columns: auto minmax(0, 1fr);
+        }
+
+        .gestion-solicitud .solicitud-acciones {
+            grid-column: 2;
+            justify-content: flex-start;
+        }
+
+        .gestion-solicitud-datos .consultas-fecha {
+            white-space: normal;
+        }
+
+        .gestion-sede-alta-par {
+            grid-template-columns: 1fr;
+        }
+
+        .gestion-festivos-zona {
+            min-height: 120px;
+        }
+
+        .calendario-festivo-fila {
+            grid-template-columns: 48px minmax(0, 1fr);
+        }
+
+        .festivo-ambito {
+            grid-column: 2;
+            justify-self: start;
+        }
+
+        .calendario-festivos-acciones {
+            justify-content: stretch;
+        }
+
+        .calendario-festivos-acciones .boton {
+            flex: 1 1 auto;
+        }
+    }
+
+    .cuerpo:has(.ticket-ficha) {
+        height: 100dvh;
+        min-height: 100dvh;
+        overflow: hidden;
+    }
+
+    .pagina:has(.tickets-pagina) {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        width: min(1280px, calc(100% - 48px));
+        min-height: 0;
+        padding-top: 8px;
+        padding-bottom: var(--e4);
+    }
+
+    .pagina:has(.ticket-ficha) {
+        overflow: hidden;
+    }
+
+    .pagina:has(.tickets-pagina) main {
+        display: flex;
+        flex: 1 1 auto;
+        min-height: 0;
+    }
+
+    .tickets-pagina {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        gap: 8px;
+        width: 100%;
+        min-height: 0;
+    }
+
+    .tickets-pagina .volver-linea {
+        margin: 0;
+    }
+
+    .tickets-pagina .volver {
+        min-height: 32px;
+        margin: 0;
+        padding: 4px 10px 4px 8px;
+    }
+
+    .tickets-cabeza {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        flex: 0 0 auto;
+    }
+
+    .tickets-cabeza h1 {
+        margin: 0;
+        font-size: 22px;
+    }
+
+    .tickets-panel {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        min-width: 0;
+        min-height: 0;
+        padding: 18px 18px 16px;
+        border: 1px solid var(--linea);
+        border-top: 3px solid var(--marca-primario);
+        border-radius: 16px;
+        background: var(--fondo-ventana);
+        box-shadow: 0 10px 28px rgba(7, 17, 26, 0.05);
+    }
+
+    .tickets-panel-cabeza {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        flex: 0 0 auto;
+        padding-bottom: var(--e3);
+    }
+
+    .tickets-panel-titulo {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+    }
+
+    .tickets-panel-titulo > div {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    .tickets-panel-cabeza h2 {
+        margin: 0;
+        font-size: 18px;
+        line-height: 1.2;
+    }
+
+    .tickets-panel-cabeza p {
+        margin: 2px 0 0;
+        color: var(--texto-suave);
+        font-size: 12px;
+        font-weight: 500;
+    }
+
+    .tickets-panel-titulo .pastilla {
+        flex: 0 0 auto;
+    }
+
+    .tickets-panel-titulo .boton {
+        width: auto;
+        min-height: 40px;
+        margin-left: auto;
+        flex: 0 0 auto;
+    }
+
+    .tickets-panel-titulo > .tickets-panel-acciones {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-left: auto;
+        min-width: 0;
+        flex: 0 0 auto;
+    }
+
+    .tickets-panel-acciones .tickets-filtro-linea,
+    .tickets-panel-acciones .boton {
+        margin-left: 0;
+    }
+
+    .tickets-marca {
+        display: grid;
+        place-items: center;
+        width: 40px;
+        height: 40px;
+        flex: 0 0 auto;
+        border-radius: 12px;
+        background: color-mix(in srgb, var(--marca-primario) 14%, var(--superficie));
+        color: var(--marca-primario);
+    }
+
+    .tickets-marca .icono {
+        width: 20px;
+        height: 20px;
+    }
+
+    .tickets-barra {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        margin: 0;
+    }
+
+    .tickets-pagina .tickets-filtros {
+        margin: 0;
+        gap: 8px;
+    }
+
+    .tickets-pagina .tickets-filtro {
+        gap: 8px;
+        min-height: 40px;
+        padding: 0 14px 0 16px;
+    }
+
+    .tickets-filtro-cuenta {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 1.4rem;
+        height: 22px;
+        padding: 0 7px;
+        border-radius: 999px;
+        background: var(--superficie-2);
+        color: var(--texto-2);
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 1;
+    }
+
+    .tickets-filtro[aria-current="page"] .tickets-filtro-cuenta {
+        background: rgba(255, 255, 255, 0.22);
+        color: inherit;
+    }
+
+    .tickets-filtro-linea {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-left: auto;
+        min-width: 0;
+        flex: 0 1 auto;
+    }
+
+    .tickets-filtro-linea .icono {
+        width: 16px;
+        height: 16px;
+        flex: 0 0 auto;
+        color: var(--marca-primario);
+    }
+
+    .tickets-filtro-linea select {
+        width: 200px;
+        max-width: 100%;
+        min-height: 40px;
+        margin: 0;
+    }
+
+    .tickets-filtro-linea select[name="estado"] {
+        width: 148px;
+    }
+
+    .tickets-panel-cuerpo {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: visible;
+    }
+
+    .tickets-pagina:not(.ticket-ficha) .tickets-panel {
+        flex: 0 1 auto;
+    }
+
+    .tickets-panel-pie {
+        display: flex;
+        justify-content: flex-end;
+        flex: 0 0 auto;
+        margin: 0;
+        padding-top: 12px;
+        border-top: 1px solid var(--linea);
+    }
+
+    .tickets-panel-pie .boton {
+        width: auto;
+        min-height: 40px;
+    }
+
+    .ticket-ficha .tickets-panel-cuerpo {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        overflow: auto;
+    }
+
+    .ticket-ficha h3 {
+        margin: 4px 0 0;
+        color: var(--texto-2);
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+
+    .ticket-hilo {
+        list-style: none;
+        display: grid;
+        gap: var(--e2);
+        margin: 0;
+        padding: 0;
+    }
+
+    .ticket-nota {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        align-items: start;
+        gap: 10px;
+        padding: 12px;
+        border: 1px solid var(--linea);
+        border-radius: 12px;
+        background: var(--fondo);
+    }
+
+    .ticket-nota-origen {
+        border-color: color-mix(in srgb, var(--marca-primario) 32%, var(--linea));
+        background: color-mix(in srgb, var(--marca-primario) 7%, var(--fondo));
+    }
+
+    .ticket-nota strong {
+        display: block;
+        font-size: 14px;
+        font-weight: 600;
+        line-height: 1.25;
+    }
+
+    .ticket-nota .ticket-meta {
+        display: block;
+        margin-top: 2px;
+    }
+
+    .ticket-nota-texto {
+        margin: 8px 0 0;
+        color: var(--texto);
+        font-size: 14px;
+        font-weight: 500;
+        line-height: 1.45;
+        overflow-wrap: anywhere;
+    }
+
+    .ticket-escribir {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: end;
+        gap: 8px 12px;
+        flex: 0 0 auto;
+        margin: 0;
+        padding-top: 12px;
+        border-top: 1px solid var(--linea);
+    }
+
+    .ticket-escribir label {
+        grid-column: 1 / -1;
+        margin: 0;
+        color: var(--texto-2);
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .ticket-escribir textarea {
+        width: auto;
+        min-height: 72px;
+        height: 72px;
+        margin: 0;
+        resize: vertical;
+    }
+
+    .ticket-escribir .boton {
+        width: auto;
+        min-width: 148px;
+    }
+
+    html[data-tema="oscuro"] .ticket-nota {
+        background: var(--superficie-2);
+    }
+
+    html[data-tema="oscuro"] .ticket-nota-origen {
+        background: color-mix(in srgb, var(--marca-primario) 12%, var(--superficie-2));
+    }
+
+    .tickets-pagina .tickets-vacio {
+        display: grid;
+        place-items: center;
+        gap: var(--e2);
+        min-height: 140px;
+        margin: 0;
+        padding: var(--e4);
+        border: 0;
+        background: transparent;
+        box-shadow: none;
+        color: var(--texto-suave);
+        text-align: center;
+        font-size: 14px;
+    }
+
+    .tickets-pagina .tickets-vacio .icono {
+        width: 28px;
+        height: 28px;
+        color: var(--marca-acento);
+    }
+
+    .ticket-ficha .tickets-vacio {
+        flex: 1 1 auto;
+        min-height: 0;
+        padding: var(--e3);
+    }
+
+    .tickets-lista {
+        list-style: none;
+        display: grid;
+        gap: var(--e2);
+        margin: 0;
+        padding: 0;
+    }
+
+    .ticket-fila {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border: 1px solid var(--linea);
+        border-radius: 12px;
+        background: var(--fondo);
+        color: var(--texto);
+        text-decoration: none;
+        overflow-wrap: normal;
+        transition: border-color 0.15s ease, background-color 0.15s ease;
+    }
+
+    .ticket-fila:hover,
+    .ticket-fila:focus-visible {
+        border-color: color-mix(in srgb, var(--marca-primario) 35%, var(--linea));
+        background: var(--seleccion);
+    }
+
+    .ticket-avatar {
+        display: grid;
+        place-items: center;
+        width: 36px;
+        height: 36px;
+        flex: 0 0 auto;
+        border-radius: 50%;
+        background: var(--seleccion);
+        color: var(--enlace);
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .ticket-cuerpo {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        gap: 2px;
+    }
+
+    .ticket-cuerpo strong,
+    .ticket-meta {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .ticket-cuerpo strong {
+        font-size: 14px;
+        font-weight: 600;
+        line-height: 1.25;
+    }
+
+    .ticket-meta {
+        color: var(--texto-suave);
+        font-size: 12px;
+        font-weight: 500;
+    }
+
+    .ticket-fila .chip {
+        flex: 0 0 auto;
+        white-space: nowrap;
+    }
+
+    html[data-tema="oscuro"] .tickets-panel {
+        box-shadow: none;
+    }
+
+    html[data-tema="oscuro"] .ticket-fila {
+        background: var(--superficie-2);
+    }
+
+    html[data-tema="oscuro"] .tickets-filtro[aria-current="page"] .tickets-filtro-cuenta {
+        background: color-mix(in srgb, var(--fondo-tinta) 18%, transparent);
+    }
+
+    @media (max-width: 720px) {
+        .cuerpo:has(.ticket-ficha) {
+            height: auto;
+            min-height: 100dvh;
+            overflow: visible;
+        }
+
+        .pagina:has(.tickets-pagina) {
+            width: min(1120px, calc(100% - 32px));
+            overflow: visible;
+        }
+
+        .ticket-ficha .tickets-panel-cuerpo {
+            overflow: visible;
+        }
+
+        .tickets-filtro-linea {
+            width: 100%;
+            margin-left: 0;
+        }
+
+        .tickets-panel-acciones {
+            width: 100%;
+            margin-left: 0;
+            flex-wrap: wrap;
+        }
+
+        .tickets-panel-titulo .boton {
+            width: 100%;
+            margin-left: 0;
+        }
+
+        .tickets-filtro-linea select {
+            flex: 1 1 auto;
+            width: auto;
+        }
+
+        .ticket-fila {
+            grid-template-columns: auto minmax(0, 1fr);
+        }
+
+        .ticket-fila .chip {
+            grid-column: 2;
+            justify-self: start;
+        }
+
+        .ticket-escribir {
+            grid-template-columns: 1fr;
+        }
+
+        .ticket-escribir .boton {
+            width: 100%;
+            min-width: 0;
+        }
     }
 
     @media (max-width: 640px) {

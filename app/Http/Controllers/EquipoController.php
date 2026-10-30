@@ -5,10 +5,10 @@ namespace App\Http\Controllers;
 use App\DuracionEstancia;
 use App\Exceptions\ReglaJornada;
 use App\Models\Ausencia;
+use App\Models\Centro;
 use App\Models\Consulta;
 use App\Models\Horario;
 use App\Models\User;
-use App\Sede;
 use App\Services\JornadaService;
 use App\Services\NagerFestivos;
 use App\Services\PlantillaDemo;
@@ -34,7 +34,7 @@ class EquipoController extends Controller
     {
         $mostrarTodas = $request->boolean('todas_personas');
         $personasQuery = User::query()
-            ->with('horarios')
+            ->with(['horarios', 'sede'])
             ->orderBy('name');
 
         return view('equipo.index', [
@@ -45,6 +45,45 @@ class EquipoController extends Controller
             'totalPersonas' => (clone $personasQuery)->count(),
             'esJefa' => true,
         ]);
+    }
+
+    public function crearCentro(Request $request): RedirectResponse
+    {
+        $datos = $request->validate([
+            'name' => ['required', 'string', 'max:120', 'unique:centros,name'],
+            'municipality' => ['required', 'string', 'max:120'],
+            'community' => ['required', 'string', 'max:120'],
+        ], [
+            'name.required' => 'Escribe el nombre de la sede.',
+            'name.unique' => 'Ese nombre de sede ya existe.',
+            'municipality.required' => 'Escribe el municipio.',
+            'community.required' => 'Escribe la autonomía.',
+        ]);
+
+        Centro::create($datos);
+
+        return back()->with('ok', 'Sede guardada. Ya puedes asignarla a una persona.');
+    }
+
+    public function actualizarCentro(Request $request, Centro $centro): RedirectResponse
+    {
+        $datos = $request->validate([
+            'name' => ['required', 'string', 'max:120', Rule::unique('centros', 'name')->ignore($centro)],
+            'municipality' => ['required', 'string', 'max:120'],
+            'community' => ['required', 'string', 'max:120'],
+        ], [
+            'name.required' => 'Escribe el nombre de la sede.',
+            'name.unique' => 'Ese nombre de sede ya existe.',
+            'municipality.required' => 'Escribe el municipio.',
+            'community.required' => 'Escribe la autonomía.',
+        ]);
+
+        DB::transaction(function () use ($centro, $datos): void {
+            $centro->update($datos);
+            $centro->users()->update(['municipality' => $datos['municipality']]);
+        });
+
+        return back()->with('ok', 'Sede actualizada. Las personas vinculadas usarán el nuevo municipio.');
     }
 
     public function create(Request $request): View
@@ -69,20 +108,23 @@ class EquipoController extends Controller
             $anio = now()->year;
         }
 
-        $sede = Sede::tryFrom((string) $request->old('centro', $request->query('centro', ''))) ?? Sede::porDefecto();
+        $nombreSede = $request->old('centro', $request->query('centro'));
+        $sede = Centro::query()
+            ->when($nombreSede, fn ($query) => $query->where('name', $nombreSede))
+            ->first() ?? Centro::query()->orderBy('name')->firstOrFail();
         $aniosFestivos = $periodoListo && $endsOn
             ? range($anioInicio, $anioFin)
             : [$anio];
         $festivos = collect();
         foreach (array_unique($aniosFestivos) as $anioFestivo) {
-            $festivos = $festivos->concat($this->festivos->delAnio($sede->value, $anioFestivo));
+            $festivos = $festivos->concat($this->festivos->delAnio($sede, $anioFestivo));
         }
         $consulta = array_filter([
             'tipo' => $tipo?->value,
             'starts_on' => $startsOn,
             'duracion' => $duracion?->value,
             'ends_on' => $duracion === DuracionEstancia::HastaElDia ? $endsOnInput : null,
-            'centro' => $sede->value,
+            'centro' => $sede->name,
         ]);
         $meses = RejillaCalendario::meses($anio, $festivos, $periodoListo ? $startsOn : null, $periodoListo ? $endsOn : null, $periodoListo);
         $aniosMeses = collect($meses)->pluck('anio')->unique();
@@ -95,7 +137,7 @@ class EquipoController extends Controller
             'puedeRetroceder' => $navegaAnios && $anio > ($periodoListo ? $anioInicio : 2020),
             'navegaAnios' => $navegaAnios,
             'sede' => $sede,
-            'sedes' => Sede::cases(),
+            'sedes' => Centro::query()->orderBy('name')->get(),
             'centro' => $sede->municipio(),
             'festivos' => $festivos,
             'sinCalendario' => $festivos->isEmpty(),
@@ -117,7 +159,7 @@ class EquipoController extends Controller
     {
         $datos = $this->validarPersona($request, true);
         $tipo = TipoJornada::from($datos['tipo']);
-        $sede = Sede::from($datos['centro']);
+        $sede = Centro::query()->where('name', $datos['centro'])->firstOrFail();
         $duracion = DuracionEstancia::from($datos['duracion']);
         $endsOn = $duracion->fechaFin(Carbon::parse($datos['starts_on']), $datos['ends_on'] ?? null);
         $datos = array_merge($datos, $tipo->horas());
@@ -133,7 +175,7 @@ class EquipoController extends Controller
                     'starts_on' => $datos['starts_on'],
                     'ends_on' => $endsOn,
                     'municipality' => $sede->municipio(),
-                    'centro' => $sede->value,
+                    'centro_id' => $sede->id,
                 ]);
                 $this->guardarHorario($persona, $datos, $datos['starts_on'], $tipo);
 
@@ -157,6 +199,7 @@ class EquipoController extends Controller
             'horarios' => $user->horarios()->orderByDesc('effective_from')->get(),
             'ausencias' => $user->ausencias()->orderByDesc('absence_date')->get(),
             'consultas' => Consulta::query()->with('viewer')->where('subject_id', $user->id)->latest()->limit(8)->get(),
+            'centros' => Centro::query()->orderBy('name')->get(),
             'esJefa' => true,
         ]);
     }
@@ -179,6 +222,24 @@ class EquipoController extends Controller
         }
 
         return back()->with('ok', 'Guardado. El horario vale desde el '.$datos['effective_from'].'. Los avisos desde ese día no cuentan. Los anteriores se conservan.');
+    }
+
+    public function centro(Request $request, User $user): RedirectResponse
+    {
+        $datos = $request->validate([
+            'centro' => ['required', 'string', 'exists:centros,name'],
+        ], [
+            'centro.required' => 'Elige una sede.',
+            'centro.exists' => 'Elige una sede municipal válida.',
+        ]);
+        $centro = Centro::query()->where('name', $datos['centro'])->firstOrFail();
+
+        $user->update([
+            'centro_id' => $centro->id,
+            'municipality' => $centro->municipality,
+        ]);
+
+        return back()->with('ok', 'Guardado. La sede de '.$user->name.' es '.$centro->municipality.'.');
     }
 
     public function ausencia(Request $request, User $user): RedirectResponse
@@ -224,7 +285,7 @@ class EquipoController extends Controller
             'duracion' => ['required', Rule::enum(DuracionEstancia::class)],
             'ends_on' => ['nullable', 'required_if:duracion,'.DuracionEstancia::HastaElDia->value, 'date', 'after_or_equal:starts_on'],
             'tipo' => ['required', Rule::enum(TipoJornada::class)],
-            'centro' => ['required', Rule::enum(Sede::class)],
+            'centro' => ['required', 'string', 'exists:centros,name'],
         ];
         if ($conClave) {
             $reglas['password'] = ['required', 'string', 'min:8'];
@@ -243,7 +304,7 @@ class EquipoController extends Controller
             'tipo.required' => 'Elige el tipo de jornada.',
             'tipo.enum' => 'Elige un tipo de jornada válido.',
             'centro.required' => 'Elige la sede municipal.',
-            'centro.enum' => 'Elige una sede municipal válida.',
+            'centro.exists' => 'Elige una sede municipal válida.',
         ]);
     }
 

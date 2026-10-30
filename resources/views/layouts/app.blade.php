@@ -73,9 +73,13 @@
                             <span class="aviso-ticket" aria-hidden="true">{{ $incidenciasNuevas }}</span>
                         @endif
                     </a>
-                    <a href="{{ route('jefe.consultas') }}" @if (request()->routeIs('jefe.consultas')) aria-current="page" @endif @if (($vacacionesPendientes ?? 0) > 0) aria-label="Consultas, {{ $vacacionesPendientes === 1 ? '1 solicitud de vacaciones pendiente' : $vacacionesPendientes.' solicitudes de vacaciones pendientes' }}" @endif>
+                    <a href="{{ route('jefe.consultas') }}" @if (request()->routeIs('jefe.consultas')) aria-current="page" @endif>
                         <x-icono nombre="eye" />
                         Consultas
+                    </a>
+                    <a href="{{ route('gestion.index') }}" @if (request()->routeIs('gestion.*')) aria-current="page" @endif @if (($vacacionesPendientes ?? 0) > 0) aria-label="Gestión, {{ $vacacionesPendientes === 1 ? '1 solicitud de vacaciones pendiente' : $vacacionesPendientes.' solicitudes de vacaciones pendientes' }}" @endif>
+                        <x-icono nombre="folder" />
+                        Gestión
                         @if (($vacacionesPendientes ?? 0) > 0)
                             <span class="aviso-ticket" aria-hidden="true">{{ $vacacionesPendientes }}</span>
                         @endif
@@ -96,9 +100,12 @@
                 @endif
                 @unless (auth()->user()->esTecnico())
                     <div class="menu-pie">
-                        <a href="{{ route('tickets.index', ['desde' => request()->routeIs('tickets.*') ? null : '/'.ltrim(request()->path(), '/')]) }}" @if (request()->routeIs('tickets.*')) aria-current="page" @endif>
+                        <a href="{{ route('tickets.index', ['desde' => request()->routeIs('tickets.*') ? null : '/'.ltrim(request()->path(), '/')]) }}" @if (request()->routeIs('tickets.*')) aria-current="page" @endif @if (($ticketsRespuestasNuevas ?? 0) > 0) aria-label="Ayuda, {{ $ticketsRespuestasNuevas === 1 ? '1 respuesta nueva' : $ticketsRespuestasNuevas.' respuestas nuevas' }}" @endif>
                             <x-icono nombre="help" />
                             Ayuda
+                            @if (($ticketsRespuestasNuevas ?? 0) > 0)
+                                <span class="aviso-ticket" aria-hidden="true">{{ $ticketsRespuestasNuevas }}</span>
+                            @endif
                         </a>
                     </div>
                 @endunless

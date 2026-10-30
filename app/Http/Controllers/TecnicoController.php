@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AccionTecnica;
 use App\Models\Ticket;
+use App\Models\User;
 use App\Services\SistemaService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -14,6 +15,8 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class TecnicoController extends Controller
 {
+    private const TICKETS_VISIBLES = 5;
+
     public function __construct(private SistemaService $sistema) {}
 
     public function index(): View
@@ -29,25 +32,58 @@ class TecnicoController extends Controller
     }
 
     /**
-     * Todos los tickets. Por defecto, los que siguen sin resolver.
+     * Todos los tickets. Por defecto, los que siguen abiertos.
      */
     public function tickets(Request $request): View
     {
         $filtro = $request->query('estado');
-        $filtro = in_array($filtro, ['todos', Ticket::RESUELTO], true) ? $filtro : 'pendientes';
+        $filtro = in_array($filtro, ['todos', Ticket::ABIERTO, Ticket::EN_CURSO, Ticket::RESUELTO], true)
+            ? $filtro
+            : Ticket::ABIERTO;
+        $trabajadorId = $request->integer('trabajador');
+        $trabajador = $trabajadorId > 0
+            ? User::query()->whereKey($trabajadorId)->first()
+            : null;
 
         $consulta = Ticket::query()->with('autor')->latest('id');
+        $conteo = Ticket::query();
 
-        if ($filtro === 'pendientes') {
-            $consulta->where('estado', '!=', Ticket::RESUELTO);
-        } elseif ($filtro === Ticket::RESUELTO) {
-            $consulta->where('estado', Ticket::RESUELTO);
+        if ($trabajador) {
+            $consulta->where('user_id', $trabajador->id);
+            $conteo->where('user_id', $trabajador->id);
         }
 
+        if ($filtro !== 'todos') {
+            $consulta->where('estado', $filtro);
+        }
+
+        $abiertos = (clone $conteo)->where('estado', Ticket::ABIERTO)->count();
+        $enCurso = (clone $conteo)->where('estado', Ticket::EN_CURSO)->count();
+        $resueltos = (clone $conteo)->where('estado', Ticket::RESUELTO)->count();
+        $totalFiltro = match ($filtro) {
+            Ticket::ABIERTO => $abiertos,
+            Ticket::EN_CURSO => $enCurso,
+            Ticket::RESUELTO => $resueltos,
+            default => $abiertos + $enCurso + $resueltos,
+        };
+        $mostrarTodas = $request->boolean('todas_incidencias');
+
         return view('tecnico.tickets', [
-            'tickets' => $consulta->get(),
+            'tickets' => $consulta
+                ->limit($mostrarTodas ? 100 : self::TICKETS_VISIBLES)
+                ->get(),
             'filtro' => $filtro,
-            'pendientes' => Ticket::query()->where('estado', '!=', Ticket::RESUELTO)->count(),
+            'trabajador' => $trabajador,
+            'trabajadores' => User::query()
+                ->orderBy('name')
+                ->get(['id', 'name']),
+            'abiertos' => $abiertos,
+            'enCurso' => $enCurso,
+            'resueltos' => $resueltos,
+            'pendientes' => $abiertos + $enCurso,
+            'todos' => $abiertos + $enCurso + $resueltos,
+            'mostrarTodas' => $mostrarTodas,
+            'hayMas' => $mostrarTodas || $totalFiltro > self::TICKETS_VISIBLES,
         ]);
     }
 

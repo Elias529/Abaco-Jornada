@@ -56,8 +56,12 @@ class TicketService
 
             if ($ticket->estaResuelto() && $ticket->user_id === $autor->id) {
                 $ticket->update(['estado' => Ticket::ABIERTO, 'resuelto_at' => null]);
-            } elseif ($autor->esTecnico() && $ticket->user_id !== $autor->id && $ticket->estado === Ticket::ABIERTO) {
-                $ticket->update(['estado' => Ticket::EN_CURSO]);
+            } elseif ($autor->esTecnico() && $ticket->user_id !== $autor->id) {
+                $datos = ['respuesta_vista_at' => null];
+                if ($ticket->estado === Ticket::ABIERTO) {
+                    $datos['estado'] = Ticket::EN_CURSO;
+                }
+                $ticket->update($datos);
             }
 
             return $mensaje;

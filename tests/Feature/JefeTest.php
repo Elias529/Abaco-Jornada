@@ -3,14 +3,17 @@
 namespace Tests\Feature;
 
 use App\Models\Aviso;
+use App\Models\Centro;
 use App\Models\Consulta;
 use App\Models\Correccion;
+use App\Models\Festivo;
 use App\Models\Horario;
 use App\Models\Jornada;
 use App\Models\SolicitudVacaciones;
 use App\Models\Tramo;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
@@ -150,6 +153,7 @@ class JefeTest extends TestCase
             $this->actingAs($persona)->get(route('jefe.index'))->assertRedirect(route('jornada'));
             $this->actingAs($persona)->get(route('jefe.registro', $ana))->assertRedirect(route('jornada'));
             $this->actingAs($persona)->get(route('jefe.consultas'))->assertRedirect(route('jornada'));
+            $this->actingAs($persona)->get(route('gestion.index'))->assertRedirect(route('jornada'));
         }
 
         $this->assertDatabaseCount('consultas', 0);
@@ -321,6 +325,33 @@ class JefeTest extends TestCase
             ->assertSee('Sin fichar', false);
     }
 
+    public function test_la_jefa_no_ve_un_dia_sin_fichar_pasados_siete_dias(): void
+    {
+        $jefa = $this->jefa();
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test');
+        $this->horario($ana);
+        Carbon::setTestNow(Carbon::parse('2026-10-30 10:45:00', 'Europe/Madrid'));
+        Aviso::create([
+            'user_id' => $ana->id,
+            'tipo' => 'inicio',
+            'work_date' => '2026-10-22',
+            'cuenta' => true,
+        ]);
+
+        $this->actingAs($jefa)
+            ->get(route('jefe.index'))
+            ->assertOk()
+            ->assertDontSee('sin resolver de hace más de', false);
+
+        $this->actingAs($jefa)->post(route('jefe.motivo', $ana), ['reason' => 'Revisión']);
+
+        $this->actingAs($jefa)
+            ->get(route('jefe.registro', $ana))
+            ->assertOk()
+            ->assertDontSee('Sin fichar', false)
+            ->assertDontSee('22 oct', false);
+    }
+
     public function test_la_copia_csv_trae_el_historial_y_queda_tras_el_motivo(): void
     {
         $jefa = $this->jefa();
@@ -415,14 +446,14 @@ class JefeTest extends TestCase
         }
 
         $this->actingAs($jefa)
-            ->get(route('jefe.consultas'))
+            ->get(route('gestion.index'))
             ->assertSee('El 04/11/2026', false)
             ->assertDontSee('El 01/11/2026', false)
             ->assertSee('Ver todo', false)
             ->assertSee('4 solicitudes de vacaciones pendientes', false);
 
         $this->actingAs($jefa)
-            ->get(route('jefe.consultas', ['todas_vacaciones' => 1]))
+            ->get(route('gestion.index', ['todas_vacaciones' => 1]))
             ->assertSee('El 01/11/2026', false)
             ->assertSee('Volver', false);
     }
@@ -462,6 +493,276 @@ class JefeTest extends TestCase
             ->get(route('jefe.consultas', ['mes' => '2026-09']))
             ->assertSee('Consulta de Ana', false)
             ->assertDontSee('Consulta de Carmen', false);
+    }
+
+    public function test_la_jefa_entra_en_gestion_con_vacaciones_sedes_y_festivos(): void
+    {
+        $jefa = $this->jefa();
+
+        $this->actingAs($jefa)
+            ->get(route('gestion.index'))
+            ->assertOk()
+            ->assertSee('Gestión', false)
+            ->assertSee('Solicitudes de vacaciones', false)
+            ->assertSee('Sedes', false)
+            ->assertSee('Festivos', false);
+
+        $this->actingAs($jefa)
+            ->get(route('equipo.index'))
+            ->assertDontSee('Gestionar sedes', false);
+
+        $this->actingAs($jefa)
+            ->get(route('calendario'))
+            ->assertDontSee('Gestionar festivos', false);
+
+        $this->actingAs($jefa)
+            ->get(route('jefe.consultas'))
+            ->assertDontSee('Solicitudes de vacaciones', false);
+    }
+
+    public function test_la_jefa_puede_crear_y_asignar_una_sede_nueva(): void
+    {
+        $jefa = $this->jefa();
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test');
+
+        $this->actingAs($jefa)
+            ->post(route('equipo.centros.store'), [
+                'name' => 'Sede Getafe',
+                'municipality' => 'Getafe',
+                'community' => 'Comunidad de Madrid',
+            ])
+            ->assertSessionHas('ok');
+
+        $this->actingAs($jefa)
+            ->post(route('equipo.centro', $ana), ['centro' => 'Sede Getafe'])
+            ->assertSessionHas('ok');
+
+        $this->assertSame('Getafe', $ana->fresh()->sede->municipality);
+        $this->assertDatabaseHas('users', [
+            'id' => $ana->id,
+            'centro_id' => Centro::query()->where('name', 'Sede Getafe')->value('id'),
+        ]);
+    }
+
+    public function test_cambiar_el_municipio_de_una_sede_arrastra_a_las_personas_y_sus_festivos(): void
+    {
+        $jefa = $this->jefa();
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test');
+        $sede = Centro::create([
+            'name' => 'Sede Sur',
+            'municipality' => 'Getafe',
+            'community' => 'Madrid',
+        ]);
+        $ana->update([
+            'centro_id' => $sede->id,
+            'municipality' => 'Getafe',
+        ]);
+
+        Festivo::create([
+            'holiday_date' => '2027-05-15',
+            'name' => 'Fiestas de Getafe',
+            'ambito' => 'pueblo',
+            'municipality' => 'Getafe',
+            'centro_id' => $sede->id,
+        ]);
+        Festivo::create([
+            'holiday_date' => '2027-09-24',
+            'name' => 'La Mercè',
+            'ambito' => 'pueblo',
+            'municipality' => 'Barcelona',
+            'community' => 'Cataluña',
+        ]);
+
+        $this->actingAs($ana)
+            ->get(route('calendario', ['anio' => 2027, 'mes' => 5]))
+            ->assertSee('Fiestas de Getafe', false)
+            ->assertDontSee('La Mercè', false);
+
+        $this->actingAs($jefa)
+            ->patch(route('equipo.centros.update', $sede), [
+                'name' => 'Sede Sur',
+                'municipality' => 'Barcelona',
+                'community' => 'Cataluña',
+            ])
+            ->assertSessionHas('ok');
+
+        $ana->refresh();
+        $sede->refresh();
+        $this->assertSame('Barcelona', $ana->municipality);
+        $this->assertSame('Barcelona', $sede->municipality);
+
+        $this->actingAs($ana)
+            ->get(route('calendario', ['anio' => 2027, 'mes' => 9]))
+            ->assertSee('La Mercè', false);
+
+        $this->actingAs($ana)
+            ->get(route('calendario', ['anio' => 2027, 'mes' => 5]))
+            ->assertDontSee('Fiestas de Getafe', false);
+    }
+
+    public function test_un_trabajador_no_puede_gestionar_sedes(): void
+    {
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test');
+
+        $this->actingAs($ana)
+            ->post(route('equipo.centros.store'), [
+                'name' => 'Sede Getafe',
+                'municipality' => 'Getafe',
+                'community' => 'Comunidad de Madrid',
+            ])
+            ->assertRedirect();
+    }
+
+    public function test_la_jefa_descarga_la_plantilla_de_festivos_de_madrid_y_valencia_de_2027(): void
+    {
+        $plantilla = $this->actingAs($this->jefa())
+            ->get(route('calendario.festivos.plantilla'))
+            ->assertOk()
+            ->assertDownload('plantilla-festivos.csv')
+            ->streamedContent();
+
+        $this->assertStringContainsString('fecha,nombre,ambito,municipio,autonomia', $plantilla);
+        $this->assertStringNotContainsString('nombre_sede', $plantilla);
+        $this->assertStringContainsString('San Isidro Labrador', $plantilla);
+        $this->assertStringContainsString('Nuestra Señora de la Almudena', $plantilla);
+        $this->assertStringContainsString('San Vicente Mártir', $plantilla);
+        $this->assertStringContainsString('Día de la Comunitat Valenciana', $plantilla);
+    }
+
+    public function test_la_jefa_previsualiza_e_importa_festivos_por_centro(): void
+    {
+        $jefa = $this->jefa();
+        $centro = Centro::create([
+            'name' => 'Sede Getafe',
+            'municipality' => 'Getafe',
+            'community' => 'Comunidad de Madrid',
+        ]);
+
+        $archivo = UploadedFile::fake()->createWithContent(
+            'festivos.csv',
+            "fecha,nombre,ambito,municipio,autonomia\n2027-05-15,Fiestas de Getafe,local,Getafe,Comunidad de Madrid\n2027-03-19,San José,autonomico,,Comunidad de Madrid\n2027-03-19,San José,autonomico,,Valencia\n2027-01-01,Año Nuevo,nacional,,\n",
+        );
+
+        $this->actingAs($jefa)
+            ->post(route('calendario.festivos.previsualizar'), ['archivo' => $archivo])
+            ->assertSessionHas('festivos_preview');
+
+        $this->assertDatabaseMissing('festivos', [
+            'name' => 'Fiestas de Getafe',
+        ]);
+
+        $this->actingAs($jefa)
+            ->get(route('gestion.index'))
+            ->assertSee('Vista previa', false)
+            ->assertSee('4 festivos listos para guardar en el calendario.', false)
+            ->assertSee('Guardar 4 festivos', false)
+            ->assertSee('Enero 2027', false)
+            ->assertSee('Año Nuevo')
+            ->assertSee('Cancelar');
+
+        $this->actingAs($jefa)
+            ->post(route('calendario.festivos.importar'))
+            ->assertSessionHas('ok');
+
+        $this->assertDatabaseHas('festivos', [
+            'name' => 'Fiestas de Getafe',
+            'centro_id' => $centro->id,
+            'ambito' => 'pueblo',
+            'municipality' => 'Getafe',
+        ]);
+        $this->assertDatabaseHas('festivos', [
+            'name' => 'Año Nuevo',
+            'ambito' => 'estado',
+        ]);
+        $this->assertSame(2, Festivo::query()->where('name', 'San José')->count());
+        $this->assertDatabaseHas('festivos', [
+            'name' => 'San José',
+            'ambito' => 'comunidad',
+            'community' => 'Comunidad de Madrid',
+        ]);
+        $this->assertDatabaseHas('festivos', [
+            'name' => 'San José',
+            'ambito' => 'comunidad',
+            'community' => 'Valencia',
+        ]);
+
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test');
+        $ana->update([
+            'centro_id' => $centro->id,
+            'municipality' => 'Getafe',
+        ]);
+
+        $this->actingAs($ana)
+            ->get(route('calendario', ['anio' => 2027, 'mes' => 3]))
+            ->assertSee('San José', false);
+        $this->actingAs($ana)
+            ->get(route('calendario', ['anio' => 2027, 'mes' => 5]))
+            ->assertSee('Fiestas de Getafe', false);
+
+        $archivoRepetido = UploadedFile::fake()->createWithContent(
+            'festivos-repetidos.csv',
+            "fecha,nombre,ambito,municipio,autonomia\n2027-05-15,Fiestas de Getafe,local,Getafe,Comunidad de Madrid\n2027-03-19,San José,autonomico,,Comunidad de Madrid\n2027-03-19,San José,autonomico,,Valencia\n2027-01-01,Año Nuevo,nacional,,\n",
+        );
+
+        $this->actingAs($jefa)
+            ->post(route('calendario.festivos.previsualizar'), ['archivo' => $archivoRepetido])
+            ->assertSessionHas('festivos_preview');
+
+        $this->actingAs($jefa)
+            ->post(route('calendario.festivos.importar'))
+            ->assertSessionHas('ok');
+
+        $this->assertSame(1, Festivo::query()->whereDate('holiday_date', '2027-05-15')->count());
+        $this->assertSame(1, Festivo::query()->whereDate('holiday_date', '2027-01-01')->count());
+        $this->assertSame(2, Festivo::query()->whereDate('holiday_date', '2027-03-19')->count());
+    }
+
+    public function test_la_jefa_puede_eliminar_un_festivo(): void
+    {
+        $jefa = $this->jefa();
+        $festivo = Festivo::create([
+            'holiday_date' => '2027-01-01',
+            'name' => 'Prueba',
+            'ambito' => 'estado',
+            'community' => null,
+            'centro_id' => null,
+            'municipality' => '',
+        ]);
+
+        $this->actingAs($jefa)
+            ->delete(route('calendario.festivos.destroy', $festivo))
+            ->assertSessionHas('ok');
+
+        $this->assertDatabaseMissing('festivos', ['id' => $festivo->id]);
+    }
+
+    public function test_la_jefa_puede_editar_un_festivo(): void
+    {
+        $jefa = $this->jefa();
+        $festivo = Festivo::create([
+            'holiday_date' => '2027-01-01',
+            'name' => 'Nombre antiguo',
+            'ambito' => 'estado',
+            'community' => null,
+            'centro_id' => null,
+            'municipality' => '',
+        ]);
+
+        $this->actingAs($jefa)
+            ->patch(route('calendario.festivos.update', $festivo), [
+                'holiday_date' => '2027-01-06',
+                'name' => 'Reyes Magos',
+                'ambito' => 'estado',
+                'community' => '',
+                'centro' => '',
+            ])
+            ->assertSessionHas('ok');
+
+        $this->assertDatabaseHas('festivos', [
+            'id' => $festivo->id,
+            'holiday_date' => '2027-01-06 00:00:00',
+            'name' => 'Reyes Magos',
+        ]);
     }
 
     private function jefa(): User

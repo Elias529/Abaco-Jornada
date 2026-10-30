@@ -3,6 +3,7 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CalendarioController;
 use App\Http\Controllers\EquipoController;
+use App\Http\Controllers\GestionController;
 use App\Http\Controllers\IncidenciaController;
 use App\Http\Controllers\JefeController;
 use App\Http\Controllers\JornadaController;
@@ -62,9 +63,12 @@ Route::middleware(['auth', 'activo'])->group(function () {
 
     Route::middleware('jefa')->group(function () {
         Route::get('/equipo', [EquipoController::class, 'index'])->name('equipo.index');
+        Route::post('/equipo/centros', [EquipoController::class, 'crearCentro'])->name('equipo.centros.store');
+        Route::patch('/equipo/centros/{centro}', [EquipoController::class, 'actualizarCentro'])->name('equipo.centros.update');
         Route::get('/equipo/nueva', [EquipoController::class, 'create'])->name('equipo.create');
         Route::post('/equipo', [EquipoController::class, 'store'])->name('equipo.store');
         Route::get('/equipo/{user}', [EquipoController::class, 'show'])->name('equipo.show');
+        Route::post('/equipo/{user}/centro', [EquipoController::class, 'centro'])->name('equipo.centro');
         Route::post('/equipo/{user}/horario', [EquipoController::class, 'horario'])->name('equipo.horario');
         Route::post('/equipo/{user}/ausencia', [EquipoController::class, 'ausencia'])->name('equipo.ausencia');
         Route::post('/equipo/{user}/baja', [EquipoController::class, 'baja'])->name('equipo.baja');
@@ -73,6 +77,13 @@ Route::middleware(['auth', 'activo'])->group(function () {
         Route::get('/equipo/{user}/copia.csv', [RegistroController::class, 'csvDe'])->name('equipo.csv');
 
         Route::post('/calendario/fallo', [CalendarioController::class, 'fallo'])->name('calendario.fallo');
+        Route::get('/calendario/festivos/plantilla', [CalendarioController::class, 'plantillaFestivos'])->name('calendario.festivos.plantilla');
+        Route::post('/calendario/festivos/previsualizar', [CalendarioController::class, 'previsualizarFestivos'])->name('calendario.festivos.previsualizar');
+        Route::post('/calendario/festivos/previsualizacion/cerrar', [CalendarioController::class, 'cerrarPrevisualizacionFestivos'])->name('calendario.festivos.previsualizacion.cerrar');
+        Route::post('/calendario/festivos/importar', [CalendarioController::class, 'importarFestivos'])->name('calendario.festivos.importar');
+        Route::patch('/calendario/festivos/{festivo}', [CalendarioController::class, 'actualizarFestivo'])->name('calendario.festivos.update');
+        Route::delete('/calendario/festivos/{festivo}', [CalendarioController::class, 'eliminarFestivo'])->name('calendario.festivos.destroy');
+        Route::get('/gestion', [GestionController::class, 'index'])->name('gestion.index');
         Route::get('/incidencias', [IncidenciaController::class, 'index'])->name('incidencias.index');
         Route::get('/incidencias/{incidencia}', [IncidenciaController::class, 'show'])->name('incidencias.show');
         Route::post('/incidencias/{incidencia}/curso', [IncidenciaController::class, 'enCurso'])->name('incidencias.curso');

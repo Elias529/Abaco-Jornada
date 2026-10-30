@@ -33,7 +33,7 @@
                         <span class="persona-card-avatar" aria-hidden="true">{{ $iniciales }}</span>
                         <span class="persona-card-nombre">
                             <strong>{{ $persona->name }}</strong>
-                            <small>{{ $persona->municipality }}</small>
+                            <small>{{ $persona->sede?->name ?? $persona->municipality }}</small>
                         </span>
                         <span class="persona-card-rol">{{ $papel }}</span>
                     </div>

@@ -38,6 +38,9 @@ class AppServiceProvider extends ServiceProvider
                 'ticketsNuevos' => $usuario && $usuario->esTecnico()
                     ? Ticket::query()->where('estado', Ticket::ABIERTO)->count()
                     : 0,
+                'ticketsRespuestasNuevas' => $usuario && ! $usuario->esTecnico()
+                    ? Ticket::query()->conRespuestaNueva($usuario)->count()
+                    : 0,
                 'incidenciasNuevas' => ! $usuario ? 0 : ($usuario->esJefa()
                     ? Incidencia::query()->where('estado', '!=', Incidencia::RESUELTA)->whereNull('destinatario_id')->whereNull('vista_at')->count()
                     : Incidencia::query()->where('estado', '!=', Incidencia::RESUELTA)->where('destinatario_id', $usuario->id)->whereNull('vista_at')->count()),

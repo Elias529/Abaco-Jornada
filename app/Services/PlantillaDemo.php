@@ -3,9 +3,9 @@
 namespace App\Services;
 
 use App\Models\Ausencia;
+use App\Models\Centro;
 use App\Models\Horario;
 use App\Models\User;
-use App\Sede;
 use App\TipoJornada;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\File;
@@ -38,7 +38,7 @@ class PlantillaDemo
             'email' => $persona->email,
             'role' => $persona->role,
             'municipality' => (string) $persona->municipality,
-            'centro' => (string) $persona->centro,
+            'centro' => (string) $persona->sede?->name,
             'starts_on' => $persona->starts_on?->toDateString(),
             'ends_on' => $persona->ends_on?->toDateString(),
             'tipo' => $horario?->tipo ?? TipoJornada::Partida->value,
@@ -92,7 +92,8 @@ class PlantillaDemo
             return;
         }
 
-        $sede = Sede::tryFrom((string) ($fila['centro'] ?? '')) ?? Sede::porDefecto();
+        $sede = Centro::query()->where('name', $fila['centro'] ?? '')->first()
+            ?? Centro::query()->orderBy('name')->firstOrFail();
         $persona = User::query()->firstOrCreate(
             ['email' => $correo],
             [
@@ -103,7 +104,7 @@ class PlantillaDemo
                 'starts_on' => $fila['starts_on'] ?? null,
                 'ends_on' => $fila['ends_on'] ?? null,
                 'municipality' => (string) ($fila['municipality'] ?? $sede->municipio()),
-                'centro' => $sede->value,
+                'centro_id' => $sede->id,
             ],
         );
 
@@ -113,7 +114,7 @@ class PlantillaDemo
             'starts_on' => $fila['starts_on'] ?? $persona->starts_on,
             'ends_on' => $fila['ends_on'] ?? $persona->ends_on,
             'municipality' => (string) ($fila['municipality'] ?? $sede->municipio()),
-            'centro' => $sede->value,
+            'centro_id' => $sede->id,
         ])->save();
 
         $desde = Carbon::parse((string) ($fila['effective_from'] ?? $fila['starts_on'] ?? now()->toDateString()))->toDateString();

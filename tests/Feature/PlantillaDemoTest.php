@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Centro;
 use App\Models\Jornada;
 use App\Models\User;
 use App\Services\PlantillaDemo;
@@ -25,7 +26,7 @@ class PlantillaDemoTest extends TestCase
         $this->assertSame(1, User::query()->where('email', 'carmen.ortega@abaco.test')->count());
 
         $lucia = User::query()->where('email', 'lucia.vega@abaco.test')->first();
-        $this->assertSame('ES-CT', $lucia->centro);
+        $this->assertSame('Barcelona', $lucia->sede->name);
         $this->assertSame('Barcelona', $lucia->municipality);
         $this->assertSame('trabajadora', $lucia->role);
     }
@@ -59,7 +60,7 @@ class PlantillaDemoTest extends TestCase
             'active' => true,
             'starts_on' => '2026-10-13',
             'municipality' => 'Sevilla',
-            'centro' => 'ES-AN',
+            'centro_id' => Centro::query()->where('name', 'Sevilla')->value('id'),
         ]);
         $plantilla->registrarAlta($nuria);
 
@@ -68,7 +69,7 @@ class PlantillaDemoTest extends TestCase
 
         $alta = User::query()->where('email', 'nuria.vega@abaco.test')->first();
         $this->assertNotNull($alta);
-        $this->assertSame('ES-AN', $alta->centro);
+        $this->assertSame('Sevilla', $alta->sede->name);
         $this->assertSame('Sevilla', $alta->municipality);
         unlink($archivo);
     }

@@ -54,7 +54,7 @@ enum Sede: string
         };
     }
 
-    public function comunidad(): string
+    public function autonomia(): string
     {
         return match ($this) {
             self::Madrid => 'Madrid',
@@ -79,8 +79,13 @@ enum Sede: string
         };
     }
 
+    public function comunidad(): string
+    {
+        return $this->autonomia();
+    }
+
     public function etiqueta(): string
     {
-        return $this->municipio().' · '.$this->comunidad();
+        return $this->municipio().' · '.$this->autonomia();
     }
 }

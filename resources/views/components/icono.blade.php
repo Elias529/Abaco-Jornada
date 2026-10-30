@@ -19,6 +19,9 @@
             <path d="m7 10 5 5 5-5" />
             <path d="M5 21h14" />
             @break
+        @case('plus')
+            <path d="M12 5v14M5 12h14" />
+            @break
         @case('filter')
             <path d="M4 6h5M15 6h5M4 12h7M17 12h3M4 18h2M10 18h10" />
             <circle cx="12" cy="6" r="2" fill="currentColor" stroke="none" />
@@ -94,6 +97,18 @@
             <circle cx="9" cy="7" r="4" />
             <line x1="19" x2="19" y1="8" y2="14" />
             <line x1="22" x2="16" y1="11" y2="11" />
+            @break
+        @case('folder')
+            <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
+            @break
+        @case('map-pin')
+            <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0" />
+            <circle cx="12" cy="10" r="3" />
+            @break
+        @case('upload')
+            <path d="M12 3v12" />
+            <path d="m17 8-5-5-5 5" />
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
             @break
         @case('archive')
             <rect width="20" height="5" x="2" y="3" rx="1" />

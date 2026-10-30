@@ -111,7 +111,6 @@ class RecuperarClaveTest extends TestCase
             'active' => true,
             'starts_on' => '2026-01-07',
             'municipality' => 'Madrid',
-            'centro' => 'ES-MD',
         ]);
     }
 }

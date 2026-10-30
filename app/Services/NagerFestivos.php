@@ -2,8 +2,8 @@
 
 namespace App\Services;
 
+use App\Models\Centro;
 use App\Models\Festivo;
-use App\Sede;
 use App\Support\DiaFestivo;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -15,15 +15,30 @@ class NagerFestivos
      *
      * @return Collection<int, DiaFestivo>
      */
-    public function delAnio(string $centro, int $anio): Collection
+    public function delAnio(Centro|string|null $centro, int $anio): Collection
     {
-        $municipio = Sede::tryFrom($centro)?->municipio() ?? $centro;
+        $centro = $this->resolverCentro($centro);
 
         return Festivo::query()
             ->whereYear('holiday_date', $anio)
-            ->where(function ($consulta) use ($municipio) {
-                $consulta->where('municipality', '')
-                    ->orWhere('municipality', $municipio);
+            ->where(function ($consulta) use ($centro) {
+                $consulta->where('ambito', 'estado')
+                    ->orWhere(function ($consulta) use ($centro) {
+                        $consulta->where('ambito', 'comunidad')
+                            ->where('community', $centro?->community);
+                    })
+                    ->orWhere(function ($consulta) use ($centro) {
+                        $consulta->where('ambito', 'pueblo')
+                            ->where('municipality', $centro?->municipality ?? '');
+                    })
+                    ->orWhere(function ($consulta) use ($centro) {
+                        $consulta->whereNull('ambito')
+                            ->where('municipality', $centro?->municipality ?? '');
+                    })
+                    ->orWhere(function ($consulta) {
+                        $consulta->whereNull('ambito')
+                            ->where('municipality', '');
+                    });
             })
             ->orderBy('holiday_date')
             ->get()
@@ -35,11 +50,27 @@ class NagerFestivos
             ->values();
     }
 
-    public function es(string $centro, Carbon $fecha): bool
+    public function es(Centro|string|null $centro, Carbon $fecha): bool
     {
         $clave = $fecha->toDateString();
 
         return $this->delAnio($centro, $fecha->year)
             ->contains(fn (DiaFestivo $dia) => $dia->holiday_date->toDateString() === $clave);
+    }
+
+    private function resolverCentro(Centro|string|null $centro): ?Centro
+    {
+        if ($centro instanceof Centro) {
+            return $centro;
+        }
+
+        if ($centro === null || $centro === '') {
+            return null;
+        }
+
+        return Centro::query()
+            ->where('name', $centro)
+            ->orWhereKey($centro)
+            ->first();
     }
 }

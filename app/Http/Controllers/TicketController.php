@@ -11,15 +11,47 @@ use Illuminate\View\View;
 
 class TicketController extends Controller
 {
+    private const TICKETS_VISIBLES = 5;
+
     public function __construct(private TicketService $tickets) {}
 
     public function index(Request $request): View
     {
+        $filtro = $request->query('estado');
+        $filtro = in_array($filtro, ['todos', Ticket::ABIERTO, Ticket::EN_CURSO, Ticket::RESUELTO], true)
+            ? $filtro
+            : 'todos';
+
+        $consulta = Ticket::query()
+            ->whereBelongsTo($request->user(), 'autor')
+            ->with('autor')
+            ->latest('id');
+        $conteo = Ticket::query()->whereBelongsTo($request->user(), 'autor');
+
+        if ($filtro !== 'todos') {
+            $consulta->where('estado', $filtro);
+        }
+
+        $abiertos = (clone $conteo)->where('estado', Ticket::ABIERTO)->count();
+        $enCurso = (clone $conteo)->where('estado', Ticket::EN_CURSO)->count();
+        $resueltos = (clone $conteo)->where('estado', Ticket::RESUELTO)->count();
+        $totalFiltro = match ($filtro) {
+            Ticket::ABIERTO => $abiertos,
+            Ticket::EN_CURSO => $enCurso,
+            Ticket::RESUELTO => $resueltos,
+            default => $abiertos + $enCurso + $resueltos,
+        };
+        $mostrarTodas = $request->boolean('todas_incidencias');
+
         return view('tickets.index', [
-            'tickets' => Ticket::query()
-                ->where('user_id', $request->user()->id)
-                ->latest('id')
+            'tickets' => $consulta
+                ->limit($mostrarTodas ? 100 : self::TICKETS_VISIBLES)
                 ->get(),
+            'filtro' => $filtro,
+            'pendientes' => $abiertos + $enCurso,
+            'todos' => $abiertos + $enCurso + $resueltos,
+            'mostrarTodas' => $mostrarTodas,
+            'hayMas' => $mostrarTodas || $totalFiltro > self::TICKETS_VISIBLES,
             'desde' => $this->paginaDeOrigen($request->query('desde')),
         ]);
     }
@@ -59,6 +91,10 @@ class TicketController extends Controller
     public function show(Request $request, Ticket $ticket): View
     {
         $this->permitir($request, $ticket);
+
+        if ($ticket->user_id === $request->user()->id && $ticket->respuesta_vista_at === null) {
+            $ticket->update(['respuesta_vista_at' => now()]);
+        }
 
         return view('tickets.show', [
             'ticket' => $ticket->load(['autor', 'mensajes.autor']),

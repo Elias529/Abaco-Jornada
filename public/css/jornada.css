@@ -360,31 +360,35 @@ body:has(.comunicar) .cuerpo {
 .es-jefa .lateral {
     flex-basis: 280px;
     width: 280px;
-    padding: 16px 16px 18px;
+    padding: 12px;
 }
 
 .es-jefa .lateral .marca-logo {
-    min-height: 80px;
-    margin: -16px -16px 8px;
-    padding: 0 28px;
+    min-height: 64px;
+    margin: -12px -12px 4px;
+    padding: 0 24px;
 }
 
 .es-jefa .lateral .menu {
-    gap: 4px;
+    gap: 2px;
 }
 
 .es-jefa .lateral .menu a {
-    min-height: 48px;
-    padding: 10px 16px;
+    min-height: 44px;
+    padding: 8px 14px;
 }
 
 .es-jefa .lateral .lateral-kicker {
-    margin: 18px 16px 6px;
+    margin: 10px 12px 4px;
 }
 
 .es-jefa .lateral-cuenta {
-    margin-top: 18px;
-    padding: 18px 8px 0;
+    margin-top: 10px;
+    padding: 10px 4px 0;
+}
+
+.es-jefa .menu-pie {
+    padding-top: 6px;
 }
 
 .menu-pie {
