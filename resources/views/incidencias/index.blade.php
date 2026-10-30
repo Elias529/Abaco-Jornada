@@ -95,11 +95,11 @@
                 </div>
                 <div class="campo-incidencia">
                     <label for="desde">Desde</label>
-                    <input id="desde" name="desde" type="date" value="{{ $desde }}">
+                    <x-fecha id="desde" name="desde" :value="$desde" />
                 </div>
                 <div class="campo-incidencia">
                     <label for="hasta">Hasta</label>
-                    <input id="hasta" name="hasta" type="date" value="{{ $hasta }}">
+                    <x-fecha id="hasta" name="hasta" :value="$hasta" />
                 </div>
                 <button class="boton boton-secundario" type="submit">Ver</button>
             </form>

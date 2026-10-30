@@ -37,11 +37,11 @@
                 <input type="hidden" name="periodo" value="todo">
                 <div>
                     <label for="desde">Desde</label>
-                    <input id="desde" name="desde" type="date" value="{{ $periodo === 'todo' ? $desde : '' }}">
+                    <x-fecha id="desde" name="desde" :value="$periodo === 'todo' ? $desde : ''" />
                 </div>
                 <div>
                     <label for="hasta">Hasta</label>
-                    <input id="hasta" name="hasta" type="date" value="{{ $periodo === 'todo' ? $hasta : '' }}">
+                    <x-fecha id="hasta" name="hasta" :value="$periodo === 'todo' ? $hasta : ''" />
                 </div>
                 <div>
                     <label for="estado">Estado</label>

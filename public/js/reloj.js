@@ -655,3 +655,96 @@
         actualizar();
     });
 })();
+
+(function () {
+    function aIso(valor) {
+        var partes = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(valor);
+        if (!partes) {
+            return "";
+        }
+        var dia = Number(partes[1]);
+        var mes = Number(partes[2]);
+        var anio = Number(partes[3]);
+        var fecha = new Date(anio, mes - 1, dia);
+        if (fecha.getFullYear() !== anio || fecha.getMonth() !== mes - 1 || fecha.getDate() !== dia) {
+            return "";
+        }
+        return partes[3] + "-" + partes[2] + "-" + partes[1];
+    }
+
+    function aTexto(valor) {
+        var partes = /^(\d{4})-(\d{2})-(\d{2})$/.exec(valor || "");
+        return partes ? partes[3] + "/" + partes[2] + "/" + partes[1] : "";
+    }
+
+    document.querySelectorAll("[data-campo-fecha]").forEach(function (caja) {
+        var texto = caja.querySelector("[data-fecha-texto]");
+        var iso = caja.querySelector("[data-fecha-iso]");
+        var nativo = caja.querySelector("[data-fecha-nativo]");
+        var abre = caja.querySelector("[data-fecha-abre]");
+        if (!texto || !iso || !nativo) {
+            return;
+        }
+
+        function dentroDeLimites(valor) {
+            if (texto.dataset.min && valor < texto.dataset.min) {
+                return false;
+            }
+            if (texto.dataset.max && valor > texto.dataset.max) {
+                return false;
+            }
+            return true;
+        }
+
+        function sincronizarDesdeTexto() {
+            var escrito = texto.value.trim();
+            var convertido = aIso(escrito);
+            if (convertido && !dentroDeLimites(convertido)) {
+                convertido = "";
+            }
+            iso.value = convertido;
+            if (convertido) {
+                nativo.value = convertido;
+            }
+            if (escrito === "") {
+                texto.setCustomValidity("");
+            } else if (!convertido) {
+                texto.setCustomValidity("Usa el día, el mes y el año: dd/mm/aaaa.");
+            } else {
+                texto.setCustomValidity("");
+            }
+        }
+
+        texto.addEventListener("input", function () {
+            var digitos = texto.value.replace(/\D/g, "").slice(0, 8);
+            var armado = digitos;
+            if (digitos.length > 4) {
+                armado = digitos.slice(0, 2) + "/" + digitos.slice(2, 4) + "/" + digitos.slice(4);
+            } else if (digitos.length > 2) {
+                armado = digitos.slice(0, 2) + "/" + digitos.slice(2);
+            }
+            if (armado !== texto.value) {
+                texto.value = armado;
+            }
+            sincronizarDesdeTexto();
+        });
+        texto.addEventListener("change", sincronizarDesdeTexto, true);
+
+        nativo.addEventListener("change", function () {
+            texto.value = aTexto(nativo.value);
+            iso.value = nativo.value;
+            texto.setCustomValidity("");
+            texto.dispatchEvent(new Event("change", { bubbles: true }));
+        });
+
+        if (abre) {
+            abre.addEventListener("click", function () {
+                if (typeof nativo.showPicker === "function") {
+                    nativo.showPicker();
+                    return;
+                }
+                nativo.focus();
+            });
+        }
+    });
+})();

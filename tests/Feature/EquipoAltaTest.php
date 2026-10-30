@@ -82,8 +82,8 @@ class EquipoAltaTest extends TestCase
             ->assertSee('Fuera del tiempo en la empresa', false)
             ->assertSee('casilla-fuera', false)
             ->assertSee('Guardar alta', false)
-            ->assertSee('Hasta el 2027-01-13', false)
-            ->assertSee('En la empresa desde el 2026-10-13 hasta el 2027-01-13', false)
+            ->assertSee('Hasta el 13/01/2027', false)
+            ->assertSee('En la empresa desde el 13/10/2026 hasta el 13/01/2027', false)
             ->assertDontSee('Calendario 2026', false)
             ->assertDontSee('marzo', false)
             ->assertDontSee('Año siguiente', false)
@@ -106,7 +106,7 @@ class EquipoAltaTest extends TestCase
             ->assertSee('Ver en el calendario', false)
             ->assertSee('noviembre 2026', false)
             ->assertSee('febrero 2027', false)
-            ->assertSee('Hasta el 2027-02-20', false)
+            ->assertSee('Hasta el 20/02/2027', false)
             ->assertDontSee('octubre 2026', false);
     }
 
@@ -135,7 +135,7 @@ class EquipoAltaTest extends TestCase
             ]))
             ->assertOk()
             ->assertSee('Calendario del periodo', false)
-            ->assertSee('En la empresa desde el 2026-10-13 hasta el 2026-12-20', false)
+            ->assertSee('En la empresa desde el 13/10/2026 hasta el 20/12/2026', false)
             ->assertSee('Guardar alta', false)
             ->assertDontSee('Elige el último día para verlo en el calendario.', false);
     }

@@ -28,11 +28,11 @@
                 </div>
                 <div>
                     <label for="consulta-desde">Desde</label>
-                    <input id="consulta-desde" name="desde" type="date" value="{{ $filtrosConsultas['desde'] }}">
+                    <x-fecha id="consulta-desde" name="desde" :value="$filtrosConsultas['desde']" />
                 </div>
                 <div>
                     <label for="consulta-hasta">Hasta</label>
-                    <input id="consulta-hasta" name="hasta" type="date" value="{{ $filtrosConsultas['hasta'] }}">
+                    <x-fecha id="consulta-hasta" name="hasta" :value="$filtrosConsultas['hasta']" />
                 </div>
                 <div>
                     <label for="consulta-mes">Mes</label>
