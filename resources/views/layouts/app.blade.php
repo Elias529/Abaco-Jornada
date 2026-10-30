@@ -23,7 +23,7 @@
         @php
             $partes = preg_split('/\s+/', trim(auth()->user()->name)) ?: [];
             $iniciales = mb_strtoupper(mb_substr($partes[0] ?? '', 0, 1).mb_substr($partes[1] ?? '', 0, 1));
-            $papel = auth()->user()->esJefa() ? 'Jefa' : (auth()->user()->esTecnico() ? 'Técnico' : 'Trabajadora');
+            $papel = auth()->user()->esJefa() ? 'Jefe' : (auth()->user()->esTecnico() ? 'Técnico' : 'Trabajador');
         @endphp
         <header class="barra lateral">
             <a class="marca-logo" href="{{ route('jornada') }}">
@@ -73,9 +73,12 @@
                             <span class="aviso-ticket" aria-hidden="true">{{ $incidenciasNuevas }}</span>
                         @endif
                     </a>
-                    <a href="{{ route('jefe.consultas') }}" @if (request()->routeIs('jefe.consultas')) aria-current="page" @endif>
+                    <a href="{{ route('jefe.consultas') }}" @if (request()->routeIs('jefe.consultas')) aria-current="page" @endif @if (($vacacionesPendientes ?? 0) > 0) aria-label="Consultas, {{ $vacacionesPendientes === 1 ? '1 solicitud de vacaciones pendiente' : $vacacionesPendientes.' solicitudes de vacaciones pendientes' }}" @endif>
                         <x-icono nombre="eye" />
                         Consultas
+                        @if (($vacacionesPendientes ?? 0) > 0)
+                            <span class="aviso-ticket" aria-hidden="true">{{ $vacacionesPendientes }}</span>
+                        @endif
                     </a>
                 @endif
                 @if (auth()->user()->esTecnico())

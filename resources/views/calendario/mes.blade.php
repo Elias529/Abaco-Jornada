@@ -47,14 +47,9 @@
                     }
                     $titulo = collect([
                         $dia['hoy'] ? 'Hoy.' : null,
-                        $dia['registro'] ? 'Abrir el registro.' : null,
                     ])->filter()->implode(' ');
                 @endphp
-                @if ($dia['registro'])
-                    <a class="{{ $clases }}" href="{{ $dia['registro'] }}" data-fecha="{{ $dia['fecha'] }}" data-cuenta="{{ $dia['cuenta'] ? '1' : '0' }}" @if ($titulo !== '') title="{{ $titulo }}" @endif>
-                @else
-                    <span class="{{ $clases }}" data-fecha="{{ $dia['fecha'] }}" data-cuenta="{{ $dia['cuenta'] ? '1' : '0' }}" @if ($titulo !== '') title="{{ $titulo }}" @endif>
-                @endif
+                <span class="{{ $clases }}" data-fecha="{{ $dia['fecha'] }}" data-cuenta="{{ $dia['cuenta'] ? '1' : '0' }}" @if ($titulo !== '') title="{{ $titulo }}" @endif>
                     <strong>{{ $dia['numero'] }}</strong>
                     @if ($festivo)
                         <small class="casilla-etiqueta casilla-etiqueta-festivo">{{ $festivo->name }}</small>
@@ -66,14 +61,7 @@
                     @if ($dia['hoy'])
                         <small>Hoy</small>
                     @endif
-                    @if ($esJefa && $dia['faltan']->isNotEmpty())
-                        <small>{{ $dia['faltan']->count() }} {{ $dia['faltan']->count() === 1 ? 'falta' : 'faltan' }}</small>
-                    @endif
-                @if ($dia['registro'])
-                    </a>
-                @else
-                    </span>
-                @endif
+                </span>
             @endif
         @endforeach
     </div>

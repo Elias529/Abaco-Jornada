@@ -16,6 +16,7 @@ use App\Support\Tiempo;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -357,6 +358,10 @@ class RegistroController extends Controller
         $ultimo = $trabajos->filter(fn (Tramo $tramo) => $tramo->ended_at !== null)->last();
         $filas = [];
         $barras = [];
+        $pausas = $jornada->tramos
+            ->where('tipo', Tramo::PAUSA)
+            ->filter(fn (Tramo $pausa) => $pausa->ended_at !== null)
+            ->sortBy('started_at');
 
         foreach ($jornada->tramos as $tramo) {
             $fin = $this->finVisible($tramo, $jornada, $horario);
@@ -365,9 +370,7 @@ class RegistroController extends Controller
             $filas[] = [
                 'tramo' => $tramo,
                 'titulo' => $this->tituloTramo($tramo, $horario),
-                'horas' => $esPrimerTrabajo && $horario
-                    ? $this->horarioCompleto($horario)
-                    : Tiempo::hora($tramo->started_at).'–'.$this->textoFin($tramo, $jornada),
+                'horas' => Tiempo::hora($tramo->started_at).'–'.$this->textoFin($tramo, $jornada),
                 'duracion' => Tiempo::corto($minutos).' min',
                 'nota' => $this->notaTramo($tramo),
                 'visible' => $tramo->tipo !== Tramo::TRABAJO || $esPrimerTrabajo,
@@ -376,9 +379,11 @@ class RegistroController extends Controller
                     && $tramo->ended_at !== null,
             ];
             if ($tramo->tipo === Tramo::TRABAJO) {
-                $barra = $this->ejeDetalle($tramo->started_at, $fin);
-                if ($barra) {
-                    $barras[] = $barra;
+                foreach ($this->segmentosSinPausas($tramo->started_at, $fin, $pausas) as [$inicio, $segmentoFin]) {
+                    $barra = $this->ejeDetalle($inicio, $segmentoFin);
+                    if ($barra) {
+                        $barras[] = $barra;
+                    }
                 }
             }
         }
@@ -554,6 +559,37 @@ class RegistroController extends Controller
             'left' => round(($a - $desde) / ($hasta - $desde) * 100, 2),
             'width' => round(($b - $a) / ($hasta - $desde) * 100, 2),
         ];
+    }
+
+    /**
+     * @param  Collection<int, Tramo>  $pausas
+     * @return list<array{0: Carbon, 1: Carbon}>
+     */
+    private function segmentosSinPausas(Carbon $inicio, Carbon $fin, Collection $pausas): array
+    {
+        $segmentos = [];
+        $cursor = $inicio;
+
+        foreach ($pausas as $pausa) {
+            if ($pausa->ended_at->lessThanOrEqualTo($cursor) || $pausa->started_at->greaterThanOrEqualTo($fin)) {
+                continue;
+            }
+
+            $pausaInicio = $pausa->started_at->greaterThan($cursor) ? $pausa->started_at : $cursor;
+            if ($pausaInicio->greaterThan($cursor)) {
+                $segmentos[] = [$cursor, $pausaInicio];
+            }
+            $cursor = $pausa->ended_at->greaterThan($cursor) ? $pausa->ended_at : $cursor;
+            if ($cursor->greaterThanOrEqualTo($fin)) {
+                break;
+            }
+        }
+
+        if ($cursor->lessThan($fin)) {
+            $segmentos[] = [$cursor, $fin];
+        }
+
+        return $segmentos;
     }
 
     private function minutoDetalle(Carbon $momento): int

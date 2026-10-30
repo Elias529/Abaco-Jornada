@@ -8,25 +8,32 @@
     <div class="calendario-controles">
         <nav class="calendario-anio" aria-label="Cambiar año">
             @if ($anioAnterior)
-                <a href="{{ route('calendario', $anioAnterior) }}" data-calendario-ir aria-label="Año anterior">‹</a>
+                <a href="{{ route('calendario', array_merge($anioAnterior, $vistaAnio ? ['vista' => 'anio'] : [])) }}" data-calendario-ir aria-label="Año anterior">‹</a>
             @else
                 <span aria-hidden="true">‹</span>
             @endif
             <strong>{{ $anio }}</strong>
             @if ($anioSiguiente)
-                <a href="{{ route('calendario', $anioSiguiente) }}" data-calendario-ir aria-label="Año siguiente">›</a>
+                <a href="{{ route('calendario', array_merge($anioSiguiente, $vistaAnio ? ['vista' => 'anio'] : [])) }}" data-calendario-ir aria-label="Año siguiente">›</a>
             @else
                 <span aria-hidden="true">›</span>
             @endif
         </nav>
 
         <div class="calendario-vistas" role="group" aria-label="Vista del calendario">
-            <span aria-current="page">Mes</span>
-            <span>Año</span>
+            <a href="{{ route('calendario', ['anio' => $anio, 'mes' => request('mes')]) }}" @unless ($vistaAnio) aria-current="page" @endunless>Mes</a>
+            <a href="{{ route('calendario', ['anio' => $anio, 'mes' => request('mes'), 'vista' => 'anio']) }}" @if ($vistaAnio) aria-current="page" @endif>Año</a>
         </div>
     </div>
 </header>
 
+@if ($vistaAnio)
+    <section class="calendario-anual" aria-label="Calendario anual">
+        @foreach ($meses as $mesAnual)
+            @include('calendario.anual-mes', ['mesAnual' => $mesAnual])
+        @endforeach
+    </section>
+@else
 <div class="calendario-layout">
     <section class="calendario-panel" aria-label="Calendario mensual">
         @include('calendario.mes')
@@ -79,3 +86,4 @@
         </ul>
     </aside>
 </div>
+@endif

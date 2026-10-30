@@ -49,7 +49,7 @@ Route::middleware(['auth', 'activo'])->group(function () {
     Route::get('/registro/{jornada}', [RegistroController::class, 'show'])->name('registro.show');
     Route::post('/tramos/{tramo}/corregir', [RegistroController::class, 'corregir'])->name('tramos.corregir');
 
-    // El calendario lo ve toda la plantilla. Los festivos salen de Nager.Date, filtrados por el centro de quien mira.
+    // El calendario lo ve toda la plantilla. Los festivos salen de la tabla local, filtrados por el centro de quien mira.
     Route::get('/calendario', [CalendarioController::class, 'index'])->name('calendario');
     Route::post('/calendario/vacaciones', [CalendarioController::class, 'solicitar'])->name('calendario.vacaciones');
 
@@ -73,7 +73,6 @@ Route::middleware(['auth', 'activo'])->group(function () {
         Route::get('/equipo/{user}/copia.csv', [RegistroController::class, 'csvDe'])->name('equipo.csv');
 
         Route::post('/calendario/fallo', [CalendarioController::class, 'fallo'])->name('calendario.fallo');
-
         Route::get('/incidencias', [IncidenciaController::class, 'index'])->name('incidencias.index');
         Route::get('/incidencias/{incidencia}', [IncidenciaController::class, 'show'])->name('incidencias.show');
         Route::post('/incidencias/{incidencia}/curso', [IncidenciaController::class, 'enCurso'])->name('incidencias.curso');

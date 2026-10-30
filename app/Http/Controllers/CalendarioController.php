@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Ausencia;
 use App\Models\FalloComun;
+use App\Models\Festivo;
 use App\Models\Jornada;
 use App\Models\SolicitudVacaciones;
 use App\Sede;
@@ -58,21 +59,21 @@ class CalendarioController extends Controller
             ->whereYear('work_date', $anio)
             ->get()
             ->keyBy(fn (Jornada $jornada) => $jornada->work_date->toDateString());
-        $faltas = $usuario->esJefa()
-            ? Ausencia::query()->with('user')->whereYear('absence_date', $anio)->orderBy('absence_date')->get()
-            : collect();
         $pendientes = $usuario->solicitudesVacaciones()
             ->where('estado', SolicitudVacaciones::PENDIENTE)
             ->get()
             ->flatMap(fn (SolicitudVacaciones $solicitud) => $this->cupo->queCuentan($usuario, $solicitud->starts_on, $solicitud->ends_on))
             ->flip();
-        $meses = $this->meses($anio, $festivos, $propias, $jornadas, $faltas->groupBy(fn (Ausencia $ausencia) => $ausencia->absence_date->toDateString()), $pendientes);
+        $meses = $this->meses($anio, $festivos, $propias, $jornadas, $pendientes);
         $mesActual = $meses[$mes - 1];
+        $vistaAnio = $request->query('vista') === 'anio';
         $centro = Sede::tryFrom((string) $usuario->centro) ?? Sede::porDefecto();
 
         $datos = [
             'festivos' => $festivos,
             'mes' => $mesActual,
+            'meses' => $meses,
+            'vistaAnio' => $vistaAnio,
             'eventos' => $this->eventosDelMes($mesActual),
             'anio' => $anio,
             'mesAnterior' => $mesAnterior,
@@ -81,9 +82,7 @@ class CalendarioController extends Controller
             'anioSiguiente' => $anio < now()->year + 1 ? ['anio' => $anio + 1, 'mes' => $mes] : null,
             'centro' => $centro,
             'sinCalendario' => $festivos->isEmpty(),
-            'faltas' => $faltas,
             'fallos' => FalloComun::query()->orderByDesc('falla_date')->limit(12)->get(),
-            'esJefa' => $request->user()->esJefa(),
             'diasVacaciones' => $this->cupo->restantes($usuario, now()->year),
         ];
 
@@ -192,11 +191,10 @@ class CalendarioController extends Controller
      * @param  Collection<int, DiaFestivo>  $festivos
      * @param  Collection<string, Ausencia>  $propias
      * @param  Collection<string, Jornada>  $jornadas
-     * @param  Collection<string, Collection<int, Ausencia>>  $faltas
      * @param  Collection<string, mixed>  $pendientes
-     * @return list<array{nombre: string, dias: list<array<string, mixed>|null>}>
+     * @return list<array{nombre: string, numero: int, dias: list<array<string, mixed>|null>}>
      */
-    private function meses(int $anio, Collection $festivos, Collection $propias, Collection $jornadas, Collection $faltas, Collection $pendientes): array
+    private function meses(int $anio, Collection $festivos, Collection $propias, Collection $jornadas, Collection $pendientes): array
     {
         $porDia = $festivos->keyBy(fn (DiaFestivo $festivo) => $festivo->holiday_date->toDateString());
         $hoy = now()->toDateString();
@@ -223,12 +221,11 @@ class CalendarioController extends Controller
                     'festivo' => $porDia->get($fecha),
                     'ausencia' => $propias->get($fecha),
                     'pendiente' => $pendientes->has($fecha),
-                    'faltan' => $faltas->get($fecha, collect()),
                     'registro' => $jornada && $fecha < $hoy ? route('registro.show', $jornada) : null,
                 ];
             }
 
-            $meses[] = ['nombre' => $nombre, 'dias' => $dias];
+            $meses[] = ['nombre' => $nombre, 'numero' => $indice + 1, 'dias' => $dias];
         }
 
         return $meses;

@@ -30,10 +30,19 @@ class EquipoController extends Controller
         private PlantillaDemo $plantilla,
     ) {}
 
-    public function index(): View
+    public function index(Request $request): View
     {
+        $mostrarTodas = $request->boolean('todas_personas');
+        $personasQuery = User::query()
+            ->with('horarios')
+            ->orderBy('name');
+
         return view('equipo.index', [
-            'personas' => User::query()->orderBy('name')->get(),
+            'personas' => (clone $personasQuery)
+                ->when(! $mostrarTodas, fn ($query) => $query->limit(8))
+                ->get(),
+            'mostrarTodas' => $mostrarTodas,
+            'totalPersonas' => (clone $personasQuery)->count(),
             'esJefa' => true,
         ]);
     }

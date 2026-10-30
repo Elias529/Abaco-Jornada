@@ -24,7 +24,7 @@
     <form method="post" action="{{ route('equipo.horario', $persona) }}" class="formulario">
         @csrf
         <label for="effective_from">El horario nuevo vale desde</label>
-        <input id="effective_from" name="effective_from" type="date" min="{{ now()->toDateString() }}" required>
+        <x-fecha id="effective_from" name="effective_from" :min="now()->toDateString()" required />
         <p class="secundario">Los días anteriores conservan su horario.</p>
         <label for="morning_start">Empieza</label>
         <x-hora id="morning_start" name="morning_start" valor="09:00" />
@@ -51,7 +51,7 @@
     <form method="post" action="{{ route('equipo.ausencia', $persona) }}" class="formulario">
         @csrf
         <label for="absence_date">Día</label>
-        <input id="absence_date" name="absence_date" type="date" required>
+        <x-fecha id="absence_date" name="absence_date" required />
         <label for="tipo">Tipo</label>
         <select id="tipo" name="tipo" required>
             <option value="vacaciones">Vacaciones</option>
