@@ -2,7 +2,7 @@
     <div>
         <p class="espacio-sobre">Mi jornada</p>
         <h1>Calendario</h1>
-        <p class="secundario">{{ $centro->municipio() }} · {{ $anio }}</p>
+        <p class="secundario">{{ $centro->name }} · {{ $centro->municipio() }} · {{ $anio }}</p>
     </div>
 
     <div class="calendario-controles">
@@ -63,12 +63,16 @@
             <h2 id="titulo-centro-calendario">Tu centro</h2>
             <dl>
                 <div>
-                    <dt>Ubicación</dt>
+                    <dt>Sede</dt>
+                    <dd>{{ $centro->name }}</dd>
+                </div>
+                <div>
+                    <dt>Municipio</dt>
                     <dd>{{ $centro->municipio() }}</dd>
                 </div>
                 <div>
-                    <dt>Comunidad</dt>
-                    <dd>{{ $centro->comunidad() }}</dd>
+                    <dt>Autonomía</dt>
+                    <dd>{{ $centro->autonomia() }}</dd>
                 </div>
                 <div>
                     <dt>Año</dt>

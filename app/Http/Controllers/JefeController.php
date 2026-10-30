@@ -119,6 +119,7 @@ class JefeController extends Controller
             ->where('user_id', $user->id)
             ->where('tipo', 'inicio')
             ->whereDate('work_date', '>=', $mes->toDateString())
+            ->whereDate('work_date', '>=', $this->jornada->fechaLimiteAvisoSinFichar($ahora))
             ->whereDate('work_date', '<=', $mes->copy()->endOfMonth()->toDateString())
             ->orderByDesc('work_date')
             ->get()
@@ -252,11 +253,6 @@ class JefeController extends Controller
             ->where('role', '!=', 'jefa')
             ->orderBy('name')
             ->get(['name']);
-        $mostrarTodasVacaciones = $request->boolean('todas_vacaciones');
-        $solicitudesVacacionesPendientes = SolicitudVacaciones::query()
-            ->where('estado', SolicitudVacaciones::PENDIENTE)
-            ->count();
-        $limiteSolicitudesVacaciones = $mostrarTodasVacaciones ? 100 : 3;
 
         return view('jefe.consultas', [
             'consultas' => $consulta,
@@ -265,15 +261,6 @@ class JefeController extends Controller
             'filtrosConsultas' => compact('persona', 'desde', 'hasta', 'mes'),
             'mesesConsultas' => $mesesConsultas,
             'trabajadores' => $trabajadores,
-            'solicitudesVacaciones' => SolicitudVacaciones::query()
-                ->with('autor')
-                ->where('estado', SolicitudVacaciones::PENDIENTE)
-                ->latest('id')
-                ->limit($limiteSolicitudesVacaciones)
-                ->get(),
-            'solicitudesVacacionesPendientes' => $solicitudesVacacionesPendientes,
-            'mostrarTodasVacaciones' => $mostrarTodasVacaciones,
-            'hayMasSolicitudesVacaciones' => $mostrarTodasVacaciones || $solicitudesVacacionesPendientes > 3,
         ]);
     }
 

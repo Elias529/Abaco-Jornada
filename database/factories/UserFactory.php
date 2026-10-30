@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\Centro;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
@@ -34,7 +35,7 @@ class UserFactory extends Factory
             'active' => true,
             'starts_on' => '2026-01-07',
             'municipality' => 'Madrid',
-            'centro' => 'ES-MD',
+            'centro_id' => Centro::query()->where('name', 'Madrid')->value('id'),
         ];
     }
 

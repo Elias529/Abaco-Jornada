@@ -70,7 +70,7 @@
             <label for="centro">Los festivos siguen esta sede</label>
             <select id="centro" name="centro" required onchange="this.form.requestSubmit()">
                 @foreach ($sedes as $opcion)
-                    <option value="{{ $opcion->value }}" @selected($sede === $opcion)>{{ $opcion->etiqueta() }}</option>
+                    <option value="{{ $opcion->name }}" @selected($sede->id === $opcion->id)>{{ $opcion->etiqueta() }}</option>
                 @endforeach
             </select>
         </fieldset>
@@ -106,7 +106,7 @@
         @if ($sinCalendario)
             <p class="franja" role="status">El calendario no está cargado. No inventamos festivos. Puedes elegir el tipo de jornada igual.</p>
         @else
-            <p class="secundario">Festivos públicos de {{ $centro }} ({{ $sede->comunidad() }}). En rojo, los de todo el país. En verde, los de esa comunidad. Si cae en domingo, pasa al lunes.</p>
+            <p class="secundario">Festivos públicos de {{ $centro }} ({{ $sede->autonomia() }}). En rojo, los de todo el país. En verde, los de esa autonomía. Si cae en domingo, pasa al lunes.</p>
         @endif
 
         <ul class="leyenda">
@@ -184,7 +184,7 @@
         <form method="post" action="{{ route('equipo.store') }}" class="formulario">
             @csrf
             <input type="hidden" name="tipo" value="{{ $tipo->value }}">
-            <input type="hidden" name="centro" value="{{ $sede->value }}">
+            <input type="hidden" name="centro" value="{{ $sede->name }}">
             <input type="hidden" name="starts_on" value="{{ $startsOn }}">
             <input type="hidden" name="duracion" value="{{ $duracion->value }}">
             @if ($duracion === \App\DuracionEstancia::HastaElDia)

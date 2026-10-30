@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\Ausencia;
 use App\Models\Aviso;
+use App\Models\Centro;
+use App\Models\Festivo;
 use App\Models\Horario;
 use App\Models\Incidencia;
 use App\Models\Jornada;
@@ -237,7 +239,7 @@ class JornadaTest extends TestCase
         $this->festivosPublicos($this->muestraNager());
         $madrid = $this->persona('Nuria Soler', 'nuria.soler@abaco.test', 'Alcalá de Henares');
         $cataluna = $this->persona('Laia Puig', 'laia.puig@abaco.test', 'Madrid');
-        $cataluna->update(['centro' => 'ES-CT']);
+        $cataluna->update(['centro_id' => Centro::query()->where('name', 'Barcelona')->value('id')]);
         $this->horario($madrid);
         $this->horario($cataluna);
 
@@ -253,6 +255,39 @@ class JornadaTest extends TestCase
             ->assertDontSee('Hoy es festivo en tu centro', false)
             ->assertSee('¿Cuándo empezaste?', false)
             ->assertDontSee('¿Ya estabas trabajando?', false);
+    }
+
+    public function test_un_centro_nuevo_recibe_solo_su_festivo_local(): void
+    {
+        $getafe = Centro::create([
+            'name' => 'Sede Getafe',
+            'municipality' => 'Getafe',
+            'community' => 'Comunidad de Madrid',
+        ]);
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
+        $ana->update([
+            'centro_id' => $getafe->id,
+            'municipality' => $getafe->municipality,
+        ]);
+        Festivo::create([
+            'holiday_date' => '2026-10-08',
+            'name' => 'Fiestas de Getafe',
+            'ambito' => 'pueblo',
+            'municipality' => 'Getafe',
+            'centro_id' => $getafe->id,
+        ]);
+        Festivo::create([
+            'holiday_date' => '2026-10-08',
+            'name' => 'Fiestas de Madrid',
+            'ambito' => 'pueblo',
+            'municipality' => 'Madrid',
+            'centro_id' => Centro::query()->where('name', 'Madrid')->value('id'),
+        ]);
+
+        $this->actingAs($ana)
+            ->get(route('calendario', ['mes' => 10]))
+            ->assertSee('Fiestas de Getafe', false)
+            ->assertDontSee('Fiestas de Madrid', false);
     }
 
     public function test_la_reunion_conserva_la_hora_prevista(): void
@@ -1259,6 +1294,39 @@ class JornadaTest extends TestCase
         $this->assertDatabaseCount('jornadas', 0);
     }
 
+    public function test_un_dia_sin_fichar_se_avisa_durante_siete_dias(): void
+    {
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
+        $this->horario($ana);
+        Carbon::setTestNow(Carbon::parse('2026-10-30 10:45:00', 'Europe/Madrid'));
+        Aviso::create(['user_id' => $ana->id, 'tipo' => 'inicio', 'work_date' => '2026-10-23', 'cuenta' => true]);
+
+        $this->actingAs($ana)
+            ->get(route('jornada'))
+            ->assertOk()
+            ->assertSee('El viernes 23 de octubre no quedó registrada la entrada', false)
+            ->assertDontSee('Empezar jornada', false);
+    }
+
+    public function test_un_dia_sin_fichar_deja_de_avisar_pasados_siete_dias(): void
+    {
+        $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
+        $this->horario($ana);
+        Carbon::setTestNow(Carbon::parse('2026-10-30 10:45:00', 'Europe/Madrid'));
+        Aviso::create(['user_id' => $ana->id, 'tipo' => 'inicio', 'work_date' => '2026-10-22', 'cuenta' => true]);
+
+        $this->actingAs($ana)
+            ->get(route('jornada'))
+            ->assertOk()
+            ->assertDontSee('El jueves 22 de octubre no quedó registrada la entrada', false)
+            ->assertSee('Empezar jornada', false);
+
+        $this->actingAs($ana)
+            ->post(route('jornada.entrada'))
+            ->assertRedirect()
+            ->assertSessionHas('ok');
+    }
+
     public function test_la_incidencia_de_conexion_declara_horas_sin_fichar_en_directo(): void
     {
         $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
@@ -1714,7 +1782,7 @@ class JornadaTest extends TestCase
             ->assertSee('vacaciones-total">22', false);
     }
 
-    public function test_el_equipo_pide_vacaciones_y_la_jefa_las_decide_en_consultas(): void
+    public function test_el_equipo_pide_vacaciones_y_la_jefa_las_decide_en_gestion(): void
     {
         $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
         $marta = $this->persona('Marta Ruiz', 'marta.ruiz@abaco.test', 'Madrid', 'jefa');
@@ -1746,9 +1814,8 @@ class JornadaTest extends TestCase
         ])->assertRedirect(route('jornada'));
         $this->assertSame(SolicitudVacaciones::PENDIENTE, $solicitud->fresh()->estado);
 
-        $this->actingAs($marta)->get(route('jefe.consultas', ['vista' => 'vacaciones']))
+        $this->actingAs($marta)->get(route('gestion.index'))
             ->assertOk()
-            ->assertSee('Registros consultados', false)
             ->assertSee('Solicitudes de vacaciones', false)
             ->assertSee('Ana López', false)
             ->assertSee('Del 20/10/2026 al 22/10/2026', false)
@@ -1871,7 +1938,7 @@ class JornadaTest extends TestCase
         ]);
         $ana = $this->persona('Ana López', 'ana.lopez@abaco.test', 'Madrid');
         $this->horario($ana);
-        $festivos = app(NagerFestivos::class)->delAnio('ES-MD', 2026);
+        $festivos = app(NagerFestivos::class)->delAnio('Madrid', 2026);
 
         $this->assertSame(['2026-08-15', '2026-11-01', '2026-12-06'], $festivos->map(fn ($dia) => $dia->holiday_date->toDateString())->all());
 
@@ -1927,7 +1994,7 @@ class JornadaTest extends TestCase
                 'password' => 'Jornada2026',
                 'starts_on' => '2026-10-13',
                 'duracion' => 'indefinido',
-                'centro' => 'ES-AN',
+                'centro' => 'Sevilla',
                 'tipo' => 'partida',
                 'morning_start' => '09:00',
                 'morning_end' => '14:00',
@@ -1938,7 +2005,7 @@ class JornadaTest extends TestCase
 
         $alta = User::query()->where('email', 'nuria.vega@abaco.test')->first();
         $this->assertSame('Sevilla', $alta->municipality);
-        $this->assertSame('ES-AN', $alta->centro);
+        $this->assertSame('Sevilla', $alta->sede->name);
     }
 
     public function test_la_pantalla_de_hoy_trae_los_tramos_cargados_y_el_horario(): void
@@ -1975,7 +2042,7 @@ class JornadaTest extends TestCase
             'active' => true,
             'starts_on' => '2026-01-07',
             'municipality' => $municipio,
-            'centro' => 'ES-MD',
+            'centro_id' => Centro::query()->where('name', 'Madrid')->value('id'),
         ]);
     }
 

@@ -4,10 +4,22 @@
     <a class="volver" href="{{ route('equipo.index') }}">Volver al equipo</a>
     <h1>{{ $persona->name }}</h1>
     <p>{{ $persona->email }}</p>
-    <p class="secundario">Centro en {{ $persona->municipality }}. El registro cuenta desde {{ $persona->starts_on ? \App\Support\Tiempo::fecha($persona->starts_on) : 'sin fecha' }}{{ $persona->ends_on ? ', hasta '.\App\Support\Tiempo::fecha($persona->ends_on) : ', sin fecha de fin' }}.</p>
+    <p class="secundario">Sede {{ $persona->sede?->name ?? 'sin asignar' }} en {{ $persona->sede?->municipality ?? $persona->municipality }}. El registro cuenta desde {{ $persona->starts_on ? \App\Support\Tiempo::fecha($persona->starts_on) : 'sin fecha' }}{{ $persona->ends_on ? ', hasta '.\App\Support\Tiempo::fecha($persona->ends_on) : ', sin fecha de fin' }}.</p>
     <p>
         <a class="boton boton-secundario" href="{{ route('equipo.registro', $persona) }}">Ver registro</a>
     </p>
+
+    <h2>Sede</h2>
+    <form method="post" action="{{ route('equipo.centro', $persona) }}" class="formulario">
+        @csrf
+        <label for="centro">Centro de trabajo</label>
+        <select id="centro" name="centro" required>
+            @foreach ($centros as $centro)
+                <option value="{{ $centro->name }}" @selected($persona->sede?->id === $centro->id)>{{ $centro->etiqueta() }}</option>
+            @endforeach
+        </select>
+        <button class="boton boton-secundario" type="submit">Guardar sede</button>
+    </form>
 
     <h2>Horario</h2>
     <ul class="lista">

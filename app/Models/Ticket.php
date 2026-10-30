@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Database\Factories\TicketFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -39,6 +40,7 @@ class Ticket extends Model
         'pagina',
         'estado',
         'resuelto_at',
+        'respuesta_vista_at',
     ];
 
     /**
@@ -48,6 +50,7 @@ class Ticket extends Model
     {
         return [
             'resuelto_at' => 'datetime',
+            'respuesta_vista_at' => 'datetime',
         ];
     }
 
@@ -69,5 +72,15 @@ class Ticket extends Model
     public function estaResuelto(): bool
     {
         return $this->estado === self::RESUELTO;
+    }
+
+    /**
+     * Tickets del trabajador con una respuesta del técnico que todavía no ha abierto.
+     */
+    public function scopeConRespuestaNueva(Builder $query, User $usuario): void
+    {
+        $query->whereBelongsTo($usuario, 'autor')
+            ->whereNull('respuesta_vista_at')
+            ->whereHas('mensajes', fn (Builder $mensajes) => $mensajes->where('user_id', '!=', $usuario->id));
     }
 }

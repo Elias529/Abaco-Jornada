@@ -2,8 +2,8 @@
 
 namespace Tests;
 
+use App\Models\Centro;
 use App\Models\Festivo;
-use App\Sede;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Facades\Http;
 
@@ -36,15 +36,23 @@ abstract class TestCase extends BaseTestCase
                 continue;
             }
 
-            $municipio = ($dia['global'] ?? false)
-                ? ''
-                : Sede::tryFrom((string) ($dia['counties'][0] ?? ''))?->municipio() ?? '';
+            $nombresSede = [
+                'ES-MD' => 'Madrid',
+                'ES-CT' => 'Barcelona',
+                'ES-AN' => 'Sevilla',
+                'ES-GETAFE' => 'Getafe',
+            ];
+            $centro = ($dia['global'] ?? false)
+                ? null
+                : Centro::query()->where('name', $nombresSede[$dia['counties'][0] ?? ''] ?? ($dia['counties'][0] ?? ''))->first();
 
             Festivo::create([
                 'holiday_date' => $dia['date'],
-                'municipality' => $municipio,
+                'municipality' => $centro?->municipality ?? '',
                 'name' => $dia['localName'],
                 'ambito' => ($dia['global'] ?? false) ? 'estado' : 'comunidad',
+                'community' => $centro?->community,
+                'centro_id' => ($dia['global'] ?? false) ? null : $centro?->id,
             ]);
         }
         cache()->flush();

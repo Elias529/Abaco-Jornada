@@ -7,13 +7,14 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Mail;
 
-#[Fillable(['name', 'email', 'password', 'role', 'active', 'starts_on', 'ends_on', 'municipality', 'centro'])]
+#[Fillable(['name', 'email', 'password', 'role', 'active', 'starts_on', 'ends_on', 'municipality', 'centro_id'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -46,6 +47,11 @@ class User extends Authenticatable
     public function horarios(): HasMany
     {
         return $this->hasMany(Horario::class);
+    }
+
+    public function sede(): BelongsTo
+    {
+        return $this->belongsTo(Centro::class, 'centro_id');
     }
 
     public function jornadas(): HasMany

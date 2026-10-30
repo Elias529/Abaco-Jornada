@@ -130,6 +130,68 @@ class TicketTest extends TestCase
             ->assertDontSee('Asunto de otra persona');
     }
 
+    public function test_el_trabajador_filtra_sus_tickets_por_estado_en_ayuda(): void
+    {
+        $ana = User::factory()->create();
+        Ticket::factory()->create(['user_id' => $ana->id, 'asunto' => 'Abierto de Ana']);
+        Ticket::factory()->enCurso()->create(['user_id' => $ana->id, 'asunto' => 'En curso de Ana']);
+        Ticket::factory()->resuelto()->create(['user_id' => $ana->id, 'asunto' => 'Cerrado de Ana']);
+
+        $this->actingAs($ana)->get(route('tickets.index'))
+            ->assertOk()
+            ->assertSee('Filtrar por estado')
+            ->assertSee('Abierto de Ana')
+            ->assertSee('En curso de Ana')
+            ->assertSee('Cerrado de Ana');
+        $this->actingAs($ana)->get(route('tickets.index', ['estado' => 'abierto']))
+            ->assertOk()
+            ->assertSee('Abierto de Ana')
+            ->assertDontSee('En curso de Ana')
+            ->assertDontSee('Cerrado de Ana');
+        $this->actingAs($ana)->get(route('tickets.index', ['estado' => 'en_curso']))
+            ->assertOk()
+            ->assertSee('En curso de Ana')
+            ->assertDontSee('Abierto de Ana')
+            ->assertDontSee('Cerrado de Ana');
+        $this->actingAs($ana)->get(route('tickets.index', ['estado' => 'resuelto']))
+            ->assertOk()
+            ->assertSee('Cerrado de Ana')
+            ->assertDontSee('Abierto de Ana')
+            ->assertDontSee('En curso de Ana');
+    }
+
+    public function test_el_trabajador_ve_cinco_tickets_en_ayuda_y_puede_abrir_el_resto(): void
+    {
+        $ana = User::factory()->create();
+        Ticket::factory()->count(6)->sequence(
+            ['asunto' => 'Incidencia antigua'],
+            ['asunto' => 'Incidencia dos'],
+            ['asunto' => 'Incidencia tres'],
+            ['asunto' => 'Incidencia cuatro'],
+            ['asunto' => 'Incidencia cinco'],
+            ['asunto' => 'Incidencia reciente'],
+        )->create(['user_id' => $ana->id]);
+
+        $this->actingAs($ana)->get(route('tickets.index'))
+            ->assertOk()
+            ->assertSee('Ver todas las incidencias')
+            ->assertSee('Incidencia reciente')
+            ->assertDontSee('Incidencia antigua');
+
+        $this->actingAs($ana)->get(route('tickets.index', ['todas_incidencias' => 1]))
+            ->assertOk()
+            ->assertSee('Ver menos')
+            ->assertSee('Incidencia reciente')
+            ->assertSee('Incidencia antigua')
+            ->assertSee('href="'.route('tickets.index').'"', false);
+
+        $this->actingAs($ana)->get(route('tickets.index'))
+            ->assertOk()
+            ->assertSee('Ver todas las incidencias')
+            ->assertSee('Incidencia reciente')
+            ->assertDontSee('Incidencia antigua');
+    }
+
     public function test_la_conversacion_cambia_el_estado(): void
     {
         $ana = User::factory()->create();
@@ -209,18 +271,154 @@ class TicketTest extends TestCase
             ->assertDontSee('aviso-ticket', false);
     }
 
+    public function test_el_trabajador_ve_un_aviso_en_ayuda_cuando_el_tecnico_responde(): void
+    {
+        $ana = User::factory()->create();
+        $tecnico = User::factory()->tecnico()->create();
+        $ticket = Ticket::factory()->create(['user_id' => $ana->id]);
+        $otro = Ticket::factory()->create(['user_id' => $ana->id]);
+
+        $this->actingAs($ana)->get(route('jornada'))
+            ->assertOk()
+            ->assertDontSee('aviso-ticket', false);
+
+        $this->actingAs($tecnico)->post(route('tickets.mensaje', $ticket), ['cuerpo' => 'Lo miro ahora.'])
+            ->assertRedirect(route('tickets.show', $ticket));
+        $this->actingAs($tecnico)->post(route('tickets.mensaje', $otro), ['cuerpo' => 'También este.'])
+            ->assertRedirect(route('tickets.show', $otro));
+
+        $this->actingAs($tecnico)->get(route('tickets.show', $ticket))->assertOk();
+        $this->actingAs($tecnico)->get(route('jornada'))
+            ->assertDontSee('Ayuda, 2 respuestas nuevas', false);
+
+        $this->actingAs($ana)->get(route('jornada'))
+            ->assertOk()
+            ->assertSee('aviso-ticket', false)
+            ->assertSee('Ayuda, 2 respuestas nuevas', false);
+
+        $this->actingAs($ana)->get(route('tickets.index'))
+            ->assertOk()
+            ->assertSee('Ayuda, 2 respuestas nuevas', false);
+
+        $this->actingAs($ana)->get(route('tickets.show', $ticket))->assertOk();
+
+        $this->actingAs($ana)->get(route('jornada'))
+            ->assertSee('Ayuda, 1 respuesta nueva', false);
+
+        $this->actingAs($ana)->get(route('tickets.show', $otro))->assertOk();
+
+        $this->actingAs($ana)->get(route('jornada'))
+            ->assertDontSee('aviso-ticket', false)
+            ->assertDontSee('Ayuda, 1 respuesta nueva', false);
+
+        $this->actingAs($ana)->post(route('tickets.mensaje', $ticket), ['cuerpo' => 'Gracias.'])
+            ->assertRedirect(route('tickets.show', $ticket));
+
+        $this->actingAs($ana)->get(route('jornada'))
+            ->assertDontSee('aviso-ticket', false);
+
+        $this->actingAs($tecnico)->post(route('tickets.mensaje', $ticket), ['cuerpo' => 'Ya está.'])
+            ->assertRedirect(route('tickets.show', $ticket));
+
+        $this->actingAs($ana)->get(route('jornada'))
+            ->assertSee('Ayuda, 1 respuesta nueva', false);
+    }
+
     public function test_el_tecnico_filtra_los_tickets_por_estado(): void
     {
         $tecnico = User::factory()->tecnico()->create();
-        Ticket::factory()->create(['asunto' => 'Pendiente uno']);
+        Ticket::factory()->create(['asunto' => 'Abierto uno']);
+        Ticket::factory()->enCurso()->create(['asunto' => 'En curso uno']);
         Ticket::factory()->resuelto()->create(['asunto' => 'Cerrado uno']);
 
         $this->actingAs($tecnico)->get(route('tecnico.tickets'))
-            ->assertSee('Pendiente uno')->assertDontSee('Cerrado uno');
+            ->assertSee('Abierto uno')
+            ->assertDontSee('En curso uno')
+            ->assertDontSee('Cerrado uno');
+        $this->actingAs($tecnico)->get(route('tecnico.tickets', ['estado' => 'en_curso']))
+            ->assertSee('En curso uno')
+            ->assertDontSee('Abierto uno')
+            ->assertDontSee('Cerrado uno');
         $this->actingAs($tecnico)->get(route('tecnico.tickets', ['estado' => 'resuelto']))
-            ->assertSee('Cerrado uno')->assertDontSee('Pendiente uno');
+            ->assertSee('Cerrado uno')
+            ->assertDontSee('Abierto uno')
+            ->assertDontSee('En curso uno');
         $this->actingAs($tecnico)->get(route('tecnico.tickets', ['estado' => 'todos']))
-            ->assertSee('Pendiente uno')->assertSee('Cerrado uno');
+            ->assertSee('Abierto uno')
+            ->assertSee('En curso uno')
+            ->assertSee('Cerrado uno');
+    }
+
+    public function test_el_tecnico_filtra_los_tickets_por_trabajador(): void
+    {
+        $tecnico = User::factory()->tecnico()->create();
+        $ana = User::factory()->create(['name' => 'Ana López']);
+        $lucia = User::factory()->create(['name' => 'Lucía Vega']);
+        $nuria = User::factory()->create(['name' => 'Nuria Soler']);
+        Ticket::factory()->create(['user_id' => $ana->id, 'asunto' => 'Ticket de Ana']);
+        Ticket::factory()->resuelto()->create(['user_id' => $ana->id, 'asunto' => 'Cerrado de Ana']);
+        Ticket::factory()->create(['user_id' => $lucia->id, 'asunto' => 'Ticket de Lucía']);
+
+        $this->actingAs($tecnico)->get(route('tecnico.tickets'))
+            ->assertOk()
+            ->assertSee('Filtrar por trabajador')
+            ->assertSee('Filtrar por estado')
+            ->assertDontSee('>Ver</', false)
+            ->assertSee('Ticket de Ana')
+            ->assertSee('Ticket de Lucía')
+            ->assertDontSee('Cerrado de Ana')
+            ->assertSee($nuria->name, false);
+
+        $this->actingAs($tecnico)->get(route('tecnico.tickets', ['trabajador' => $ana->id]))
+            ->assertOk()
+            ->assertSee('Ticket de Ana')
+            ->assertDontSee('Ticket de Lucía')
+            ->assertDontSee('Cerrado de Ana')
+            ->assertSee('trabajador='.$ana->id, false);
+
+        $this->actingAs($tecnico)->get(route('tecnico.tickets', ['estado' => 'resuelto', 'trabajador' => $ana->id]))
+            ->assertOk()
+            ->assertSee('Cerrado de Ana')
+            ->assertDontSee('Ticket de Ana')
+            ->assertDontSee('Ticket de Lucía');
+
+        $this->actingAs($tecnico)->get(route('tecnico.tickets', ['estado' => 'todos', 'trabajador' => $lucia->id]))
+            ->assertOk()
+            ->assertSee('Ticket de Lucía')
+            ->assertDontSee('Ticket de Ana')
+            ->assertDontSee('Cerrado de Ana');
+    }
+
+    public function test_el_tecnico_ve_cinco_tickets_y_puede_abrir_el_resto(): void
+    {
+        $tecnico = User::factory()->tecnico()->create();
+        Ticket::factory()->count(6)->sequence(
+            ['asunto' => 'Incidencia antigua'],
+            ['asunto' => 'Incidencia dos'],
+            ['asunto' => 'Incidencia tres'],
+            ['asunto' => 'Incidencia cuatro'],
+            ['asunto' => 'Incidencia cinco'],
+            ['asunto' => 'Incidencia reciente'],
+        )->create();
+
+        $this->actingAs($tecnico)->get(route('tecnico.tickets'))
+            ->assertOk()
+            ->assertSee('Ver todas las incidencias')
+            ->assertSee('Incidencia reciente')
+            ->assertDontSee('Incidencia antigua');
+
+        $this->actingAs($tecnico)->get(route('tecnico.tickets', ['todas_incidencias' => 1]))
+            ->assertOk()
+            ->assertSee('Ver menos')
+            ->assertSee('Incidencia reciente')
+            ->assertSee('Incidencia antigua')
+            ->assertSee('href="'.route('tecnico.tickets').'"', false);
+
+        $this->actingAs($tecnico)->get(route('tecnico.tickets'))
+            ->assertOk()
+            ->assertSee('Ver todas las incidencias')
+            ->assertSee('Incidencia reciente')
+            ->assertDontSee('Incidencia antigua');
     }
 
     public function test_comunicar_una_incidencia_de_conexion_abre_un_ticket_para_el_tecnico(): void

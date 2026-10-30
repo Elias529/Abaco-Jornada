@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Centro;
 use App\Models\Horario;
 use App\Models\User;
 use App\TipoJornada;
@@ -168,7 +169,7 @@ class EquipoAltaTest extends TestCase
                 'password' => 'Jornada2026',
                 'starts_on' => '2026-10-13',
                 'duracion' => 'indefinido',
-                'centro' => 'ES-MD',
+                'centro' => 'Madrid',
                 'tipo' => TipoJornada::Continua->value,
                 'morning_start' => '09:00',
                 'morning_end' => '14:00',
@@ -198,7 +199,7 @@ class EquipoAltaTest extends TestCase
                 'password' => 'Jornada2026',
                 'starts_on' => '2026-10-13',
                 'duracion' => 'tres_meses',
-                'centro' => 'ES-MD',
+                'centro' => 'Madrid',
                 'tipo' => TipoJornada::Partida->value,
             ])
             ->assertSessionHas('ok');
@@ -219,7 +220,7 @@ class EquipoAltaTest extends TestCase
                 'password' => 'Jornada2026',
                 'starts_on' => '2026-10-13',
                 'duracion' => 'hasta_el_dia',
-                'centro' => 'ES-MD',
+                'centro' => 'Madrid',
                 'tipo' => TipoJornada::Partida->value,
             ])
             ->assertSessionHasErrors('ends_on');
@@ -250,7 +251,7 @@ class EquipoAltaTest extends TestCase
                 'tipo' => TipoJornada::Partida->value,
                 'starts_on' => '2026-09-01',
                 'duracion' => 'indefinido',
-                'centro' => 'ES-CT',
+                'centro' => 'Barcelona',
                 'anio' => 2026,
             ]))
             ->assertOk()
@@ -270,13 +271,13 @@ class EquipoAltaTest extends TestCase
                 'password' => 'Jornada2026',
                 'starts_on' => '2026-10-13',
                 'duracion' => 'indefinido',
-                'centro' => 'ES-CT',
+                'centro' => 'Barcelona',
                 'tipo' => TipoJornada::Partida->value,
             ])
             ->assertSessionHas('ok');
 
         $persona = User::query()->where('email', 'nuria.vega@abaco.test')->first();
-        $this->assertSame('ES-CT', $persona->centro);
+        $this->assertSame('Barcelona', $persona->sede->name);
         $this->assertSame('Barcelona', $persona->municipality);
     }
 
@@ -291,7 +292,7 @@ class EquipoAltaTest extends TestCase
             'starts_on' => '2026-01-07',
             'ends_on' => '2026-10-06',
             'municipality' => 'Madrid',
-            'centro' => 'ES-MD',
+            'centro_id' => Centro::query()->where('name', 'Madrid')->value('id'),
         ]);
         Horario::create([
             'user_id' => $ana->id,
@@ -318,7 +319,7 @@ class EquipoAltaTest extends TestCase
             'active' => true,
             'starts_on' => '2026-01-07',
             'municipality' => 'Madrid',
-            'centro' => 'ES-MD',
+            'centro_id' => Centro::query()->where('name', 'Madrid')->value('id'),
         ]);
     }
 }

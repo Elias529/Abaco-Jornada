@@ -67,7 +67,7 @@ class CupoVacaciones
 
     private function aprobados(User $user, int $anio): int
     {
-        $festivos = $this->festivos->delAnio((string) $user->centro, $anio)
+        $festivos = $this->festivos->delAnio($user->sede, $anio)
             ->map(fn (DiaFestivo $dia) => $dia->holiday_date->toDateString())
             ->flip();
 
@@ -113,7 +113,7 @@ class CupoVacaciones
     {
         $claves = collect();
         for ($anio = $desde->year; $anio <= $hasta->year; $anio++) {
-            foreach ($this->festivos->delAnio((string) $user->centro, $anio) as $dia) {
+            foreach ($this->festivos->delAnio($user->sede, $anio) as $dia) {
                 $claves->put($dia->holiday_date->toDateString(), true);
             }
         }

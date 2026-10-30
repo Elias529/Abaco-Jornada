@@ -26,6 +26,8 @@ class JornadaService
 
     public const DIAS_HASTA_AVISAR_A_LA_JEFA = 7;
 
+    public const DIAS_PARA_EXPLICAR_SIN_FICHAR = 7;
+
     public const CENTRO = 'Madrid';
 
     public function __construct(private NagerFestivos $festivos) {}
@@ -133,7 +135,7 @@ class JornadaService
             'nombre' => explode(' ', trim($user->name))[0] ?: $user->name,
             'fechaLarga' => ucfirst($ahora->copy()->locale('es')->isoFormat('dddd, D [de] MMMM [de] YYYY')),
             'pastilla' => $this->pastilla($estado),
-            'centroNombre' => $user->municipality !== '' ? $user->municipality : (string) $user->centro,
+            'centroNombre' => $user->sede?->municipality ?? $user->municipality,
             'tipoLargo' => $tipo?->etiqueta(),
             'desdeTexto' => $primero ? 'Desde las '.Tiempo::hora($primero->started_at) : null,
             'previstoTexto' => $horario ? str_replace(' y ', ' · ', $horario->texto()) : null,
@@ -900,10 +902,10 @@ class JornadaService
     /**
      * Avisos que cuentan y siguen sin explicar. Solo los del año en curso,
      * el más antiguo primero. La entrada de hoy no entra: el día sigue
-     * abierto y se puede fichar. Si el día ya está cerrado, el aviso de
-     * cierre o de salida pendiente deja de contar. Un aviso de este año
-     * deja de contar también cuando la persona lo explica. El histórico
-     * de otros años se conserva.
+     * abierto y se puede fichar. Un día sin fichar deja de avisarse a los
+     * siete días. Si el día ya está cerrado, el aviso de cierre o de salida
+     * pendiente deja de contar. Un aviso de este año deja de contar también
+     * cuando la persona lo explica. El histórico de otros años se conserva.
      */
     public function problemasSinExplicar(User $user, Carbon $ahora): int
     {
@@ -921,6 +923,10 @@ class JornadaService
             ->where(function ($consulta) use ($ahora) {
                 $consulta->whereDate('work_date', '<', $ahora->toDateString())
                     ->orWhere('tipo', '!=', 'inicio');
+            })
+            ->where(function ($consulta) use ($ahora) {
+                $consulta->where('tipo', '!=', 'inicio')
+                    ->orWhereDate('work_date', '>=', $this->fechaLimiteAvisoSinFichar($ahora));
             })
             ->orderBy('work_date')
             ->orderBy('id')
@@ -986,7 +992,8 @@ class JornadaService
 
     /**
      * Avisos sin explicar de este año y de hace más de siete días: lo que
-     * la jefa debe mirar. Solo consulta. El más antiguo primero.
+     * la jefa debe mirar. Un día sin fichar no entra: a los siete días
+     * deja de avisarse. Solo consulta. El más antiguo primero.
      */
     public function cierresSinResolverAntiguos(User $user, Carbon $ahora): int
     {
@@ -995,15 +1002,21 @@ class JornadaService
         return Aviso::query()
             ->where('user_id', $user->id)
             ->where('cuenta', true)
+            ->where('tipo', '!=', 'inicio')
             ->whereNull('responded_at')
             ->whereDate('work_date', '>=', $ahora->copy()->startOfYear()->toDateString())
             ->whereDate('work_date', '<', $limite)
             ->count();
     }
 
+    public function fechaLimiteAvisoSinFichar(Carbon $ahora): string
+    {
+        return $ahora->copy()->subDays(self::DIAS_PARA_EXPLICAR_SIN_FICHAR)->toDateString();
+    }
+
     public function anioSinCalendario(User $user, Carbon $ahora): bool
     {
-        return $this->festivos->delAnio((string) $user->centro, $ahora->year)->isEmpty();
+        return $this->festivos->delAnio($user->sede, $ahora->year)->isEmpty();
     }
 
     /**
@@ -1277,7 +1290,7 @@ class JornadaService
             ->where('tipo', 'inicio')
             ->where('cuenta', true)
             ->whereNull('responded_at')
-            ->whereDate('work_date', '>=', $ahora->copy()->startOfYear()->toDateString())
+            ->whereDate('work_date', '>=', $this->fechaLimiteAvisoSinFichar($ahora))
             ->whereDate('work_date', '<', $ahora->toDateString())
             ->orderBy('work_date')
             ->first();
@@ -1653,7 +1666,7 @@ class JornadaService
 
     private function festivoDe(User $user, Carbon $fecha): bool
     {
-        return $this->festivos->es((string) $user->centro, $fecha);
+        return $this->festivos->es($user->sede, $fecha);
     }
 
     private function ausenciaDe(User $user, Carbon $fecha): bool
